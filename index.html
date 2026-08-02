@@ -963,12 +963,30 @@ async function renderProfile(){
 }
 
 /* ================= REPORTS ================= */
+let reportsMonth = null; // 1-12, null = كل الشهور
+let reportsYear = null;  // e.g. 2026, null = كل السنين
+const ARABIC_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+
 async function renderReports(){
   const body = document.getElementById('reportsBody');
   const customers = await getCustomers();
-  const feedbackList = await getFeedback();
+  const allFeedback = await getFeedback();
 
-  const totalCustomers = customers.length;
+  // year options available in the data, plus current year
+  const yearsInData = new Set(allFeedback.map(f=> new Date(f.date).getFullYear()));
+  yearsInData.add(new Date().getFullYear());
+  const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
+
+  const feedbackList = allFeedback.filter(f=>{
+    const d = new Date(f.date);
+    if(reportsMonth!=null && (d.getMonth()+1) !== reportsMonth) return false;
+    if(reportsYear!=null && d.getFullYear() !== reportsYear) return false;
+    return true;
+  });
+  const filterActive = reportsMonth!=null || reportsYear!=null;
+  const totalCustomers = filterActive
+    ? new Set(feedbackList.map(f=>f.phone)).size
+    : customers.length;
   const totalFeedback = feedbackList.length;
 
   // overall avg
@@ -1052,10 +1070,23 @@ async function renderReports(){
   if(!notesHtml){ notesHtml = '<div style="color:var(--muted);font-size:12.5px;">لا توجد ملاحظات نصية مسجلة بعد.</div>'; }
 
   body.innerHTML =
-    '<div class="statrow3">'
-      + '<div class="box"><b>'+totalCustomers+'</b><span>عدد العملاء</span></div>'
+    '<div class="repcard" style="margin:0 18px 14px;">'
+      + '<h4>📅 اختر الفترة</h4>'
+      + '<div style="display:flex;gap:8px;">'
+        + '<select id="reportsMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:\'Tajawal\';background:#FCF9F3;">'
+          + '<option value="">كل الشهور</option>'
+          + ARABIC_MONTHS.map((m,i)=>'<option value="'+(i+1)+'" '+(reportsMonth===(i+1)?'selected':'')+'>'+m+'</option>').join('')
+        + '</select>'
+        + '<select id="reportsYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:\'Tajawal\';background:#FCF9F3;">'
+          + '<option value="">كل السنين</option>'
+          + yearOptions.map(y=>'<option value="'+y+'" '+(reportsYear===y?'selected':'')+'>'+y+'</option>').join('')
+        + '</select>'
+      + '</div>'
+    + '</div>'
+    + '<div class="statrow3">'
+      + '<div class="box"><b>'+totalCustomers+'</b><span>'+(filterActive?'عملاء الفترة':'عدد العملاء')+'</span></div>'
       + '<div class="box"><b>'+totalFeedback+'</b><span>عدد الفيدباكات</span></div>'
-      + '<div class="box"><b>⭐'+overallAvg+'</b><span>متوسط التقييم العام</span></div>'
+      + '<div class="box"><b>⭐'+overallAvg+'</b><span>متوسط التقييم'+(filterActive?' للفترة':' العام')+'</span></div>'
     + '</div>'
     + '<div class="rep2">'
       + '<div class="repcard"><h4>أكثر المنتجات مبيعاً</h4>'
@@ -1071,6 +1102,15 @@ async function renderReports(){
       + '<h4>📋 الملاحظات مجمّعة حسب الصنف</h4>'
       + notesHtml
     + '</div>';
+
+  document.getElementById('reportsMonthSel').addEventListener('change', e=>{
+    reportsMonth = e.target.value ? parseInt(e.target.value,10) : null;
+    renderReports();
+  });
+  document.getElementById('reportsYearSel').addEventListener('change', e=>{
+    reportsYear = e.target.value ? parseInt(e.target.value,10) : null;
+    renderReports();
+  });
 }
 
 /* ================= SETTINGS ================= */
