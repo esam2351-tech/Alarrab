@@ -418,7 +418,7 @@
 
 
   <!-- ============ BOTTOM NAV ============ -->
-  <div class="bottomnav" id="bottomnav">
+  <div class="bottomnav" id="bottomnav" style="display:none;">
     <div class="navitem active js-go" data-tab="home" data-go="home"><span class="n-ico">🏠</span>الرئيسية</div>
     <div class="navitem js-go" data-tab="customers" data-go="customers"><span class="n-ico">👤</span>العملاء</div>
     <div class="navitem js-go" data-tab="reports" data-go="reports"><span class="n-ico">🔔</span>التنبيهات<span class="n-badge">3</span></div>
@@ -666,6 +666,8 @@ function go(id){
   const tab = map[id];
   if(tab){ const el = document.querySelector('.navitem[data-tab="'+tab+'"]'); if(el) el.classList.add('active'); }
   window.scrollTo(0,0);
+
+  document.getElementById('bottomnav').style.display = (id==='login') ? 'none' : 'flex';
 
   if(id==='customers') renderCustomersList();
   if(id==='reports') renderReports();
