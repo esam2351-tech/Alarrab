@@ -1,7 +1,7 @@
 {
   "name": "بيت البن - فيدباك العملاء",
   "short_name": "بيت البن",
-  "start_url": "./arrab-feedback-app.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1F140D",
   "theme_color": "#1F140D",
