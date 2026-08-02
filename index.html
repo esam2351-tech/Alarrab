@@ -262,6 +262,16 @@
   .avgcard span{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;}
   .avgcard b{font-family:'Cairo';font-size:15px;display:block;margin-bottom:4px;}
 
+  .notecat{margin-bottom:16px;}
+  .notecat:last-child{margin-bottom:0;}
+  .notecat h5{font-family:'Cairo';font-size:13px;margin:0 0 8px;display:flex;align-items:center;gap:6px;}
+  .notecat .notecount{color:var(--muted);font-weight:400;font-size:11px;}
+  .noteline{background:#FCF9F3;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px;}
+  .noteline:last-child{margin-bottom:0;}
+  .noteline b{font-size:12px;}
+  .noteline span{color:var(--muted);font-size:10.5px;margin-right:8px;}
+  .noteline p{margin:5px 0 0;font-size:12.5px;color:var(--ink);line-height:1.6;}
+
   /* ---------- SETTINGS ---------- */
   .settcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:0 18px 14px;}
   .settcard h3{font-family:'Cairo';font-size:14px;margin:0 0 4px;}
@@ -1015,6 +1025,32 @@ async function renderReports(){
     return s;
   }
 
+  // notes grouped by product/category — so all feedback about "بن تركي" sits together, etc.
+  const notesByCategory = {};
+  PRODUCTS.forEach(p=> notesByCategory[p.label] = []);
+  notesByCategory['عام (بدون صنف محدد)'] = [];
+  feedbackList.forEach(f=>{
+    if(!f.other) return;
+    const cats = (f.products && f.products.length) ? f.products : ['عام (بدون صنف محدد)'];
+    cats.forEach(cat=>{
+      if(!notesByCategory[cat]) notesByCategory[cat] = [];
+      notesByCategory[cat].push({ name: f.name, date: f.date, text: f.other });
+    });
+  });
+  const categoryIcon = {};
+  PRODUCTS.forEach(p=> categoryIcon[p.label] = p.icon);
+  let notesHtml = '';
+  Object.entries(notesByCategory).forEach(([cat, notes])=>{
+    if(!notes.length) return;
+    notesHtml += '<div class="notecat">'
+      + '<h5>'+(categoryIcon[cat]||'📝')+' '+esc(cat)+' <span class="notecount">('+notes.length+')</span></h5>'
+      + notes.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).map(n=>
+          '<div class="noteline"><b>'+esc(n.name||'—')+'</b><span>'+new Date(n.date).toLocaleDateString('ar-EG')+'</span><p>'+esc(n.text)+'</p></div>'
+        ).join('')
+      + '</div>';
+  });
+  if(!notesHtml){ notesHtml = '<div style="color:var(--muted);font-size:12.5px;">لا توجد ملاحظات نصية مسجلة بعد.</div>'; }
+
   body.innerHTML =
     '<div class="statrow3">'
       + '<div class="box"><b>'+totalCustomers+'</b><span>عدد العملاء</span></div>'
@@ -1030,6 +1066,10 @@ async function renderReports(){
     + '<div class="avgrow">'
       + '<div class="avgcard"><span>متوسط تقييم جودة البن</span><b>'+(avgQuality?avgQuality.toFixed(1):'—')+'</b>'+starsFor(avgQuality)+'</div>'
       + '<div class="avgcard"><span>متوسط تقييم الأسعار</span><b>'+(avgPrice?avgPrice.toFixed(1):'—')+'</b>'+starsFor(avgPrice)+'</div>'
+    + '</div>'
+    + '<div class="repcard" style="margin:0 18px 18px;">'
+      + '<h4>📋 الملاحظات مجمّعة حسب الصنف</h4>'
+      + notesHtml
     + '</div>';
 }
 
