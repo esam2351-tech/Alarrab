@@ -141,11 +141,12 @@
 
   .field{margin-bottom:14px;}
   .field label{display:block;font-size:12.5px;font-weight:700;color:var(--espresso-2);margin-bottom:6px;}
-  .field input,.field select{
+  .field input,.field select,.field textarea{
     width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;font-family:'Tajawal';
     font-size:13.5px;background:#FCF9F3;color:var(--ink);
   }
-  .field input:focus,.field select:focus{outline:2px solid var(--gold-light);border-color:var(--gold);}
+  .field textarea{resize:vertical;min-height:70px;}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--gold-light);border-color:var(--gold);}
 
   .chipgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;}
   .chip{
@@ -213,6 +214,20 @@
   .custcard .info small{color:var(--muted);font-size:11.5px;}
   .vip{background:var(--gold);color:#3D2416;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;pointer-events:none;}
   .emptystate{text-align:center;color:var(--muted);font-size:12.5px;padding:40px 24px;}
+
+  .complaintcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 18px 12px;box-shadow:var(--shadow);}
+  .complaintcard .ctop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+  .complaintcard h4{margin:0 0 3px;font-size:14px;font-family:'Cairo';font-weight:800;}
+  .complaintcard small{color:var(--muted);font-size:11px;}
+  .cstatus{font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;}
+  .cstatus.pending{background:#F7E3DC;color:var(--bad);}
+  .cstatus.resolved{background:#E4EEE9;color:var(--good);}
+  .complaintcard .crow{font-size:12.5px;margin-bottom:5px;line-height:1.6;}
+  .complaintcard .crow b{color:var(--espresso-2);}
+  .complaintcard .cbtnrow{display:flex;gap:8px;margin-top:10px;}
+  .complaintcard .cbtnrow button{flex:1;border:none;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Tajawal';}
+  .toggleStatusBtn.pending{background:var(--good);color:#fff;}
+  .toggleStatusBtn.resolved{background:var(--brickSoft,#F7E3DC);color:var(--bad);}
 
   #profile .head{background:var(--espresso);color:#F6EAD9;padding-bottom:20px;}
   #profile .back{background:rgba(255,255,255,.1);border:none;color:#F6EAD9;}
@@ -312,7 +327,6 @@
       </div>
       <div class="login-err" id="loginErr"></div>
       <button class="login-btn" id="loginBtn">دخول</button>
-      <p class="login-hint">حساب افتراضي للبداية: admin/1234<br>تقدر تضيف/تحذف موظفين من صفحة الإعدادات بعد الدخول.</p>
       <button id="installBtnLogin" style="width:100%;justify-content:center;background:none;border:none;color:#CBB59C;font-size:12px;margin-top:14px;cursor:pointer;font-family:'Tajawal',sans-serif;">📲 تثبيت التطبيق على الموبايل</button>
     </div>
   </div>
@@ -333,11 +347,51 @@
     <div class="grid">
       <div class="tile js-start-wizard"><span class="ic">📝</span><span>تسجيل فيدباك</span></div>
       <div class="tile js-go" data-go="quickadd"><span class="ic">👤</span><span>تسجيل عميل جديد</span></div>
-      <div class="tile js-go" data-go="customers"><span class="ic">🔍</span><span>بحث عن عميل</span></div>
-      <div class="tile js-go" data-go="reports"><span class="ic">⭐</span><span>تقييمات العملاء</span></div>
+      <div class="tile js-go" data-go="complaint"><span class="ic">⚠️</span><span>تسجيل شكوى</span></div>
+      <div class="tile js-go" data-go="complaintsList"><span class="ic">🗂️</span><span>متابعة الشكاوى</span></div>
       <div class="tile js-go" data-go="customers"><span class="ic">👥</span><span>متابعة العملاء</span></div>
       <div class="tile js-go" data-go="reports"><span class="ic">📊</span><span>التقارير والإحصائيات</span></div>
     </div>
+  </div>
+
+  <!-- ============ COMPLAINT ============ -->
+  <div class="screen" id="complaint">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>تسجيل شكوى</h2></div>
+    <div class="wrap">
+      <div class="card">
+        <h3>بيانات الشكوى</h3>
+        <p class="sub">سجّل كل التفاصيل عشان نقدر نتابع مع العميل صح</p>
+        <div class="field"><label>اسم العميل</label><input id="cp_name" placeholder="أدخل اسم العميل"></div>
+        <div class="field"><label>رقم الموبايل</label><input id="cp_phone" type="tel" placeholder="01012345678"></div>
+        <div class="field"><label>الصنف اللي اشتراه</label>
+          <select id="cp_product">
+            <option value="">اختر الصنف</option>
+            <!-- filled dynamically from PRODUCTS -->
+          </select>
+        </div>
+        <div class="field"><label>تاريخ الفاتورة</label><input id="cp_invoice_date" type="date"></div>
+        <div class="field"><label>توصيف المشكلة</label><textarea id="cp_issue" placeholder="اكتب المشكلة اللي حصلت بالتفصيل..."></textarea></div>
+        <div class="field"><label>الإجراء اللي اتخذه الموظف لحل المشكلة</label><textarea id="cp_action" placeholder="اكتب الحل أو الإجراء اللي اتعمل..."></textarea></div>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="btn ghost js-go" data-go="home">إلغاء</button>
+      <button class="btn primary" id="cpSaveBtn">تسجيل الشكوى</button>
+    </div>
+  </div>
+
+  <!-- ============ COMPLAINTS LIST (follow-up) ============ -->
+  <div class="screen" id="complaintsList">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>متابعة الشكاوى</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <div class="field"><input id="cpSearch" placeholder="ابحث بالاسم أو رقم الموبايل"></div>
+      <div class="tabs" style="margin:0 0 14px;">
+        <div class="t active" data-cpfilter="all">الكل</div>
+        <div class="t" data-cpfilter="pending">قيد المتابعة</div>
+        <div class="t" data-cpfilter="resolved">تم الحل</div>
+      </div>
+    </div>
+    <div id="complaintsListBox"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
 
   <!-- ============ QUICK ADD CUSTOMER ============ -->
@@ -484,9 +538,10 @@ const DEFAULT_STAFF = [
 ];
 
 let currentStaff = null; // {user,name,role} - in-memory only, resets on reload
-let APP_STATE = { staff: [], customers: [], feedback: [] };
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [] };
 let backendReady = false;
 let currentScreen = 'login';
+let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
 
 function backendConfigured(){
   return firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf('PASTE_YOUR') === -1;
@@ -546,32 +601,42 @@ function attachLiveSync(){
     if(currentScreen==='reports') renderReports();
     updateNotifBadges();
   });
+  subscribeShared('complaints', list=>{
+    APP_STATE.complaints = list;
+    if(currentScreen==='complaintsList') renderComplaintsList();
+  });
 }
 
-// Shows the real number of feedback entries registered by employees on the bell icons —
+// Shows the number of feedback entries registered SINCE the bell was last opened —
 // visible only to the admin (as requested), hidden for regular employees.
 function updateNotifBadges(){
   const homeBadge = document.getElementById('homeBellBadge');
   const navBadge = document.getElementById('navBellBadge');
   if(!homeBadge || !navBadge) return;
   const isAdmin = currentStaff && currentStaff.role === 'admin';
-  const count = APP_STATE.feedback.length;
+  const count = Math.max(APP_STATE.feedback.length - lastSeenFeedbackCount, 0);
   [homeBadge, navBadge].forEach(b=>{
     b.textContent = count;
     b.style.display = (isAdmin && count > 0) ? 'flex' : 'none';
   });
+}
+function markNotificationsSeen(){
+  lastSeenFeedbackCount = APP_STATE.feedback.length;
+  try{ localStorage.setItem('beitelbunn_lastSeenCount', String(lastSeenFeedbackCount)); }catch(e){}
+  updateNotifBadges();
 }
 
 async function loadAppState(){
   if(!backendConfigured()){ backendReady = false; return { ok:false, reason:'not-configured' }; }
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
-    const [staff, customers, feedback] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', [])
+    const [staff, customers, feedback, complaints] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
     APP_STATE.feedback = feedback;
+    APP_STATE.complaints = complaints;
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -592,6 +657,8 @@ async function getCustomers(){ return APP_STATE.customers; }
 async function saveCustomers(arr){ APP_STATE.customers = arr; saveShared('customers', arr); }
 async function getFeedback(){ return APP_STATE.feedback; }
 async function saveFeedback(arr){ APP_STATE.feedback = arr; saveShared('feedback', arr); }
+async function getComplaints(){ return APP_STATE.complaints; }
+async function saveComplaints(arr){ APP_STATE.complaints = arr; saveShared('complaints', arr); }
 
 
 
@@ -736,7 +803,8 @@ function go(id){
   document.getElementById('bottomnav').style.display = (id==='login') ? 'none' : 'flex';
 
   if(id==='customers') renderCustomersList();
-  if(id==='reports') renderReports();
+  if(id==='reports'){ renderReports(); markNotificationsSeen(); }
+  if(id==='complaintsList') renderComplaintsList();
   if(id==='settings'){ if(typeof resetStaffForm==='function') resetStaffForm(); renderSettings(); }
 }
 
@@ -977,6 +1045,110 @@ async function submitQuickAdd(){
   document.getElementById('successTitle').textContent = 'تم تسجيل العميل بنجاح';
   document.getElementById('successMsg').textContent = 'تم حفظ بيانات '+name+'. تقدر تسجّل فيدباك ليه في أي وقت من صفحة العملاء.';
   go('success');
+}
+
+/* ================= COMPLAINT ================= */
+function populateComplaintProductSelect(){
+  const sel = document.getElementById('cp_product');
+  if(!sel || sel.options.length > 1) return; // already populated
+  PRODUCTS.forEach(p=>{
+    const opt = document.createElement('option');
+    opt.value = p.label;
+    opt.textContent = p.icon+' '+p.label;
+    sel.appendChild(opt);
+  });
+}
+
+async function submitComplaint(){
+  const name = document.getElementById('cp_name').value.trim();
+  const phone = document.getElementById('cp_phone').value.trim();
+  const product = document.getElementById('cp_product').value;
+  const invoiceDate = document.getElementById('cp_invoice_date').value;
+  const issue = document.getElementById('cp_issue').value.trim();
+  const action = document.getElementById('cp_action').value.trim();
+
+  if(!name || !phone || !issue){
+    alert('من فضلك أدخل على الأقل اسم العميل ورقم الموبايل وتوصيف المشكلة');
+    return;
+  }
+
+  const btn = document.getElementById('cpSaveBtn');
+  btn.disabled = true; btn.textContent = 'جارِ التسجيل...';
+
+  const staffName = currentStaff ? currentStaff.name : 'غير معروف';
+  const complaints = await getComplaints();
+  const entry = {
+    id: normalizePhone(phone) + '_' + Date.now(),
+    name, phone: normalizePhone(phone), product, invoiceDate,
+    issue, actionTaken: action, status: 'pending',
+    staff: staffName, date: new Date().toISOString()
+  };
+  complaints.push(entry);
+  await saveComplaints(complaints);
+
+  btn.disabled = false; btn.textContent = 'تسجيل الشكوى';
+  document.getElementById('cp_name').value = '';
+  document.getElementById('cp_phone').value = '';
+  document.getElementById('cp_product').value = '';
+  document.getElementById('cp_invoice_date').value = '';
+  document.getElementById('cp_issue').value = '';
+  document.getElementById('cp_action').value = '';
+
+  document.getElementById('successTitle').textContent = 'تم تسجيل الشكوى بنجاح';
+  document.getElementById('successMsg').textContent = 'تم حفظ شكوى '+name+' وهيتم متابعتها.';
+  go('success');
+}
+
+/* ================= COMPLAINTS FOLLOW-UP ================= */
+let allComplaintsCache = [];
+let complaintsFilter = 'all'; // all | pending | resolved
+async function renderComplaintsList(){
+  const box = document.getElementById('complaintsListBox');
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const complaints = await getComplaints();
+  allComplaintsCache = complaints.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  paintComplaintsList();
+}
+function paintComplaintsList(){
+  const box = document.getElementById('complaintsListBox');
+  const q = (document.getElementById('cpSearch').value||'').trim().toLowerCase();
+  let list = allComplaintsCache;
+  if(complaintsFilter !== 'all'){ list = list.filter(c => (c.status||'pending') === complaintsFilter); }
+  if(q){ list = list.filter(c => (c.name||'').toLowerCase().includes(q) || (c.phone||'').includes(q)); }
+
+  if(!list.length){
+    box.innerHTML = '<div class="emptystate">لا توجد شكاوى مطابقة.</div>';
+    return;
+  }
+  box.innerHTML = list.map(c=>{
+    const status = c.status || 'pending';
+    const statusLabel = status==='resolved' ? 'تم الحل' : 'قيد المتابعة';
+    const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
+    const invLabel = c.invoiceDate ? new Date(c.invoiceDate).toLocaleDateString('ar-EG') : '—';
+    return '<div class="complaintcard">'
+      + '<div class="ctop"><div><h4>'+esc(c.name)+'</h4><small>📞 '+esc(c.phone)+' · '+dateLabel+'</small></div>'
+      + '<span class="cstatus '+status+'">'+statusLabel+'</span></div>'
+      + '<div class="crow"><b>الصنف:</b> '+esc(c.product||'—')+' · <b>تاريخ الفاتورة:</b> '+invLabel+'</div>'
+      + '<div class="crow"><b>المشكلة:</b> '+esc(c.issue||'—')+'</div>'
+      + '<div class="crow"><b>الإجراء المتخذ:</b> '+esc(c.actionTaken||'—')+'</div>'
+      + '<div class="crow"><b>سجّلها:</b> '+esc(c.staff||'—')+'</div>'
+      + '<div class="cbtnrow"><button class="toggleStatusBtn '+status+'" data-toggle="'+esc(c.id)+'">'+(status==='resolved' ? '↩️ إعادة فتح' : '✓ تحديد كمحلولة')+'</button></div>'
+      + '</div>';
+  }).join('');
+
+  box.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=> toggleComplaintStatus(btn.getAttribute('data-toggle')));
+  });
+}
+async function toggleComplaintStatus(id){
+  const complaints = await getComplaints();
+  const updated = complaints.map(c=>{
+    if(c.id !== id) return c;
+    return Object.assign({}, c, { status: (c.status==='resolved') ? 'pending' : 'resolved' });
+  });
+  await saveComplaints(updated);
+  allComplaintsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  paintComplaintsList();
 }
 
 /* ================= CUSTOMERS LIST ================= */
@@ -1447,6 +1619,10 @@ async function doLogin(){
   document.getElementById('staffNameLabel').textContent = match.name;
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
+  try{
+    const saved = localStorage.getItem('beitelbunn_lastSeenCount');
+    lastSeenFeedbackCount = saved!=null ? parseInt(saved,10) : APP_STATE.feedback.length;
+  }catch(e){ lastSeenFeedbackCount = APP_STATE.feedback.length; }
   go('home');
   updateNotifBadges();
 }
@@ -1478,8 +1654,20 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('addStaffBtn').addEventListener('click', addStaffMember);
   document.getElementById('cancelEditStaffBtn').addEventListener('click', resetStaffForm);
   document.getElementById('qaSaveBtn').addEventListener('click', submitQuickAdd);
+  populateComplaintProductSelect();
+  document.getElementById('cpSaveBtn').addEventListener('click', submitComplaint);
 
   document.getElementById('custSearch').addEventListener('input', e=> filterCustomers(e.target.value));
+
+  document.getElementById('cpSearch').addEventListener('input', paintComplaintsList);
+  document.querySelectorAll('[data-cpfilter]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      document.querySelectorAll('[data-cpfilter]').forEach(t=>t.classList.remove('active'));
+      el.classList.add('active');
+      complaintsFilter = el.getAttribute('data-cpfilter');
+      paintComplaintsList();
+    });
+  });
 
   initLoginScreen();
 
