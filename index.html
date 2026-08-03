@@ -417,9 +417,10 @@
     </div>
     <div class="settcard" id="staffCard" style="display:none;">
       <h3>الموظفين (للمدير فقط)</h3>
-      <p>أضف أو احذف حسابات الموظفين اللي بيدخلوا على التطبيق ويسجلوا فيدباك.</p>
+      <p>أضف أو عدّل أو احذف حسابات الموظفين اللي بيدخلوا على التطبيق ويسجلوا فيدباك.</p>
       <div id="staffListBox"></div>
-      <div style="display:flex;gap:8px;margin-top:10px;">
+      <p id="staffFormTitle" style="font-size:12px;font-weight:700;color:var(--espresso-2);margin:12px 0 6px;">إضافة موظف جديد</p>
+      <div style="display:flex;gap:8px;">
         <input id="newStaffName" placeholder="اسم الموظف" style="margin-bottom:0;">
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;">
@@ -429,7 +430,10 @@
       <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-top:8px;">
         <input type="checkbox" id="newStaffIsAdmin" style="width:auto;margin:0;"> منح صلاحية مدير (يقدر يضيف/يحذف موظفين)
       </label>
-      <button class="btn primary full" id="addStaffBtn" style="margin-top:10px;">إضافة موظف</button>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn primary full" id="addStaffBtn">إضافة موظف</button>
+        <button class="btn ghost" id="cancelEditStaffBtn" style="display:none;flex:0 0 auto;">إلغاء</button>
+      </div>
       <div class="savedTag" id="staffSavedTag">✓ تم الحفظ</div>
     </div>
   </div>
@@ -649,7 +653,15 @@ window.addEventListener('popstate', function(){
 
 /* ================= INSTALL TO HOME SCREEN ================= */
 if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+  let swRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(swRefreshing) return;
+    swRefreshing = true;
+    window.location.reload();
+  });
 }
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredInstallPrompt = e; });
@@ -725,7 +737,7 @@ function go(id){
 
   if(id==='customers') renderCustomersList();
   if(id==='reports') renderReports();
-  if(id==='settings') renderSettings();
+  if(id==='settings'){ if(typeof resetStaffForm==='function') resetStaffForm(); renderSettings(); }
 }
 
 function startWizard(){
@@ -1224,6 +1236,20 @@ async function renderReports(){
   });
   if(!notesHtml){ notesHtml = '<div style="color:var(--muted);font-size:12.5px;">لا توجد ملاحظات نصية مسجلة بعد.</div>'; }
 
+  // feedback count per staff member (who registered it)
+  const staffCounts = {};
+  feedbackList.forEach(f=>{
+    const name = f.staff || 'غير معروف';
+    staffCounts[name] = (staffCounts[name]||0) + 1;
+  });
+  const staffCountEntries = Object.entries(staffCounts).sort((a,b)=>b[1]-a[1]);
+  let staffCountsHtml = '<div style="color:var(--muted);font-size:12.5px;">لا توجد بيانات بعد</div>';
+  if(staffCountEntries.length){
+    staffCountsHtml = staffCountEntries.map(([name,count])=>
+      '<div class="row-frow" style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;"><span>'+esc(name)+'</span><b style="color:var(--espresso-2);">'+count+'</b></div>'
+    ).join('');
+  }
+
   body.innerHTML =
     '<div class="repcard" style="margin:0 18px 14px;">'
       + '<h4>📅 اختر الفترة</h4>'
@@ -1254,6 +1280,10 @@ async function renderReports(){
       + '<div class="avgcard"><span>متوسط تقييم الأسعار</span><b>'+(avgPrice?avgPrice.toFixed(1):'—')+'</b>'+starsFor(avgPrice)+'</div>'
     + '</div>'
     + '<div class="repcard" style="margin:0 18px 18px;">'
+      + '<h4>🧑‍💼 عدد الفيدباك لكل موظف</h4>'
+      + staffCountsHtml
+    + '</div>'
+    + '<div class="repcard" style="margin:0 18px 18px;">'
       + '<h4>📋 الملاحظات مجمّعة حسب الصنف</h4>'
       + notesHtml
     + '</div>';
@@ -1281,15 +1311,20 @@ async function renderSettings(){
     staffCard.style.display = 'none';
   }
 }
+let editingStaffUser = null; // null = adding a new staff member; otherwise the original @username being edited
+
 async function paintStaffList(){
   const box = document.getElementById('staffListBox');
   const staff = await getStaff();
   if(!staff.length){ box.innerHTML = '<div style="color:var(--muted);font-size:11.5px;">لا يوجد موظفين بعد.</div>'; return; }
   box.innerHTML = staff.map(s=>
     '<div class="staffrow"><div><b>'+esc(s.name)+'</b> '+(s.role==='admin'?'👑':'')+'<br><span>@'+esc(s.user)+'</span></div>'
-    + '<button class="delStaff" data-user="'+esc(s.user)+'">حذف</button></div>'
+    + '<div style="display:flex;gap:10px;">'
+      + '<button class="delStaff" data-edituser="'+esc(s.user)+'" style="color:var(--primary,#0F5C4F);">تعديل</button>'
+      + '<button class="delStaff" data-user="'+esc(s.user)+'">حذف</button>'
+    + '</div></div>'
   ).join('');
-  box.querySelectorAll('.delStaff').forEach(btn=>{
+  box.querySelectorAll('[data-user]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const user = btn.getAttribute('data-user');
       if(currentStaff && user === currentStaff.user){ alert('متقدرش تحذف حسابك وانت داخل بيه'); return; }
@@ -1299,21 +1334,65 @@ async function paintStaffList(){
       await paintStaffList();
     });
   });
+  box.querySelectorAll('[data-edituser]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const user = btn.getAttribute('data-edituser');
+      const list = await getStaff();
+      const s = list.find(x=>x.user===user);
+      if(!s) return;
+      editingStaffUser = s.user;
+      document.getElementById('newStaffName').value = s.name;
+      document.getElementById('newStaffUser').value = s.user;
+      document.getElementById('newStaffPass').value = s.pass;
+      document.getElementById('newStaffIsAdmin').checked = s.role==='admin';
+      document.getElementById('staffFormTitle').textContent = 'تعديل بيانات: '+s.name;
+      document.getElementById('addStaffBtn').textContent = 'حفظ التعديل';
+      document.getElementById('cancelEditStaffBtn').style.display = 'block';
+      document.getElementById('newStaffName').scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  });
 }
+
+function resetStaffForm(){
+  editingStaffUser = null;
+  document.getElementById('newStaffName').value = '';
+  document.getElementById('newStaffUser').value = '';
+  document.getElementById('newStaffPass').value = '';
+  document.getElementById('newStaffIsAdmin').checked = false;
+  document.getElementById('staffFormTitle').textContent = 'إضافة موظف جديد';
+  document.getElementById('addStaffBtn').textContent = 'إضافة موظف';
+  document.getElementById('cancelEditStaffBtn').style.display = 'none';
+}
+
 async function addStaffMember(){
   const name = document.getElementById('newStaffName').value.trim();
   const user = document.getElementById('newStaffUser').value.trim();
   const pass = document.getElementById('newStaffPass').value;
   const isAdmin = document.getElementById('newStaffIsAdmin').checked;
   if(!name || !user || !pass){ alert('من فضلك املأ اسم الموظف واسم المستخدم وكلمة السر'); return; }
+
   const list = await getStaff();
-  if(list.some(s=>s.user===user)){ alert('اسم المستخدم ده مستخدم بالفعل'); return; }
-  list.push({user, pass, name, role: isAdmin ? 'admin' : 'employee'});
-  await saveStaff(list);
-  document.getElementById('newStaffName').value = '';
-  document.getElementById('newStaffUser').value = '';
-  document.getElementById('newStaffPass').value = '';
-  document.getElementById('newStaffIsAdmin').checked = false;
+
+  if(editingStaffUser){
+    // editing an existing staff member (username itself may have been changed too)
+    const dupeExists = list.some(s=>s.user===user && s.user!==editingStaffUser);
+    if(dupeExists){ alert('اسم المستخدم ده مستخدم بالفعل'); return; }
+    const idx = list.findIndex(s=>s.user===editingStaffUser);
+    if(idx===-1){ alert('تعذر إيجاد الموظف ده، ممكن يكون اتحذف'); resetStaffForm(); await paintStaffList(); return; }
+    list[idx] = {user, pass, name, role: isAdmin ? 'admin' : 'employee'};
+    await saveStaff(list);
+    // if the logged-in admin just edited their own account, keep the session in sync
+    if(currentStaff && currentStaff.user === editingStaffUser){
+      currentStaff = {user, name, role: isAdmin ? 'admin' : 'employee'};
+      document.getElementById('staffNameLabel').textContent = name;
+    }
+  } else {
+    if(list.some(s=>s.user===user)){ alert('اسم المستخدم ده مستخدم بالفعل'); return; }
+    list.push({user, pass, name, role: isAdmin ? 'admin' : 'employee'});
+    await saveStaff(list);
+  }
+
+  resetStaffForm();
   const tag = document.getElementById('staffSavedTag');
   tag.style.display = 'block';
   setTimeout(()=> tag.style.display='none', 2000);
@@ -1321,17 +1400,6 @@ async function addStaffMember(){
 }
 
 /* ================= LOGIN ================= */
-const SESSION_KEY = 'beitelbunn_session';
-function saveSession(staffObj){
-  try{ localStorage.setItem(SESSION_KEY, JSON.stringify(staffObj)); }catch(e){}
-}
-function clearSession(){
-  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
-}
-function loadSession(){
-  try{ const v = localStorage.getItem(SESSION_KEY); return v ? JSON.parse(v) : null; }catch(e){ return null; }
-}
-
 async function initLoginScreen(){
   const err = document.getElementById('loginErr');
   const loginBtn = document.getElementById('loginBtn');
@@ -1350,21 +1418,6 @@ async function initLoginScreen(){
   }
   err.textContent = '';
   loginBtn.disabled = false;
-
-  // Refresh should NOT log the person out: restore a saved session if it still matches a real account.
-  const saved = loadSession();
-  if(saved){
-    const staff = await getStaff();
-    const match = staff.find(s => s.user === saved.user);
-    if(match){
-      currentStaff = {user:match.user, name:match.name, role: match.role || 'employee'};
-      document.getElementById('staffNameLabel').textContent = match.name;
-      go('home');
-      updateNotifBadges();
-    } else {
-      clearSession();
-    }
-  }
 }
 
 async function doLogin(){
@@ -1391,7 +1444,6 @@ async function doLogin(){
   }
   err.textContent = '';
   currentStaff = {user:match.user, name:match.name, role: match.role || 'employee'};
-  saveSession({user:match.user});
   document.getElementById('staffNameLabel').textContent = match.name;
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
@@ -1400,7 +1452,6 @@ async function doLogin(){
 }
 function doLogout(){
   currentStaff = null;
-  clearSession();
   go('login');
   document.getElementById('login').classList.add('active');
 }
@@ -1425,6 +1476,7 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('installBtnLogin').addEventListener('click', installApp);
   document.getElementById('installBtnSettings').addEventListener('click', installApp);
   document.getElementById('addStaffBtn').addEventListener('click', addStaffMember);
+  document.getElementById('cancelEditStaffBtn').addEventListener('click', resetStaffForm);
   document.getElementById('qaSaveBtn').addEventListener('click', submitQuickAdd);
 
   document.getElementById('custSearch').addEventListener('input', e=> filterCustomers(e.target.value));
