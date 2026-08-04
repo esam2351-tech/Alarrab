@@ -226,6 +226,7 @@
   .complaintcard .crow b{color:var(--espresso-2);}
   .complaintcard .cbtnrow{display:flex;gap:8px;margin-top:10px;}
   .complaintcard .cbtnrow button{flex:1;border:none;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Tajawal';}
+  .shareWaBtn{background:#25D366;color:#fff;}
   .toggleStatusBtn.pending{background:var(--good);color:#fff;}
   .toggleStatusBtn.resolved{background:var(--brickSoft,#F7E3DC);color:var(--bad);}
 
@@ -327,6 +328,7 @@
       </div>
       <div class="login-err" id="loginErr"></div>
       <button class="login-btn" id="loginBtn">دخول</button>
+      <p class="login-hint">حساب افتراضي للبداية: admin/1234<br>تقدر تضيف/تحذف موظفين من صفحة الإعدادات بعد الدخول.</p>
       <button id="installBtnLogin" style="width:100%;justify-content:center;background:none;border:none;color:#CBB59C;font-size:12px;margin-top:14px;cursor:pointer;font-family:'Tajawal',sans-serif;">📲 تثبيت التطبيق على الموبايل</button>
     </div>
   </div>
@@ -369,6 +371,7 @@
             <!-- filled dynamically from PRODUCTS -->
           </select>
         </div>
+        <div class="field"><label>تفاصيل الصنف (اختياري)</label><input id="cp_product_details" placeholder="مثال: الحجم، النوع، رقم التشغيلة..."></div>
         <div class="field"><label>تاريخ الفاتورة</label><input id="cp_invoice_date" type="date"></div>
         <div class="field"><label>توصيف المشكلة</label><textarea id="cp_issue" placeholder="اكتب المشكلة اللي حصلت بالتفصيل..."></textarea></div>
         <div class="field"><label>الإجراء اللي اتخذه الموظف لحل المشكلة</label><textarea id="cp_action" placeholder="اكتب الحل أو الإجراء اللي اتعمل..."></textarea></div>
@@ -385,6 +388,14 @@
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>متابعة الشكاوى</h2></div>
     <div class="wrap" style="padding-top:0;">
       <div class="field"><input id="cpSearch" placeholder="ابحث بالاسم أو رقم الموبايل"></div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <select id="cpMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
+          <option value="">كل الشهور</option>
+        </select>
+        <select id="cpYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
+          <option value="">كل السنين</option>
+        </select>
+      </div>
       <div class="tabs" style="margin:0 0 14px;">
         <div class="t active" data-cpfilter="all">الكل</div>
         <div class="t" data-cpfilter="pending">قيد المتابعة</div>
@@ -1063,6 +1074,7 @@ async function submitComplaint(){
   const name = document.getElementById('cp_name').value.trim();
   const phone = document.getElementById('cp_phone').value.trim();
   const product = document.getElementById('cp_product').value;
+  const productDetails = document.getElementById('cp_product_details').value.trim();
   const invoiceDate = document.getElementById('cp_invoice_date').value;
   const issue = document.getElementById('cp_issue').value.trim();
   const action = document.getElementById('cp_action').value.trim();
@@ -1079,7 +1091,7 @@ async function submitComplaint(){
   const complaints = await getComplaints();
   const entry = {
     id: normalizePhone(phone) + '_' + Date.now(),
-    name, phone: normalizePhone(phone), product, invoiceDate,
+    name, phone: normalizePhone(phone), product, productDetails, invoiceDate,
     issue, actionTaken: action, status: 'pending',
     staff: staffName, date: new Date().toISOString()
   };
@@ -1090,6 +1102,7 @@ async function submitComplaint(){
   document.getElementById('cp_name').value = '';
   document.getElementById('cp_phone').value = '';
   document.getElementById('cp_product').value = '';
+  document.getElementById('cp_product_details').value = '';
   document.getElementById('cp_invoice_date').value = '';
   document.getElementById('cp_issue').value = '';
   document.getElementById('cp_action').value = '';
@@ -1102,17 +1115,41 @@ async function submitComplaint(){
 /* ================= COMPLAINTS FOLLOW-UP ================= */
 let allComplaintsCache = [];
 let complaintsFilter = 'all'; // all | pending | resolved
+let cpMonth = null; // 1-12, null = كل الشهور
+let cpYear = null;  // e.g. 2026, null = كل السنين
+
+function populateComplaintsTimeFilters(){
+  const monthSel = document.getElementById('cpMonthSel');
+  const yearSel = document.getElementById('cpYearSel');
+  if(monthSel.options.length <= 1){
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i+1; opt.textContent = m;
+      monthSel.appendChild(opt);
+    });
+  }
+  const yearsInData = new Set(allComplaintsCache.map(c=> new Date(c.date).getFullYear()));
+  yearsInData.add(new Date().getFullYear());
+  const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
+  const currentVal = yearSel.value;
+  yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  yearSel.value = currentVal;
+}
+
 async function renderComplaintsList(){
   const box = document.getElementById('complaintsListBox');
   box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
   const complaints = await getComplaints();
   allComplaintsCache = complaints.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  populateComplaintsTimeFilters();
   paintComplaintsList();
 }
 function paintComplaintsList(){
   const box = document.getElementById('complaintsListBox');
   const q = (document.getElementById('cpSearch').value||'').trim().toLowerCase();
   let list = allComplaintsCache;
+  if(cpMonth!=null){ list = list.filter(c => (new Date(c.date).getMonth()+1) === cpMonth); }
+  if(cpYear!=null){ list = list.filter(c => new Date(c.date).getFullYear() === cpYear); }
   if(complaintsFilter !== 'all'){ list = list.filter(c => (c.status||'pending') === complaintsFilter); }
   if(q){ list = list.filter(c => (c.name||'').toLowerCase().includes(q) || (c.phone||'').includes(q)); }
 
@@ -1129,15 +1166,22 @@ function paintComplaintsList(){
       + '<div class="ctop"><div><h4>'+esc(c.name)+'</h4><small>📞 '+esc(c.phone)+' · '+dateLabel+'</small></div>'
       + '<span class="cstatus '+status+'">'+statusLabel+'</span></div>'
       + '<div class="crow"><b>الصنف:</b> '+esc(c.product||'—')+' · <b>تاريخ الفاتورة:</b> '+invLabel+'</div>'
+      + (c.productDetails ? '<div class="crow"><b>تفاصيل الصنف:</b> '+esc(c.productDetails)+'</div>' : '')
       + '<div class="crow"><b>المشكلة:</b> '+esc(c.issue||'—')+'</div>'
       + '<div class="crow"><b>الإجراء المتخذ:</b> '+esc(c.actionTaken||'—')+'</div>'
       + '<div class="crow"><b>سجّلها:</b> '+esc(c.staff||'—')+'</div>'
-      + '<div class="cbtnrow"><button class="toggleStatusBtn '+status+'" data-toggle="'+esc(c.id)+'">'+(status==='resolved' ? '↩️ إعادة فتح' : '✓ تحديد كمحلولة')+'</button></div>'
+      + '<div class="cbtnrow">'
+        + '<button class="toggleStatusBtn '+status+'" data-toggle="'+esc(c.id)+'">'+(status==='resolved' ? '↩️ إعادة فتح' : '✓ تحديد كمحلولة')+'</button>'
+        + '<button class="shareWaBtn" data-sharewa="'+esc(c.id)+'">📤 واتساب</button>'
+      + '</div>'
       + '</div>';
   }).join('');
 
   box.querySelectorAll('[data-toggle]').forEach(btn=>{
     btn.addEventListener('click', ()=> toggleComplaintStatus(btn.getAttribute('data-toggle')));
+  });
+  box.querySelectorAll('[data-sharewa]').forEach(btn=>{
+    btn.addEventListener('click', ()=> shareComplaintOnWhatsApp(btn.getAttribute('data-sharewa')));
   });
 }
 async function toggleComplaintStatus(id){
@@ -1149,6 +1193,28 @@ async function toggleComplaintStatus(id){
   await saveComplaints(updated);
   allComplaintsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
   paintComplaintsList();
+}
+
+function shareComplaintOnWhatsApp(id){
+  const c = allComplaintsCache.find(x=>x.id===id);
+  if(!c) return;
+  const status = c.status || 'pending';
+  const statusLabel = status==='resolved' ? 'تم الحل' : 'قيد المتابعة';
+  const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
+  const invLabel = c.invoiceDate ? new Date(c.invoiceDate).toLocaleDateString('ar-EG') : '—';
+  const lines = [
+    '📋 *شكوى - بيت البن*',
+    'الحالة: '+statusLabel,
+    'العميل: '+(c.name||'—'),
+    'الموبايل: '+(c.phone||'—'),
+    'الصنف: '+(c.product||'—')+(c.productDetails ? ' ('+c.productDetails+')' : ''),
+    'تاريخ الفاتورة: '+invLabel,
+    'المشكلة: '+(c.issue||'—'),
+    'الإجراء المتخذ: '+(c.actionTaken||'—'),
+    'سجّلها: '+(c.staff||'—')+' بتاريخ '+dateLabel
+  ];
+  const text = encodeURIComponent(lines.join('\n'));
+  window.open('https://wa.me/?text='+text, '_blank');
 }
 
 /* ================= CUSTOMERS LIST ================= */
@@ -1380,7 +1446,7 @@ async function renderReports(){
 
   // notes grouped by product/category — sourced from the precise per-product notes step,
   // so a note about "بن تركي" only shows under بن تركي (not duplicated across every product bought).
-  const notesByCategory = {};
+const notesByCategory = {};
   PRODUCTS.forEach(p=> notesByCategory[p.label] = []);
   notesByCategory['عام (بدون صنف محدد)'] = [];
   feedbackList.forEach(f=>{
@@ -1660,6 +1726,14 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('custSearch').addEventListener('input', e=> filterCustomers(e.target.value));
 
   document.getElementById('cpSearch').addEventListener('input', paintComplaintsList);
+  document.getElementById('cpMonthSel').addEventListener('change', e=>{
+    cpMonth = e.target.value ? parseInt(e.target.value,10) : null;
+    paintComplaintsList();
+  });
+  document.getElementById('cpYearSel').addEventListener('change', e=>{
+    cpYear = e.target.value ? parseInt(e.target.value,10) : null;
+    paintComplaintsList();
+  });
   document.querySelectorAll('[data-cpfilter]').forEach(el=>{
     el.addEventListener('click', ()=>{
       document.querySelectorAll('[data-cpfilter]').forEach(t=>t.classList.remove('active'));
