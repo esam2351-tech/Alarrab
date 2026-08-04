@@ -349,7 +349,7 @@
     <div class="grid">
       <div class="tile js-start-wizard"><span class="ic">📝</span><span>تسجيل فيدباك</span></div>
       <div class="tile js-go" data-go="quickadd"><span class="ic">👤</span><span>تسجيل عميل جديد</span></div>
-      <div class="tile js-go" data-go="complaint"><span class="ic">⚠️</span><span>تسجيل شكوى</span></div>
+      <div class="tile js-new-complaint"><span class="ic">⚠️</span><span>تسجيل شكوى</span></div>
       <div class="tile js-go" data-go="complaintsList"><span class="ic">🗂️</span><span>متابعة الشكاوى</span></div>
       <div class="tile js-go" data-go="customers"><span class="ic">👥</span><span>متابعة العملاء</span></div>
       <div class="tile js-go" data-go="reports"><span class="ic">📊</span><span>التقارير والإحصائيات</span></div>
@@ -358,10 +358,10 @@
 
   <!-- ============ COMPLAINT ============ -->
   <div class="screen" id="complaint">
-    <div class="head"><div class="back js-go" data-go="home">→</div><h2>تسجيل شكوى</h2></div>
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2 id="cpScreenTitle">تسجيل شكوى</h2></div>
     <div class="wrap">
       <div class="card">
-        <h3>بيانات الشكوى</h3>
+        <h3 id="cpFormTitle">بيانات الشكوى</h3>
         <p class="sub">سجّل كل التفاصيل عشان نقدر نتابع مع العميل صح</p>
         <div class="field"><label>اسم العميل</label><input id="cp_name" placeholder="أدخل اسم العميل"></div>
         <div class="field"><label>رقم الموبايل</label><input id="cp_phone" type="tel" placeholder="01012345678"></div>
@@ -1085,30 +1085,43 @@ async function submitComplaint(){
   }
 
   const btn = document.getElementById('cpSaveBtn');
-  btn.disabled = true; btn.textContent = 'جارِ التسجيل...';
+  btn.disabled = true; btn.textContent = editingComplaintId ? 'جارِ الحفظ...' : 'جارِ التسجيل...';
 
   const staffName = currentStaff ? currentStaff.name : 'غير معروف';
   const complaints = await getComplaints();
-  const entry = {
-    id: normalizePhone(phone) + '_' + Date.now(),
-    name, phone: normalizePhone(phone), product, productDetails, invoiceDate,
-    issue, actionTaken: action, status: 'pending',
-    staff: staffName, date: new Date().toISOString()
-  };
-  complaints.push(entry);
-  await saveComplaints(complaints);
 
-  btn.disabled = false; btn.textContent = 'تسجيل الشكوى';
-  document.getElementById('cp_name').value = '';
-  document.getElementById('cp_phone').value = '';
-  document.getElementById('cp_product').value = '';
-  document.getElementById('cp_product_details').value = '';
-  document.getElementById('cp_invoice_date').value = '';
-  document.getElementById('cp_issue').value = '';
-  document.getElementById('cp_action').value = '';
+  let successTitle, successMsg;
+  if(editingComplaintId){
+    const idx = complaints.findIndex(c=>c.id===editingComplaintId);
+    if(idx===-1){
+      alert('تعذر إيجاد الشكوى دي، ممكن تكون اتحذفت');
+    } else {
+      complaints[idx] = Object.assign({}, complaints[idx], {
+        name, phone: normalizePhone(phone), product, productDetails, invoiceDate,
+        issue, actionTaken: action
+      });
+      await saveComplaints(complaints);
+    }
+    successTitle = 'تم حفظ التعديل بنجاح';
+    successMsg = 'تم تحديث بيانات شكوى '+name+'.';
+  } else {
+    const entry = {
+      id: normalizePhone(phone) + '_' + Date.now(),
+      name, phone: normalizePhone(phone), product, productDetails, invoiceDate,
+      issue, actionTaken: action, status: 'pending',
+      staff: staffName, date: new Date().toISOString()
+    };
+    complaints.push(entry);
+    await saveComplaints(complaints);
+    successTitle = 'تم تسجيل الشكوى بنجاح';
+    successMsg = 'تم حفظ شكوى '+name+' وهيتم متابعتها.';
+  }
 
-  document.getElementById('successTitle').textContent = 'تم تسجيل الشكوى بنجاح';
-  document.getElementById('successMsg').textContent = 'تم حفظ شكوى '+name+' وهيتم متابعتها.';
+  btn.disabled = false;
+  resetComplaintForm();
+
+  document.getElementById('successTitle').textContent = successTitle;
+  document.getElementById('successMsg').textContent = successMsg;
   go('success');
 }
 
@@ -1174,6 +1187,10 @@ function paintComplaintsList(){
         + '<button class="toggleStatusBtn '+status+'" data-toggle="'+esc(c.id)+'">'+(status==='resolved' ? '↩️ إعادة فتح' : '✓ تحديد كمحلولة')+'</button>'
         + '<button class="shareWaBtn" data-sharewa="'+esc(c.id)+'">📤 واتساب</button>'
       + '</div>'
+      + '<div class="cbtnrow" style="margin-top:8px;">'
+        + '<button class="editCpBtn" data-editcp="'+esc(c.id)+'" style="background:var(--primarySoft,#E4EEE9);color:var(--espresso-2);">✏️ تعديل</button>'
+        + '<button class="delCpBtn" data-delcp="'+esc(c.id)+'" style="background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>'
+      + '</div>'
       + '</div>';
   }).join('');
 
@@ -1183,6 +1200,12 @@ function paintComplaintsList(){
   box.querySelectorAll('[data-sharewa]').forEach(btn=>{
     btn.addEventListener('click', ()=> shareComplaintOnWhatsApp(btn.getAttribute('data-sharewa')));
   });
+  box.querySelectorAll('[data-editcp]').forEach(btn=>{
+    btn.addEventListener('click', ()=> editComplaint(btn.getAttribute('data-editcp')));
+  });
+  box.querySelectorAll('[data-delcp]').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteComplaint(btn.getAttribute('data-delcp')));
+  });
 }
 async function toggleComplaintStatus(id){
   const complaints = await getComplaints();
@@ -1190,6 +1213,48 @@ async function toggleComplaintStatus(id){
     if(c.id !== id) return c;
     return Object.assign({}, c, { status: (c.status==='resolved') ? 'pending' : 'resolved' });
   });
+  await saveComplaints(updated);
+  allComplaintsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  paintComplaintsList();
+}
+
+let editingComplaintId = null;
+function editComplaint(id){
+  const c = allComplaintsCache.find(x=>x.id===id);
+  if(!c) return;
+  editingComplaintId = id;
+  document.getElementById('cp_name').value = c.name || '';
+  document.getElementById('cp_phone').value = c.phone || '';
+  document.getElementById('cp_product').value = c.product || '';
+  document.getElementById('cp_product_details').value = c.productDetails || '';
+  document.getElementById('cp_invoice_date').value = c.invoiceDate || '';
+  document.getElementById('cp_issue').value = c.issue || '';
+  document.getElementById('cp_action').value = c.actionTaken || '';
+  document.getElementById('cpScreenTitle').textContent = 'تعديل الشكوى';
+  document.getElementById('cpFormTitle').textContent = 'تعديل بيانات الشكوى';
+  document.getElementById('cpSaveBtn').textContent = 'حفظ التعديل';
+  go('complaint');
+}
+function resetComplaintForm(){
+  editingComplaintId = null;
+  document.getElementById('cp_name').value = '';
+  document.getElementById('cp_phone').value = '';
+  document.getElementById('cp_product').value = '';
+  document.getElementById('cp_product_details').value = '';
+  document.getElementById('cp_invoice_date').value = '';
+  document.getElementById('cp_issue').value = '';
+  document.getElementById('cp_action').value = '';
+  document.getElementById('cpScreenTitle').textContent = 'تسجيل شكوى';
+  document.getElementById('cpFormTitle').textContent = 'بيانات الشكوى';
+  document.getElementById('cpSaveBtn').textContent = 'تسجيل الشكوى';
+}
+async function deleteComplaint(id){
+  const c = allComplaintsCache.find(x=>x.id===id);
+  if(!c) return;
+  const ok = confirm('متأكد إنك عايز تحذف شكوى "'+c.name+'" نهائيًا؟ مفيش رجوع بعد الحذف.');
+  if(!ok) return;
+  const complaints = await getComplaints();
+  const updated = complaints.filter(x=>x.id!==id);
   await saveComplaints(updated);
   allComplaintsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
   paintComplaintsList();
@@ -1372,8 +1437,7 @@ async function renderReports(){
   const body = document.getElementById('reportsBody');
   const customers = await getCustomers();
   const allFeedback = await getFeedback();
-
-  // year options available in the data, plus current year
+// year options available in the data, plus current year
   const yearsInData = new Set(allFeedback.map(f=> new Date(f.date).getFullYear()));
   yearsInData.add(new Date().getFullYear());
   const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
@@ -1445,7 +1509,7 @@ async function renderReports(){
   }
 
   // notes grouped by product/category — sourced from the precise per-product notes step,
-  // so a note about "بن تركي" only shows under بن تركي (not duplicated across every product
+  // so a note about "بن تركي" only shows under بن تركي (not duplicated across every product bought).
   const notesByCategory = {};
   PRODUCTS.forEach(p=> notesByCategory[p.label] = []);
   notesByCategory['عام (بدون صنف محدد)'] = [];
@@ -1707,6 +1771,9 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   document.querySelectorAll('.js-start-wizard').forEach(el=>{
     el.addEventListener('click', startWizard);
+  });
+  document.querySelectorAll('.js-new-complaint').forEach(el=>{
+    el.addEventListener('click', ()=>{ resetComplaintForm(); go('complaint'); });
   });
   document.querySelector('.js-wiz-back').addEventListener('click', wizBack);
   document.getElementById('prevBtn').addEventListener('click', wizBack);
