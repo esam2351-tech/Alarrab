@@ -374,6 +374,15 @@
         <div class="field"><label>تفاصيل الصنف (اختياري)</label><input id="cp_product_details" placeholder="مثال: الحجم، النوع، رقم التشغيلة..."></div>
         <div class="field"><label>تاريخ الفاتورة</label><input id="cp_invoice_date" type="date"></div>
         <div class="field"><label>توصيف المشكلة</label><textarea id="cp_issue" placeholder="اكتب المشكلة اللي حصلت بالتفصيل..."></textarea></div>
+        <div class="field"><label>تحال إلى قسم</label>
+          <select id="cp_department">
+            <option value="">اختر القسم</option>
+            <option value="البن">☕ البن</option>
+            <option value="المشروبات">🥤 المشروبات</option>
+            <option value="الصيانة">🔧 الصيانة</option>
+            <option value="المخزن">📦 المخزن</option>
+          </select>
+        </div>
         <div class="field"><label>الإجراء اللي اتخذه الموظف لحل المشكلة</label><textarea id="cp_action" placeholder="اكتب الحل أو الإجراء اللي اتعمل..."></textarea></div>
       </div>
     </div>
@@ -386,6 +395,7 @@
   <!-- ============ COMPLAINTS LIST (follow-up) ============ -->
   <div class="screen" id="complaintsList">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>متابعة الشكاوى</h2></div>
+    <div id="cpDeptReport" style="padding:6px 18px 0;"></div>
     <div class="wrap" style="padding-top:0;">
       <div class="field"><input id="cpSearch" placeholder="ابحث بالاسم أو رقم الموبايل"></div>
       <div style="display:flex;gap:8px;margin-bottom:14px;">
@@ -396,6 +406,13 @@
           <option value="">كل السنين</option>
         </select>
       </div>
+      <select id="cpDeptSel" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;margin-bottom:14px;">
+        <option value="">كل الأقسام</option>
+        <option value="البن">☕ البن</option>
+        <option value="المشروبات">🥤 المشروبات</option>
+        <option value="الصيانة">🔧 الصيانة</option>
+        <option value="المخزن">📦 المخزن</option>
+      </select>
       <div class="tabs" style="margin:0 0 14px;">
         <div class="t active" data-cpfilter="all">الكل</div>
         <div class="t" data-cpfilter="pending">قيد المتابعة</div>
@@ -680,6 +697,12 @@ const PRODUCTS = [
   {icon:'🍶', label:'بن فرنساوي'},
   {icon:'🥤', label:'مشروبات'},
   {icon:'🍰', label:'ديزرت'}
+];
+const DEPARTMENTS = [
+  {icon:'☕', label:'البن'},
+  {icon:'🥤', label:'المشروبات'},
+  {icon:'🔧', label:'الصيانة'},
+  {icon:'📦', label:'المخزن'}
 ];
 const LIKES = [
   {icon:'💰', label:'الأسعار'},
@@ -1077,6 +1100,7 @@ async function submitComplaint(){
   const productDetails = document.getElementById('cp_product_details').value.trim();
   const invoiceDate = document.getElementById('cp_invoice_date').value;
   const issue = document.getElementById('cp_issue').value.trim();
+  const department = document.getElementById('cp_department').value;
   const action = document.getElementById('cp_action').value.trim();
 
   if(!name || !phone || !issue){
@@ -1098,7 +1122,7 @@ async function submitComplaint(){
     } else {
       complaints[idx] = Object.assign({}, complaints[idx], {
         name, phone: normalizePhone(phone), product, productDetails, invoiceDate,
-        issue, actionTaken: action
+        issue, department, actionTaken: action
       });
       await saveComplaints(complaints);
     }
@@ -1108,7 +1132,7 @@ async function submitComplaint(){
     const entry = {
       id: normalizePhone(phone) + '_' + Date.now(),
       name, phone: normalizePhone(phone), product, productDetails, invoiceDate,
-      issue, actionTaken: action, status: 'pending',
+      issue, department, actionTaken: action, status: 'pending',
       staff: staffName, date: new Date().toISOString()
     };
     complaints.push(entry);
@@ -1157,12 +1181,49 @@ async function renderComplaintsList(){
   populateComplaintsTimeFilters();
   paintComplaintsList();
 }
+function renderDeptReport(list){
+  const box = document.getElementById('cpDeptReport');
+  if(!box) return;
+  const counts = {};
+  DEPARTMENTS.forEach(d=> counts[d.label] = {total:0, pending:0, resolved:0});
+  let noDept = 0;
+  list.forEach(c=>{
+    const dep = c.department;
+    if(!dep || !counts[dep]){ noDept++; return; }
+    counts[dep].total++;
+    if((c.status||'pending')==='resolved') counts[dep].resolved++;
+    else counts[dep].pending++;
+  });
+  box.innerHTML = '<div class="repcard" style="margin-bottom:14px;">'
+    + '<h4>📊 تقرير الشكاوى حسب القسم</h4>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+    + DEPARTMENTS.map(d=>{
+        const c = counts[d.label];
+        return '<div style="background:#FCF9F3;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;">'
+          + '<div style="font-size:18px;">'+d.icon+'</div>'
+          + '<div style="font-weight:800;font-family:\'Cairo\';font-size:15px;color:var(--espresso-2);">'+c.total+'</div>'
+          + '<div style="font-size:10.5px;color:var(--muted);margin-bottom:4px;">'+d.label+'</div>'
+          + '<div style="font-size:10px;color:var(--good,#4C8B5D);">تم الحل: '+c.resolved+'</div>'
+          + '<div style="font-size:10px;color:var(--bad);">قيد المتابعة: '+c.pending+'</div>'
+          + '</div>';
+      }).join('')
+    + '</div>'
+    + (noDept ? '<p style="font-size:11px;color:var(--muted);margin:10px 0 0;">'+noDept+' شكوى من غير قسم محدد</p>' : '')
+    + '</div>';
+}
+
 function paintComplaintsList(){
   const box = document.getElementById('complaintsListBox');
   const q = (document.getElementById('cpSearch').value||'').trim().toLowerCase();
-  let list = allComplaintsCache;
-  if(cpMonth!=null){ list = list.filter(c => (new Date(c.date).getMonth()+1) === cpMonth); }
-  if(cpYear!=null){ list = list.filter(c => new Date(c.date).getFullYear() === cpYear); }
+  let timeFiltered = allComplaintsCache;
+  if(cpMonth!=null){ timeFiltered = timeFiltered.filter(c => (new Date(c.date).getMonth()+1) === cpMonth); }
+  if(cpYear!=null){ timeFiltered = timeFiltered.filter(c => new Date(c.date).getFullYear() === cpYear); }
+
+  renderDeptReport(timeFiltered);
+
+  let list = timeFiltered;
+  const deptFilter = document.getElementById('cpDeptSel').value;
+  if(deptFilter){ list = list.filter(c => c.department === deptFilter); }
   if(complaintsFilter !== 'all'){ list = list.filter(c => (c.status||'pending') === complaintsFilter); }
   if(q){ list = list.filter(c => (c.name||'').toLowerCase().includes(q) || (c.phone||'').includes(q)); }
 
@@ -1181,6 +1242,7 @@ function paintComplaintsList(){
       + '<div class="crow"><b>الصنف:</b> '+esc(c.product||'—')+' · <b>تاريخ الفاتورة:</b> '+invLabel+'</div>'
       + (c.productDetails ? '<div class="crow"><b>تفاصيل الصنف:</b> '+esc(c.productDetails)+'</div>' : '')
       + '<div class="crow"><b>المشكلة:</b> '+esc(c.issue||'—')+'</div>'
+      + (c.department ? '<div class="crow"><b>القسم المُحال إليه:</b> '+esc(c.department)+'</div>' : '')
       + '<div class="crow"><b>الإجراء المتخذ:</b> '+esc(c.actionTaken||'—')+'</div>'
       + '<div class="crow"><b>سجّلها:</b> '+esc(c.staff||'—')+'</div>'
       + '<div class="cbtnrow">'
@@ -1229,6 +1291,7 @@ function editComplaint(id){
   document.getElementById('cp_product_details').value = c.productDetails || '';
   document.getElementById('cp_invoice_date').value = c.invoiceDate || '';
   document.getElementById('cp_issue').value = c.issue || '';
+  document.getElementById('cp_department').value = c.department || '';
   document.getElementById('cp_action').value = c.actionTaken || '';
   document.getElementById('cpScreenTitle').textContent = 'تعديل الشكوى';
   document.getElementById('cpFormTitle').textContent = 'تعديل بيانات الشكوى';
@@ -1243,6 +1306,7 @@ function resetComplaintForm(){
   document.getElementById('cp_product_details').value = '';
   document.getElementById('cp_invoice_date').value = '';
   document.getElementById('cp_issue').value = '';
+  document.getElementById('cp_department').value = '';
   document.getElementById('cp_action').value = '';
   document.getElementById('cpScreenTitle').textContent = 'تسجيل شكوى';
   document.getElementById('cpFormTitle').textContent = 'بيانات الشكوى';
@@ -1437,7 +1501,8 @@ async function renderReports(){
   const body = document.getElementById('reportsBody');
   const customers = await getCustomers();
   const allFeedback = await getFeedback();
-// year options available in the data, plus current year
+
+  // year options available in the data, plus current year
   const yearsInData = new Set(allFeedback.map(f=> new Date(f.date).getFullYear()));
   yearsInData.add(new Date().getFullYear());
   const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
@@ -1801,6 +1866,7 @@ document.addEventListener('DOMContentLoaded', function(){
     cpYear = e.target.value ? parseInt(e.target.value,10) : null;
     paintComplaintsList();
   });
+  document.getElementById('cpDeptSel').addEventListener('change', paintComplaintsList);
   document.querySelectorAll('[data-cpfilter]').forEach(el=>{
     el.addEventListener('click', ()=>{
       document.querySelectorAll('[data-cpfilter]').forEach(t=>t.classList.remove('active'));
