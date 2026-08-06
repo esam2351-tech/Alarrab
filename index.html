@@ -227,6 +227,30 @@
   .complaintcard .cbtnrow{display:flex;gap:8px;margin-top:10px;}
   .complaintcard .cbtnrow button{flex:1;border:none;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Tajawal';}
   .shareWaBtn{background:#25D366;color:#fff;}
+
+  /* ---------- CHECKLIST ---------- */
+  .clSection{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:0 18px 10px;overflow:hidden;}
+  .clSecHead{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer;}
+  .clSecHead h4{margin:0;font-family:'Cairo';font-size:13.5px;font-weight:800;}
+  .clSecHead .clbadge{font-size:10.5px;color:var(--bad);font-weight:700;}
+  .clSecHead .clchevron{font-size:12px;color:var(--muted);transition:transform .15s ease;}
+  .clSection.open .clchevron{transform:rotate(180deg);}
+  .clSecBody{display:none;padding:0 14px 12px;}
+  .clSection.open .clSecBody{display:block;}
+  .clItemRow{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px dashed var(--line);}
+  .clItemRow:first-child{border-top:none;}
+  .clItemRow .clname{flex:1;font-size:12.5px;font-weight:600;}
+  .clStatusBtn{border:none;border-radius:8px;padding:6px 10px;font-size:15px;cursor:pointer;flex-shrink:0;}
+  .clStatusBtn.ok{background:#E4EEE9;}
+  .clStatusBtn.issue{background:#F7E3DC;}
+  .clNoteInput{width:84px;flex-shrink:0;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font-size:11px;font-family:'Tajawal';background:#FCF9F3;}
+  .clSummaryCard{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:0 18px 14px;padding:14px;}
+  .clHistRow{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:0 18px 12px;padding:13px 14px;cursor:pointer;}
+  .clHistRow .clhtop{display:flex;justify-content:space-between;align-items:center;}
+  .clHistRow h4{margin:0;font-family:'Cairo';font-size:13.5px;}
+  .clHistRow small{color:var(--muted);font-size:11px;}
+  .clIssueTag{background:#F7E3DC;color:var(--bad);font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;}
+  .clOkTag{background:#E4EEE9;color:var(--good);font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;}
   .toggleStatusBtn.pending{background:var(--good);color:#fff;}
   .toggleStatusBtn.resolved{background:var(--brickSoft,#F7E3DC);color:var(--bad);}
 
@@ -353,7 +377,20 @@
       <div class="tile js-go" data-go="complaintsList"><span class="ic">🗂️</span><span>متابعة الشكاوى</span></div>
       <div class="tile js-go" data-go="customers"><span class="ic">👥</span><span>متابعة العملاء</span></div>
       <div class="tile js-go" data-go="reports"><span class="ic">📊</span><span>التقارير والإحصائيات</span></div>
+      <div class="tile js-go" data-go="checklist"><span class="ic">📋</span><span>تشيك ليست الفرع</span></div>
     </div>
+  </div>
+
+  <!-- ============ DAILY CHECKLIST ============ -->
+  <div class="screen" id="checklist">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>تشيك ليست الفرع</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <div class="tabs" style="margin:0 0 14px;">
+        <div class="t active" data-clsub="fill">تعبئة جديدة</div>
+        <div class="t" data-clsub="history">السجل</div>
+      </div>
+    </div>
+    <div id="checklistBody"></div>
   </div>
 
   <!-- ============ COMPLAINT ============ -->
@@ -566,7 +603,7 @@ const DEFAULT_STAFF = [
 ];
 
 let currentStaff = null; // {user,name,role} - in-memory only, resets on reload
-let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [] };
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [] };
 let backendReady = false;
 let currentScreen = 'login';
 let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
@@ -633,6 +670,10 @@ function attachLiveSync(){
     APP_STATE.complaints = list;
     if(currentScreen==='complaintsList') renderComplaintsList();
   });
+  subscribeShared('checklists', list=>{
+    APP_STATE.checklists = list;
+    if(currentScreen==='checklist' && checklistSubTab==='history') renderChecklistHistoryList();
+  });
 }
 
 // Shows the number of feedback entries registered SINCE the bell was last opened —
@@ -658,13 +699,14 @@ async function loadAppState(){
   if(!backendConfigured()){ backendReady = false; return { ok:false, reason:'not-configured' }; }
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
-    const [staff, customers, feedback, complaints] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', [])
+    const [staff, customers, feedback, complaints, checklists] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
     APP_STATE.feedback = feedback;
     APP_STATE.complaints = complaints;
+    APP_STATE.checklists = checklists;
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -687,6 +729,8 @@ async function getFeedback(){ return APP_STATE.feedback; }
 async function saveFeedback(arr){ APP_STATE.feedback = arr; saveShared('feedback', arr); }
 async function getComplaints(){ return APP_STATE.complaints; }
 async function saveComplaints(arr){ APP_STATE.complaints = arr; saveShared('complaints', arr); }
+async function getChecklists(){ return APP_STATE.checklists; }
+async function saveChecklists(arr){ APP_STATE.checklists = arr; saveShared('checklists', arr); }
 
 
 
@@ -704,6 +748,28 @@ const DEPARTMENTS = [
   {icon:'🔧', label:'الصيانة'},
   {icon:'📦', label:'المخزن'}
 ];
+
+/* ================= DAILY BRANCH CHECKLIST (matches the paper form) ================= */
+const CHECKLIST_SECTIONS = [
+  { key:'supplies', label:'المهمات العامة', items:['لبن','سكر أبيض','سكر دايت','سكوير','كريمة لبني','لبن مكثف','عصير','سنيكرز','كيت كات','أوريو','مياه معدنية','سيروب فانيليا','سيروب بندق','سيروب كراميل','صوص دارك','صوص وايت','صوص كراميل','آيس كريم','برطمانات الفراولة','التزيينات','النظافة','البار','الجلد','سلات القمامة','علب شيكو بن','علب شيكو زبيب','علب شيكو سوداني','منيو مشروبات'] },
+  { key:'cashier1', label:'الكاشير', items:['جهاز الكاشير','درج الكاشير','الطابعات','بكر كاشير','ماكينة الفيزا'] },
+  { key:'restrooms', label:'دورات المياه', items:['الرجالي','الحريمي','الاستاف','سلة القمامة (وحدة النظافة)','صابون','غطاء ساخن','ستيلر','سكر باكيت','معطر جو','هوادرات'] },
+  { key:'stations', label:'المحطات', items:['تعبئة اسبريسو','محطة 1','محطة 2','محطة 3','محطة 4','محطة 5','محطة 6','الميزان الكبيرة','الميزان الصغيرة','خزانات البن','ماكينة لحام','شاشة بن'] },
+  { key:'consumables', label:'مستهلكات', items:['التحويجات','شنط قماش','أكياس بن','بكر ميزان'] },
+  { key:'cleaningsupplies', label:'مستلزمات نظافة', items:['مكنسة','فرشاة','فوط','النظافة','المكتبة'] },
+  { key:'goods', label:'البضائع', items:['بن فاتح','بن وسط','بن غامق','بن اسبريسو','علب شيكو بن','علب شيكو زبيب','علب شيكو سوداني','منيو بن'] },
+  { key:'cashier2', label:'الكاشير (المحطات)', items:['جهاز الكاشير','درج الكاشير','الطابعات','بكر كاشير','ماكينة الفيزا','الحوض','النظافة','المكتبة'] },
+  { key:'bins', label:'الرمالات', items:['رمالة 1','رمالة 2','رمالة 3','رمالة 4','معالق'] },
+  { key:'cups', label:'الأكواب والكناك', items:['كنك صغيرة','كنك كبيرة','كنك D','كنك فرنساوي','قارورة المياه'] },
+  { key:'street', label:'الشارع', items:['ستارة الهواء','ترابيزات الشارع','الرصيف','السلم'] },
+  { key:'hall1', label:'الصالة (1)', items:['الباركيه (1)','السيكوريت (1)','المرايات (1)','الشابوهات (1)','الرفوف','الكراسي','البار وخشب البار','اللوجو','السبورة والفنجان'] },
+  { key:'hall2', label:'الصالة (2)', items:['الصالون','المرايا الكبيرة','الباركيه (2)','السيكوريت (2)','المرايات (2)','الشابوهات (2)'] },
+  { key:'balcony', label:'البلكونة', items:['الكنب والترابيزات','تحت الكنب والكراسي','شاشة المشروبات','الترابيزات والكراسي','التابلوهات','خشب البلكونة','خشب الواجهة','الزرع','المراوح','السور','الباركيه'] },
+  { key:'office', label:'المكتب', items:['الفريزر','المكتب','أرض المكتب'] },
+  { key:'machines', label:'الآلات والأدوات', items:['برطمانات البن','برطمانات الفرنساوي','السكرية','الجلد','الحوض','ماكينة ويب دي كريم','مكسر','خلاط','كاتل الشاي','مطحنة اسبريسو','ماكينة اسبريسو','الثلاجة','الفريزر','ثلاجة الديزرت','آيس ميكر','الميكروويف','الفرن'] },
+  { key:'servingsupplies', label:'مستلزمات الأكواب والتقديم', items:['كوب 4','كوب 8','كوب 12','كوب 12 بارد','كوب 16 بارد','كوب 20 بارد','غطاء 12','غطاء بارد','شاليموه','علب داخلية','علب خارجية','طبق ورق تقديم','شوك','سكاكين','مناديل مطبوعة'] }
+];
+
 const LIKES = [
   {icon:'💰', label:'الأسعار'},
   {icon:'☕', label:'جودة البن'},
@@ -839,6 +905,7 @@ function go(id){
   if(id==='customers') renderCustomersList();
   if(id==='reports'){ renderReports(); markNotificationsSeen(); }
   if(id==='complaintsList') renderComplaintsList();
+  if(id==='checklist') renderChecklistScreen();
   if(id==='settings'){ if(typeof resetStaffForm==='function') resetStaffForm(); renderSettings(); }
 }
 
@@ -1329,7 +1396,7 @@ function shareComplaintOnWhatsApp(id){
   if(!c) return;
   const status = c.status || 'pending';
   const statusLabel = status==='resolved' ? 'تم الحل' : 'قيد المتابعة';
-  const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
+  const dateLabel = new Dat(c.date).toLocaleDateString('ar-EG');
   const invLabel = c.invoiceDate ? new Date(c.invoiceDate).toLocaleDateString('ar-EG') : '—';
   const lines = [
     '📋 *شكوى - بن العراب*',
@@ -1346,7 +1413,195 @@ function shareComplaintOnWhatsApp(id){
   window.open('https://wa.me/?text='+text, '_blank');
 }
 
-/* ================= CUSTOMERS LIST ================= */
+/* ================= DAILY CHECKLIST ================= */
+let checklistSubTab = 'fill'; // fill | history
+let checklistShift = 'morning'; // morning | evening
+let checklistWorkingData = {}; // itemKey -> {status:'ok'|'issue', note:''}
+let allChecklistsCache = [];
+let viewingChecklistId = null;
+
+function clItemKey(sectionKey, idx){ return sectionKey+'__'+idx; }
+function clTodayId(shift){
+  const d = new Date();
+  const dateStr = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return dateStr+'_'+shift;
+}
+function resetChecklistWorkingData(){
+  checklistWorkingData = {};
+  CHECKLIST_SECTIONS.forEach(sec=> sec.items.forEach((item,idx)=>{
+    checklistWorkingData[clItemKey(sec.key,idx)] = {status:'ok', note:''};
+  }));
+}
+
+async function renderChecklistScreen(){
+  const body = document.getElementById('checklistBody');
+  document.querySelectorAll('[data-clsub]').forEach(t=>t.classList.toggle('active', t.getAttribute('data-clsub')===checklistSubTab));
+  if(checklistSubTab==='fill'){
+    await renderChecklistFill();
+  } else {
+    viewingChecklistId = null;
+    await renderChecklistHistoryList();
+  }
+}
+
+async function renderChecklistFill(){
+  const body = document.getElementById('checklistBody');
+  body.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const checklists = await getChecklists();
+  const existing = checklists.find(c => c.id === clTodayId(checklistShift));
+  if(existing){
+    resetChecklistWorkingData();
+    Object.keys(existing.items||{}).forEach(k=>{ if(checklistWorkingData[k]) checklistWorkingData[k] = existing.items[k]; });
+  } else {
+    resetChecklistWorkingData();
+  }
+  const todayLabel = new Date().toLocaleDateString('ar-EG', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+
+  let html = '<div class="clSummaryCard">'
+    + '<p style="margin:0 0 10px;font-size:12px;color:var(--muted);">📅 '+todayLabel+'</p>'
+    + (existing ? '<p style="margin:0 0 10px;font-size:11.5px;color:var(--bad);">⚠️ فيه تشيك ليست متسجلة بالفعل للشيفت ده النهاردة — أي حفظ هيحدّثها.</p>' : '')
+    + '<label style="display:block;font-size:12px;font-weight:700;color:var(--espresso-2);margin-bottom:8px;">الشيفت</label>'
+    + '<div style="display:flex;gap:8px;">'
+      + '<button class="btn '+(checklistShift==='morning'?'primary':'ghost')+'" data-shift="morning" style="flex:1;">☀️ صباحي</button>'
+      + '<button class="btn '+(checklistShift==='evening'?'primary':'ghost')+'" data-shift="evening" style="flex:1;">🌙 مسائي</button>'
+    + '</div>'
+    + '</div>';
+
+  CHECKLIST_SECTIONS.forEach(sec=>{
+    html += '<div class="clSection" data-section="'+sec.key+'">'
+      + '<div class="clSecHead"><h4>'+esc(sec.label)+' <span style="color:var(--muted);font-weight:400;">('+sec.items.length+')</span></h4><span class="clchevron">▾</span></div>'
+      + '<div class="clSecBody">'
+      + sec.items.map((item,idx)=>{
+          const key = clItemKey(sec.key, idx);
+          const d = checklistWorkingData[key] || {status:'ok', note:''};
+          return '<div class="clItemRow" data-key="'+key+'">'
+            + '<button type="button" class="clStatusBtn '+d.status+'" data-clstatus="'+key+'">'+(d.status==='ok' ? '✓' : '✗')+'</button>'
+            + '<span class="clname">'+esc(item)+'</span>'
+            + '<input class="clNoteInput" data-clnote="'+key+'" placeholder="كمية/ملاحظة" value="'+esc(d.note||'')+'">'
+            + '</div>';
+        }).join('')
+      + '</div></div>';
+  });
+
+  html += '<div class="btnrow"><button class="btn primary full" id="clSubmitBtn">💾 حفظ التشيك ليست</button></div>';
+  body.innerHTML = html;
+
+  // shift buttons
+  body.querySelectorAll('[data-shift]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ checklistShift = btn.getAttribute('data-shift'); renderChecklistFill(); });
+  });
+  // accordion toggles
+  body.querySelectorAll('.clSecHead').forEach(head=>{
+    head.addEventListener('click', ()=>{ head.closest('.clSection').classList.toggle('open'); });
+  });
+  // status toggle buttons (no full re-render, just flip locally to keep accordion state/scroll)
+  body.querySelectorAll('[data-clstatus]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.getAttribute('data-clstatus');
+      const d = checklistWorkingData[key];
+      d.status = (d.status==='ok') ? 'issue' : 'ok';
+      btn.classList.toggle('ok'); btn.classList.toggle('issue');
+      btn.textContent = d.status==='ok' ? '✓' : '✗';
+    });
+  });
+  // note inputs
+  body.querySelectorAll('[data-clnote]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const key = inp.getAttribute('data-clnote');
+      checklistWorkingData[key].note = inp.value;
+    });
+  });
+  document.getElementById('clSubmitBtn').addEventListener('click', submitChecklist);
+}
+
+async function submitChecklist(){
+  const btn = document.getElementById('clSubmitBtn');
+  btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
+
+  const issueCount = Object.values(checklistWorkingData).filter(d=>d.status==='issue').length;
+  const id = clTodayId(checklistShift);
+  const now = new Date();
+  const entry = {
+    id, date: now.toISOString(), shift: checklistShift,
+    manager: currentStaff ? currentStaff.name : 'غير معروف',
+    items: JSON.parse(JSON.stringify(checklistWorkingData)),
+    issueCount
+  };
+  const checklists = await getChecklists();
+  const idx = checklists.findIndex(c=>c.id===id);
+  if(idx===-1) checklists.push(entry); else checklists[idx] = entry;
+  await saveChecklists(checklists);
+
+  btn.disabled = false; btn.textContent = '💾 حفظ التشيك ليست';
+  document.getElementById('successTitle').textContent = 'تم حفظ التشيك ليست بنجاح';
+  document.getElementById('successMsg').textContent = issueCount>0
+    ? ('تم الحفظ، وفيه '+issueCount+' بند محتاج متابعة.')
+    : 'تم الحفظ، كل البنود سليمة ✅';
+  go('success');
+}
+
+async function renderChecklistHistoryList(){
+  const body = document.getElementById('checklistBody');
+  body.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const checklists = await getChecklists();
+  allChecklistsCache = checklists.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  if(!allChecklistsCache.length){
+    body.innerHTML = '<div class="emptystate">لا توجد تشيك ليستات مسجلة بعد.</div>';
+    return;
+  }
+  body.innerHTML = allChecklistsCache.map(c=>{
+    const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
+    const shiftLabel = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
+    const tag = c.issueCount>0 ? '<span class="clIssueTag">'+c.issueCount+' مشكلة</span>' : '<span class="clOkTag">كله سليم</span>';
+    return '<div class="clHistRow" data-viewcl="'+esc(c.id)+'">'
+      + '<div class="clhtop"><h4>'+dateLabel+' · '+shiftLabel+'</h4>'+tag+'</div>'
+      + '<small>سجّلها: '+esc(c.manager||'—')+'</small>'
+      + '</div>';
+  }).join('');
+  body.querySelectorAll('[data-viewcl]').forEach(row=>{
+    row.addEventListener('click', ()=> viewChecklistDetail(row.getAttribute('data-viewcl')));
+  });
+}
+
+function viewChecklistDetail(id){
+  const c = allChecklistsCache.find(x=>x.id===id);
+  if(!c) return;
+  viewingChecklistId = id;
+  const body = document.getElementById('checklistBody');
+  const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
+  const shiftLabel = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
+
+  let html = '<div class="clSummaryCard">'
+    + '<button class="btn ghost" id="clBackToHistory" style="margin-bottom:10px;">→ رجوع للسجل</button>'
+    + '<p style="margin:0 0 4px;font-size:13px;font-weight:700;">'+dateLabel+' · '+shiftLabel+'</p>'
+    + '<p style="margin:0;font-size:11.5px;color:var(--muted);">سجّلها: '+esc(c.manager||'—')+' · '+(c.issueCount>0 ? c.issueCount+' بند فيه مشكلة' : 'كل البنود سليمة')+'</p>'
+    + '</div>';
+
+  CHECKLIST_SECTIONS.forEach(sec=>{
+    const rows = sec.items.map((item,idx)=>{
+      const key = clItemKey(sec.key, idx);
+      const d = (c.items && c.items[key]) || {status:'ok', note:''};
+      return '<div class="clItemRow">'
+        + '<span class="clStatusBtn '+d.status+'" style="cursor:default;">'+(d.status==='ok' ? '✓' : '✗')+'</span>'
+        + '<span class="clname">'+esc(item)+'</span>'
+        + (d.note ? '<span style="font-size:11px;color:var(--muted);">'+esc(d.note)+'</span>' : '')
+        + '</div>';
+    }).join('');
+    const sectionIssues = sec.items.filter((item,idx)=> (c.items && c.items[clItemKey(sec.key,idx)] && c.items[clItemKey(sec.key,idx)].status==='issue')).length;
+    html += '<div class="clSection" data-section="'+sec.key+'">'
+      + '<div class="clSecHead"><h4>'+esc(sec.label)+'</h4>'+(sectionIssues>0 ? '<span class="clbadge">'+sectionIssues+' مشكلة</span>' : '<span class="clchevron">▾</span>')+'</div>'
+      + '<div class="clSecBody">'+rows+'</div>'
+      + '</div>';
+  });
+  body.innerHTML = html;
+
+  document.getElementById('clBackToHistory').addEventListener('click', ()=>{ viewingChecklistId = null; renderChecklistHistoryList(); });
+  body.querySelectorAll('.clSecHead').forEach(head=>{
+    head.addEventListener('click', ()=>{ head.closest('.clSection').classList.toggle('open'); });
+  });
+}
+
+
 let allCustomersCache = [];
 async function renderCustomersList(){
   const listEl = document.getElementById('custList');
@@ -1873,6 +2128,13 @@ document.addEventListener('DOMContentLoaded', function(){
       el.classList.add('active');
       complaintsFilter = el.getAttribute('data-cpfilter');
       paintComplaintsList();
+    });
+  });
+
+  document.querySelectorAll('[data-clsub]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      checklistSubTab = el.getAttribute('data-clsub');
+      renderChecklistScreen();
     });
   });
 
