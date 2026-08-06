@@ -1396,7 +1396,7 @@ function shareComplaintOnWhatsApp(id){
   if(!c) return;
   const status = c.status || 'pending';
   const statusLabel = status==='resolved' ? 'تم الحل' : 'قيد المتابعة';
-  const dateLabel = new Dat(c.date).toLocaleDateString('ar-EG');
+  const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
   const invLabel = c.invoiceDate ? new Date(c.invoiceDate).toLocaleDateString('ar-EG') : '—';
   const lines = [
     '📋 *شكوى - بن العراب*',
