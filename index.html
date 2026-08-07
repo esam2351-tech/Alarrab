@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -251,6 +251,15 @@
   .clHistRow small{color:var(--muted);font-size:11px;}
   .clIssueTag{background:#F7E3DC;color:var(--bad);font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;}
   .clOkTag{background:#E4EEE9;color:var(--good);font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;}
+
+  .clmSection{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:0 18px 12px;padding:12px 14px;}
+  .clmSecTop{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .clmSecTop input{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:800;font-family:'Cairo';background:#FCF9F3;}
+  .clmDelSecBtn{background:#F7E3DC;color:var(--bad);border:none;border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;}
+  .clmItemRow{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+  .clmItemRow input{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12px;font-family:'Tajawal';background:#FCF9F3;}
+  .clmDelItemBtn{background:#F7E3DC;color:var(--bad);border:none;border-radius:8px;width:28px;height:28px;font-size:12px;cursor:pointer;flex-shrink:0;}
+  .clmAddItemBtn{background:var(--primarySoft,#E4EEE9);color:var(--espresso-2);border:none;border-radius:8px;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;width:100%;margin-top:4px;}
   .toggleStatusBtn.pending{background:var(--good);color:#fff;}
   .toggleStatusBtn.resolved{background:var(--brickSoft,#F7E3DC);color:var(--bad);}
 
@@ -391,6 +400,19 @@
       </div>
     </div>
     <div id="checklistBody"></div>
+  </div>
+
+  <!-- ============ CHECKLIST ITEM MANAGEMENT (admin only) ============ -->
+  <div class="screen" id="checklistManage">
+    <div class="head"><div class="back js-go" data-go="settings">→</div><h2>إدارة بنود التشيك ليست</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <p class="sub" style="margin-bottom:12px;">عدّل أسماء الأقسام والبنود، أو ضيف/احذف بنود وأقسام. التعديلات بتتطبق على كل الأجهزة بعد الحفظ.</p>
+    </div>
+    <div id="checklistManageBody"></div>
+    <div class="btnrow">
+      <button class="btn ghost" id="clmAddSectionBtn">+ إضافة قسم جديد</button>
+      <button class="btn primary" id="clmSaveBtn">💾 حفظ كل التعديلات</button>
+    </div>
   </div>
 
   <!-- ============ COMPLAINT ============ -->
@@ -555,6 +577,11 @@
       </div>
       <div class="savedTag" id="staffSavedTag">✓ تم الحفظ</div>
     </div>
+    <div class="settcard" id="checklistManageCard" style="display:none;">
+      <h3>📋 بنود التشيك ليست (للمدير فقط)</h3>
+      <p>عدّل أسماء الأقسام والبنود، أو ضيف/احذف بنود.</p>
+      <button class="btn primary full" id="openChecklistManageBtn">فتح إدارة البنود</button>
+    </div>
   </div>
 
 
@@ -569,6 +596,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 /* =====================================================================
    DATA BACKEND — Firebase Firestore (real shared cloud database)
@@ -603,7 +631,7 @@ const DEFAULT_STAFF = [
 ];
 
 let currentStaff = null; // {user,name,role} - in-memory only, resets on reload
-let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [] };
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [] };
 let backendReady = false;
 let currentScreen = 'login';
 let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
@@ -674,6 +702,14 @@ function attachLiveSync(){
     APP_STATE.checklists = list;
     if(currentScreen==='checklist' && checklistSubTab==='history') renderChecklistHistoryList();
   });
+  subscribeShared('checklistSections', list=>{
+    if(list && list.length){
+      APP_STATE.checklistSections = list;
+      CHECKLIST_SECTIONS = list;
+      if(currentScreen==='checklist' && checklistSubTab==='fill') renderChecklistFill();
+      if(currentScreen==='checklistManage') renderChecklistManage();
+    }
+  });
 }
 
 // Shows the number of feedback entries registered SINCE the bell was last opened —
@@ -699,8 +735,8 @@ async function loadAppState(){
   if(!backendConfigured()){ backendReady = false; return { ok:false, reason:'not-configured' }; }
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
-    const [staff, customers, feedback, complaints, checklists] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', [])
+    const [staff, customers, feedback, complaints, checklists, checklistSections] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -710,6 +746,14 @@ async function loadAppState(){
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
+    }
+    if(checklistSections && checklistSections.length){
+      APP_STATE.checklistSections = checklistSections;
+      CHECKLIST_SECTIONS = checklistSections;
+    } else {
+      APP_STATE.checklistSections = JSON.parse(JSON.stringify(DEFAULT_CHECKLIST_SECTIONS));
+      CHECKLIST_SECTIONS = APP_STATE.checklistSections;
+      saveShared('checklistSections', APP_STATE.checklistSections);
     }
     backendReady = true;
     attachLiveSync();
@@ -731,6 +775,12 @@ async function getComplaints(){ return APP_STATE.complaints; }
 async function saveComplaints(arr){ APP_STATE.complaints = arr; saveShared('complaints', arr); }
 async function getChecklists(){ return APP_STATE.checklists; }
 async function saveChecklists(arr){ APP_STATE.checklists = arr; saveShared('checklists', arr); }
+async function getChecklistSections(){ return APP_STATE.checklistSections; }
+async function saveChecklistSections(arr){
+  APP_STATE.checklistSections = arr;
+  CHECKLIST_SECTIONS = arr;
+  saveShared('checklistSections', arr);
+}
 
 
 
@@ -750,7 +800,7 @@ const DEPARTMENTS = [
 ];
 
 /* ================= DAILY BRANCH CHECKLIST (matches the paper form) ================= */
-const CHECKLIST_SECTIONS = [
+const DEFAULT_CHECKLIST_SECTIONS = [
   { key:'supplies', label:'المهمات العامة', items:['لبن','سكر أبيض','سكر دايت','سكوير','كريمة لبني','لبن مكثف','عصير','سنيكرز','كيت كات','أوريو','مياه معدنية','سيروب فانيليا','سيروب بندق','سيروب كراميل','صوص دارك','صوص وايت','صوص كراميل','آيس كريم','برطمانات الفراولة','التزيينات','النظافة','البار','الجلد','سلات القمامة','علب شيكو بن','علب شيكو زبيب','علب شيكو سوداني','منيو مشروبات'] },
   { key:'cashier1', label:'الكاشير', items:['جهاز الكاشير','درج الكاشير','الطابعات','بكر كاشير','ماكينة الفيزا'] },
   { key:'restrooms', label:'دورات المياه', items:['الرجالي','الحريمي','الاستاف','سلة القمامة (وحدة النظافة)','صابون','غطاء ساخن','ستيلر','سكر باكيت','معطر جو','هوادرات'] },
@@ -769,6 +819,9 @@ const CHECKLIST_SECTIONS = [
   { key:'machines', label:'الآلات والأدوات', items:['برطمانات البن','برطمانات الفرنساوي','السكرية','الجلد','الحوض','ماكينة ويب دي كريم','مكسر','خلاط','كاتل الشاي','مطحنة اسبريسو','ماكينة اسبريسو','الثلاجة','الفريزر','ثلاجة الديزرت','آيس ميكر','الميكروويف','الفرن'] },
   { key:'servingsupplies', label:'مستلزمات الأكواب والتقديم', items:['كوب 4','كوب 8','كوب 12','كوب 12 بارد','كوب 16 بارد','كوب 20 بارد','غطاء 12','غطاء بارد','شاليموه','علب داخلية','علب خارجية','طبق ورق تقديم','شوك','سكاكين','مناديل مطبوعة'] }
 ];
+// This starts as the default list above, but is replaced with whatever is saved in
+// Firestore once loaded — so admin edits (rename/add/remove items or sections) apply everywhere.
+let CHECKLIST_SECTIONS = DEFAULT_CHECKLIST_SECTIONS;
 
 const LIKES = [
   {icon:'💰', label:'الأسعار'},
@@ -906,6 +959,7 @@ function go(id){
   if(id==='reports'){ renderReports(); markNotificationsSeen(); }
   if(id==='complaintsList') renderComplaintsList();
   if(id==='checklist') renderChecklistScreen();
+  if(id==='checklistManage') renderChecklistManage();
   if(id==='settings'){ if(typeof resetStaffForm==='function') resetStaffForm(); renderSettings(); }
 }
 
@@ -1553,13 +1607,19 @@ async function renderChecklistHistoryList(){
     const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
     const shiftLabel = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
     const tag = c.issueCount>0 ? '<span class="clIssueTag">'+c.issueCount+' مشكلة</span>' : '<span class="clOkTag">كله سليم</span>';
-    return '<div class="clHistRow" data-viewcl="'+esc(c.id)+'">'
+    return '<div class="clHistRow">'
+      + '<div data-viewcl="'+esc(c.id)+'">'
       + '<div class="clhtop"><h4>'+dateLabel+' · '+shiftLabel+'</h4>'+tag+'</div>'
       + '<small>سجّلها: '+esc(c.manager||'—')+'</small>'
+      + '</div>'
+      + '<button class="delCpBtn" data-delcl2="'+esc(c.id)+'" style="background:#F7E3DC;color:var(--bad);border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;margin-top:8px;cursor:pointer;">🗑️ حذف</button>'
       + '</div>';
   }).join('');
   body.querySelectorAll('[data-viewcl]').forEach(row=>{
     row.addEventListener('click', ()=> viewChecklistDetail(row.getAttribute('data-viewcl')));
+  });
+  body.querySelectorAll('[data-delcl2]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteChecklist(btn.getAttribute('data-delcl2')); });
   });
 }
 
@@ -1572,7 +1632,11 @@ function viewChecklistDetail(id){
   const shiftLabel = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
 
   let html = '<div class="clSummaryCard">'
-    + '<button class="btn ghost" id="clBackToHistory" style="margin-bottom:10px;">→ رجوع للسجل</button>'
+    + '<div style="display:flex;gap:8px;margin-bottom:8px;">'
+      + '<button class="btn ghost" id="clBackToHistory" style="flex:1;">→ رجوع للسجل</button>'
+      + '<button class="btn" id="clDeleteBtn" data-delcl="'+esc(c.id)+'" style="flex:1;background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>'
+    + '</div>'
+    + '<button class="btn" id="clShareBtn" style="width:100%;justify-content:center;background:#25D366;color:#fff;margin-bottom:10px;">📤 مشاركة كصورة</button>'
     + '<p style="margin:0 0 4px;font-size:13px;font-weight:700;">'+dateLabel+' · '+shiftLabel+'</p>'
     + '<p style="margin:0;font-size:11.5px;color:var(--muted);">سجّلها: '+esc(c.manager||'—')+' · '+(c.issueCount>0 ? c.issueCount+' بند فيه مشكلة' : 'كل البنود سليمة')+'</p>'
     + '</div>';
@@ -1596,9 +1660,194 @@ function viewChecklistDetail(id){
   body.innerHTML = html;
 
   document.getElementById('clBackToHistory').addEventListener('click', ()=>{ viewingChecklistId = null; renderChecklistHistoryList(); });
+  document.getElementById('clDeleteBtn').addEventListener('click', ()=> deleteChecklist(c.id));
+  document.getElementById('clShareBtn').addEventListener('click', ()=> shareChecklistImage(c.id));
   body.querySelectorAll('.clSecHead').forEach(head=>{
     head.addEventListener('click', ()=>{ head.closest('.clSection').classList.toggle('open'); });
   });
+}
+
+async function deleteChecklist(id){
+  const c = allChecklistsCache.find(x=>x.id===id);
+  if(!c) return;
+  const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
+  const shiftLabel = c.shift==='evening' ? 'مسائي' : 'صباحي';
+  const ok = confirm('متأكد إنك عايز تحذف تشيك ليست '+dateLabel+' ('+shiftLabel+') نهائيًا؟ مفيش رجوع بعد الحذف.');
+  if(!ok) return;
+  const checklists = await getChecklists();
+  const updated = checklists.filter(x=>x.id!==id);
+  await saveChecklists(updated);
+  allChecklistsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  viewingChecklistId = null;
+  renderChecklistHistoryList();
+}
+
+function buildChecklistShareHTML(c){
+  const dateLabel = new Date(c.date).toLocaleDateString('ar-EG', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  const shiftLabel = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
+  let sectionsHtml = '';
+  CHECKLIST_SECTIONS.forEach(sec=>{
+    const rows = sec.items.map((item,idx)=>{
+      const key = clItemKey(sec.key, idx);
+      const d = (c.items && c.items[key]) || {status:'ok', note:''};
+      const ok = d.status==='ok';
+      return '<tr>'
+        + '<td style="padding:6px 10px;font-size:12px;font-weight:'+(ok?600:800)+';color:'+(ok?'#2B211B':'#C0392B')+';background:'+(ok?'transparent':'#FBEAE4')+';">'+esc(item)+'</td>'
+        + '<td style="padding:6px 10px;text-align:center;font-size:13px;width:40px;">'+(ok?'✅':'❌')+'</td>'
+        + '<td style="padding:6px 10px;font-size:11px;color:#8C7B6D;">'+(d.note?esc(d.note):'')+'</td>'
+        + '</tr>';
+    }).join('');
+    sectionsHtml += '<div style="margin-bottom:14px;">'
+      + '<div style="background:#2A1810;color:#F6EAD9;padding:8px 14px;font-family:Cairo,sans-serif;font-weight:800;font-size:13px;border-radius:8px 8px 0 0;">'+esc(sec.label)+'</div>'
+      + '<table style="width:100%;border-collapse:collapse;border:1px solid #EEE2D1;border-top:none;">'+rows+'</table>'
+      + '</div>';
+  });
+  return '<div style="font-family:Tajawal,sans-serif;direction:rtl;width:680px;background:#FBF3E6;padding:28px;color:#2B211B;">'
+    + '<div style="text-align:center;margin-bottom:20px;">'
+      + '<div style="font-family:Cairo,sans-serif;font-weight:900;font-size:24px;color:#2A1810;">☕ بن العراب</div>'
+      + '<div style="font-size:13px;color:#8C7B6D;margin-top:2px;">تشيك ليست الفرع اليومية</div>'
+    + '</div>'
+    + '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
+      + '<div><div style="font-size:11px;color:#8C7B6D;">التاريخ</div><div style="font-weight:700;font-size:13px;">'+dateLabel+'</div></div>'
+      + '<div><div style="font-size:11px;color:#8C7B6D;">الشيفت</div><div style="font-weight:700;font-size:13px;">'+shiftLabel+'</div></div>'
+      + '<div><div style="font-size:11px;color:#8C7B6D;">سجّلها</div><div style="font-weight:700;font-size:13px;">'+esc(c.manager||'—')+'</div></div>'
+      + '<div><div style="font-size:11px;color:#8C7B6D;">الحالة</div><div style="font-weight:700;font-size:13px;color:'+(c.issueCount>0?'#C0392B':'#4C8B5D')+';">'+(c.issueCount>0?c.issueCount+' مشكلة':'كله سليم ✅')+'</div></div>'
+    + '</div>'
+    + sectionsHtml
+    + '<div style="text-align:center;margin-top:10px;padding:12px;background:#2A1810;color:#C08A34;border-radius:8px;font-family:Cairo,sans-serif;font-weight:800;font-size:12px;letter-spacing:2px;">بن العراب</div>'
+    + '</div>';
+}
+
+async function shareChecklistImage(id){
+  const c = allChecklistsCache.find(x=>x.id===id);
+  if(!c) return;
+  const shareBtn = document.getElementById('clShareBtn');
+  if(shareBtn){ shareBtn.disabled = true; shareBtn.textContent = 'جارِ تجهيز الصورة...'; }
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed'; container.style.top = '-9999px'; container.style.left = '-9999px';
+  container.innerHTML = buildChecklistShareHTML(c);
+  document.body.appendChild(container);
+
+  try{
+    const canvas = await html2canvas(container.firstElementChild, {scale:2, backgroundColor:'#FBF3E6'});
+    container.remove();
+    canvas.toBlob(async (blob)=>{
+      if(shareBtn){ shareBtn.disabled = false; shareBtn.textContent = '📤 مشاركة كصورة'; }
+      if(!blob) return;
+      const dateStr = new Date(c.date).toISOString().slice(0,10);
+      const fileName = ('تشيك-ليست-'+dateStr+'-'+c.shift+'.png');
+      const file = new File([blob], fileName, {type:'image/png'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        try{ await navigator.share({files:[file], title:'تشيك ليست بن العراب', text:'تشيك ليست '+dateStr}); return; }
+        catch(e){ /* user cancelled share sheet - fall through to download */ }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      alert('تم حفظ صورة التشيك ليست في الجهاز، تقدر تشاركها من معرض الصور');
+    }, 'image/png');
+  }catch(e){
+    container.remove();
+    if(shareBtn){ shareBtn.disabled = false; shareBtn.textContent = '📤 مشاركة كصورة'; }
+    alert('تعذّرت مشاركة الصورة، حاول تاني');
+  }
+}
+
+/* ================= CHECKLIST ITEM MANAGEMENT (admin only) ================= */
+let workingChecklistSections = [];
+
+async function renderChecklistManage(){
+  const box = document.getElementById('checklistManageBody');
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const sections = await getChecklistSections();
+  workingChecklistSections = JSON.parse(JSON.stringify((sections && sections.length) ? sections : DEFAULT_CHECKLIST_SECTIONS));
+  paintChecklistManage();
+}
+
+function syncChecklistManageFromDOM(){
+  document.querySelectorAll('.clmSecLabelInput').forEach(inp=>{
+    const si = parseInt(inp.getAttribute('data-secidx'),10);
+    if(workingChecklistSections[si]) workingChecklistSections[si].label = inp.value;
+  });
+  document.querySelectorAll('.clmItemInput').forEach(inp=>{
+    const si = parseInt(inp.getAttribute('data-secidx'),10);
+    const ii = parseInt(inp.getAttribute('data-itemidx'),10);
+    if(workingChecklistSections[si] && workingChecklistSections[si].items[ii]!==undefined){
+      workingChecklistSections[si].items[ii] = inp.value;
+    }
+  });
+}
+
+function paintChecklistManage(){
+  const box = document.getElementById('checklistManageBody');
+  box.innerHTML = workingChecklistSections.map((sec, si)=>{
+    const itemsHtml = sec.items.map((item, ii)=>
+      '<div class="clmItemRow">'
+        + '<input class="clmItemInput" data-secidx="'+si+'" data-itemidx="'+ii+'" value="'+esc(item)+'">'
+        + '<button class="clmDelItemBtn" data-secidx="'+si+'" data-delitemidx="'+ii+'">✕</button>'
+      + '</div>'
+    ).join('');
+    return '<div class="clmSection">'
+      + '<div class="clmSecTop">'
+        + '<input class="clmSecLabelInput" data-secidx="'+si+'" value="'+esc(sec.label)+'">'
+        + '<button class="clmDelSecBtn" data-delsecidx="'+si+'">🗑️ حذف القسم</button>'
+      + '</div>'
+      + itemsHtml
+      + '<button type="button" class="clmAddItemBtn" data-addsecidx="'+si+'">+ إضافة بند</button>'
+    + '</div>';
+  }).join('');
+
+  box.querySelectorAll('[data-addsecidx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      syncChecklistManageFromDOM();
+      const si = parseInt(btn.getAttribute('data-addsecidx'),10);
+      workingChecklistSections[si].items.push('');
+      paintChecklistManage();
+    });
+  });
+  box.querySelectorAll('[data-delitemidx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      syncChecklistManageFromDOM();
+      const si = parseInt(btn.getAttribute('data-secidx'),10);
+      const ii = parseInt(btn.getAttribute('data-delitemidx'),10);
+      workingChecklistSections[si].items.splice(ii,1);
+      paintChecklistManage();
+    });
+  });
+  box.querySelectorAll('[data-delsecidx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const si = parseInt(btn.getAttribute('data-delsecidx'),10);
+      if(!confirm('متأكد إنك عايز تحذف القسم "'+workingChecklistSections[si].label+'" بكل بنوده؟')) return;
+      syncChecklistManageFromDOM();
+      workingChecklistSections.splice(si,1);
+      paintChecklistManage();
+    });
+  });
+}
+
+function addChecklistManageSection(){
+  syncChecklistManageFromDOM();
+  workingChecklistSections.push({ key:'section_'+Date.now(), label:'قسم جديد', items:[''] });
+  paintChecklistManage();
+}
+
+async function saveChecklistManageChanges(){
+  syncChecklistManageFromDOM();
+  const cleaned = workingChecklistSections
+    .filter(sec => sec.label && sec.label.trim())
+    .map(sec => ({ key: sec.key, label: sec.label.trim(), items: sec.items.map(i=>i.trim()).filter(i=>i) }))
+    .filter(sec => sec.items.length);
+  if(!cleaned.length){
+    alert('لازم يفضل قسم واحد على الأقل فيه بند واحد على الأقل');
+    return;
+  }
+  const btn = document.getElementById('clmSaveBtn');
+  btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
+  await saveChecklistSections(cleaned);
+  btn.disabled = false; btn.textContent = '💾 حفظ كل التعديلات';
+  alert('تم حفظ التعديلات بنجاح ✅\nملحوظة: تغيير ترتيب أو حذف بنود ممكن يأثر على عرض التشيك ليستات القديمة، لكن التسجيلات الجديدة هتبقى مظبوطة تمامًا.');
+  go('settings');
 }
 
 
@@ -1926,11 +2175,14 @@ async function renderSettings(){
   document.getElementById('settStaffRole').textContent = currentStaff ? (currentStaff.role==='admin' ? 'مدير' : 'موظف') : '—';
   document.getElementById('connStatus').textContent = backendConfigured() ? (backendReady ? '✓ متصل' : '✗ غير متصل') : 'لم يتم إعداد Firebase بعد';
   const staffCard = document.getElementById('staffCard');
+  const clmCard = document.getElementById('checklistManageCard');
   if(currentStaff && currentStaff.role === 'admin'){
     staffCard.style.display = 'block';
+    clmCard.style.display = 'block';
     await paintStaffList();
   } else {
     staffCard.style.display = 'none';
+    clmCard.style.display = 'none';
   }
 }
 let editingStaffUser = null; // null = adding a new staff member; otherwise the original @username being edited
@@ -2106,6 +2358,9 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('installBtnSettings').addEventListener('click', installApp);
   document.getElementById('addStaffBtn').addEventListener('click', addStaffMember);
   document.getElementById('cancelEditStaffBtn').addEventListener('click', resetStaffForm);
+  document.getElementById('openChecklistManageBtn').addEventListener('click', ()=> go('checklistManage'));
+  document.getElementById('clmAddSectionBtn').addEventListener('click', addChecklistManageSection);
+  document.getElementById('clmSaveBtn').addEventListener('click', saveChecklistManageChanges);
   document.getElementById('qaSaveBtn').addEventListener('click', submitQuickAdd);
   populateComplaintProductSelect();
   document.getElementById('cpSaveBtn').addEventListener('click', submitComplaint);
