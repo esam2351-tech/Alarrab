@@ -1445,26 +1445,88 @@ async function deleteComplaint(id){
   paintComplaintsList();
 }
 
-function shareComplaintOnWhatsApp(id){
+function buildComplaintShareHTML(c){
+  const status = c.status || 'pending';
+  const statusLabel = status==='resolved' ? 'تم الحل ✅' : 'قيد المتابعة ⏳';
+  const statusColor = status==='resolved' ? '#4C8B5D' : '#C0392B';
+  const dateLabel = new Date(c.date).toLocaleDateString('ar-EG', {year:'numeric', month:'2-digit', day:'2-digit'});
+  const invLabel = c.invoiceDate ? new Date(c.invoiceDate).toLocaleDateString('ar-EG') : '—';
+
+  const infoBox = function(icon, label, value, color){
+    return '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:9px;flex:1;min-width:170px;">'
+      + '<div style="width:32px;height:32px;flex-shrink:0;border-radius:8px;background:#F3E5D0;display:flex;align-items:center;justify-content:center;font-size:15px;">'+icon+'</div>'
+      + '<div><div style="font-size:10px;color:#8C7B6D;">'+label+'</div><div style="font-weight:800;font-size:13.5px;color:'+(color||'#2B211B')+';">'+value+'</div></div>'
+    + '</div>';
+  };
+  const detailRow = function(label, value){
+    return '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;">'
+      + '<div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">'+label+'</div>'
+      + '<div style="font-size:14px;font-weight:600;color:#2B211B;line-height:1.6;">'+value+'</div>'
+    + '</div>';
+  };
+
+  return '<div style="font-family:Tajawal,sans-serif;direction:rtl;width:760px;background:#FBF3E6;padding:32px 36px;color:#2B211B;box-sizing:border-box;">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">'
+      + '<div style="display:flex;align-items:center;gap:10px;">'
+        + '<div style="font-size:34px;">☕</div>'
+        + '<div><div style="font-family:Cairo,sans-serif;font-weight:900;font-size:22px;color:#2A1810;">بن العراب</div>'
+        + '<div style="font-size:10px;color:#8C7B6D;letter-spacing:2px;">BIN ALARAB</div></div>'
+      + '</div>'
+      + '<div style="text-align:center;">'
+        + '<div style="font-family:Cairo,sans-serif;font-weight:900;font-size:22px;color:#2A1810;">📋 شكوى عميل</div>'
+      + '</div>'
+      + '<div style="background:'+statusColor+';color:#fff;padding:7px 16px;border-radius:20px;font-size:12.5px;font-weight:800;">'+statusLabel+'</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;">'
+      + infoBox('👤','العميل', esc(c.name||'—'))
+      + infoBox('📞','الموبايل', esc(c.phone||'—'))
+      + infoBox('📅','تاريخ الفاتورة', invLabel)
+    + '</div>'
+    + '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:12px;padding:6px 18px;margin-top:14px;">'
+      + detailRow('الصنف', esc(c.product||'—') + (c.productDetails ? ' <span style="color:#8C7B6D;font-weight:400;">('+esc(c.productDetails)+')</span>' : ''))
+      + detailRow('القسم المُحال إليه', esc(c.department || '—'))
+      + detailRow('المشكلة', esc(c.issue||'—'))
+      + detailRow('الإجراء المتخذ', esc(c.actionTaken||'—'))
+      + detailRow('سجّلها', esc(c.staff||'—')+' · '+dateLabel)
+    + '</div>'
+    + '<div style="text-align:center;margin-top:18px;padding:14px;background:#2A1810;color:#C08A34;border-radius:10px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;letter-spacing:2px;">بن العراب</div>'
+    + '</div>';
+}
+
+async function shareComplaintOnWhatsApp(id){
   const c = allComplaintsCache.find(x=>x.id===id);
   if(!c) return;
-  const status = c.status || 'pending';
-  const statusLabel = status==='resolved' ? 'تم الحل' : 'قيد المتابعة';
-  const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
-  const invLabel = c.invoiceDate ? new Date(c.invoiceDate).toLocaleDateString('ar-EG') : '—';
-  const lines = [
-    '📋 *شكوى - بن العراب*',
-    'الحالة: '+statusLabel,
-    'العميل: '+(c.name||'—'),
-    'الموبايل: '+(c.phone||'—'),
-    'الصنف: '+(c.product||'—')+(c.productDetails ? ' ('+c.productDetails+')' : ''),
-    'تاريخ الفاتورة: '+invLabel,
-    'المشكلة: '+(c.issue||'—'),
-    'الإجراء المتخذ: '+(c.actionTaken||'—'),
-    'سجّلها: '+(c.staff||'—')+' بتاريخ '+dateLabel
-  ];
-  const text = encodeURIComponent(lines.join('\n'));
-  window.open('https://wa.me/?text='+text, '_blank');
+  const btn = document.querySelector('[data-sharewa="'+id+'"]');
+  if(btn){ btn.disabled = true; btn.textContent = 'جارِ تجهيز الصورة...'; }
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed'; container.style.top = '-9999px'; container.style.left = '-9999px';
+  container.innerHTML = buildComplaintShareHTML(c);
+  document.body.appendChild(container);
+
+  try{
+    const canvas = await html2canvas(container.firstElementChild, {scale:2, backgroundColor:'#FBF3E6'});
+    container.remove();
+    canvas.toBlob(async (blob)=>{
+      if(btn){ btn.disabled = false; btn.textContent = '📤 واتساب'; }
+      if(!blob) return;
+      const dateStr = new Date(c.date).toISOString().slice(0,10);
+      const fileName = 'شكوى-'+(c.name||'عميل')+'-'+dateStr+'.png';
+      const file = new File([blob], fileName, {type:'image/png'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        try{ await navigator.share({files:[file], title:'شكوى - بن العراب', text:'شكوى '+(c.name||'')}); return; }
+        catch(e){ /* user cancelled - fall through to download */ }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      alert('تم حفظ صورة الشكوى في الجهاز، تقدر تبعتها من واتساب أو أي تطبيق تاني');
+    }, 'image/png');
+  }catch(e){
+    container.remove();
+    if(btn){ btn.disabled = false; btn.textContent = '📤 واتساب'; }
+    alert('تعذّرت مشاركة الصورة، حاول تاني');
+  }
 }
 
 /* ================= DAILY CHECKLIST ================= */
