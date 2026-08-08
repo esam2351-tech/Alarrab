@@ -1682,75 +1682,119 @@ async function deleteChecklist(id){
   renderChecklistHistoryList();
 }
 
-function buildChecklistShareHTML(c){
-  const dateLabel = new Date(c.date).toLocaleDateString('ar-EG', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+function buildChecklistShareHTML(c, sections, pageNum, totalPages){
+  const dateLabel = new Date(c.date).toLocaleDateString('ar-EG', {year:'numeric', month:'2-digit', day:'2-digit'});
   const shiftLabel = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
-  let sectionsHtml = '';
-  CHECKLIST_SECTIONS.forEach(sec=>{
+
+  const boxesHtml = sections.map(sec=>{
     const rows = sec.items.map((item,idx)=>{
       const key = clItemKey(sec.key, idx);
       const d = (c.items && c.items[key]) || {status:'ok', note:''};
       const ok = d.status==='ok';
-      return '<tr>'
-        + '<td style="padding:6px 10px;font-size:12px;font-weight:'+(ok?600:800)+';color:'+(ok?'#2B211B':'#C0392B')+';background:'+(ok?'transparent':'#FBEAE4')+';">'+esc(item)+'</td>'
-        + '<td style="padding:6px 10px;text-align:center;font-size:13px;width:40px;">'+(ok?'✅':'❌')+'</td>'
-        + '<td style="padding:6px 10px;font-size:11px;color:#8C7B6D;">'+(d.note?esc(d.note):'')+'</td>'
+      return '<tr style="border-top:1px solid #F0E8DA;">'
+        + '<td style="padding:6px 6px;font-size:10px;color:#C0392B;text-align:center;white-space:normal;">'+(d.note?esc(d.note):'—')+'</td>'
+        + '<td style="padding:6px 8px;font-size:12px;font-weight:600;color:'+(ok?'#2B211B':'#C0392B')+';">'+esc(item)+'</td>'
+        + '<td style="padding:6px 6px;text-align:center;font-size:14px;width:34px;">'+(ok?'✅':'❌')+'</td>'
         + '</tr>';
     }).join('');
-    sectionsHtml += '<div style="margin-bottom:14px;">'
-      + '<div style="background:#2A1810;color:#F6EAD9;padding:8px 14px;font-family:Cairo,sans-serif;font-weight:800;font-size:13px;border-radius:8px 8px 0 0;">'+esc(sec.label)+'</div>'
-      + '<table style="width:100%;border-collapse:collapse;border:1px solid #EEE2D1;border-top:none;">'+rows+'</table>'
-      + '</div>';
-  });
-  return '<div style="font-family:Tajawal,sans-serif;direction:rtl;width:680px;background:#FBF3E6;padding:28px;color:#2B211B;">'
-    + '<div style="text-align:center;margin-bottom:20px;">'
-      + '<div style="font-family:Cairo,sans-serif;font-weight:900;font-size:24px;color:#2A1810;">☕ بن العراب</div>'
-      + '<div style="font-size:13px;color:#8C7B6D;margin-top:2px;">تشيك ليست الفرع اليومية</div>'
-    + '</div>'
-    + '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
-      + '<div><div style="font-size:11px;color:#8C7B6D;">التاريخ</div><div style="font-weight:700;font-size:13px;">'+dateLabel+'</div></div>'
-      + '<div><div style="font-size:11px;color:#8C7B6D;">الشيفت</div><div style="font-weight:700;font-size:13px;">'+shiftLabel+'</div></div>'
-      + '<div><div style="font-size:11px;color:#8C7B6D;">سجّلها</div><div style="font-weight:700;font-size:13px;">'+esc(c.manager||'—')+'</div></div>'
-      + '<div><div style="font-size:11px;color:#8C7B6D;">الحالة</div><div style="font-weight:700;font-size:13px;color:'+(c.issueCount>0?'#C0392B':'#4C8B5D')+';">'+(c.issueCount>0?c.issueCount+' مشكلة':'كله سليم ✅')+'</div></div>'
-    + '</div>'
-    + sectionsHtml
-    + '<div style="text-align:center;margin-top:10px;padding:12px;background:#2A1810;color:#C08A34;border-radius:8px;font-family:Cairo,sans-serif;font-weight:800;font-size:12px;letter-spacing:2px;">بن العراب</div>'
+    return '<div style="border:1px solid #E4DFD1;border-radius:12px;overflow:hidden;background:#fff;flex:1 1 300px;min-width:270px;align-self:flex-start;">'
+      + '<div style="background:#2A1810;color:#F6EAD9;padding:9px 14px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;text-align:center;">'+esc(sec.label)+'</div>'
+      + '<table style="width:100%;border-collapse:collapse;">'
+        + '<thead><tr style="background:#FBF3E6;"><th style="padding:6px;font-size:9.5px;color:#8C7B6D;font-weight:700;">ملاحظات</th><th></th><th style="padding:6px;font-size:9.5px;color:#8C7B6D;font-weight:700;width:34px;">الحالة</th></tr></thead>'
+        + '<tbody>'+rows+'</tbody>'
+      + '</table>'
     + '</div>';
+  }).join('');
+
+  const infoBox = function(icon, label, value, color){
+    return '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:9px;flex:1;min-width:150px;">'
+      + '<div style="width:32px;height:32px;flex-shrink:0;border-radius:8px;background:#F3E5D0;display:flex;align-items:center;justify-content:center;font-size:15px;">'+icon+'</div>'
+      + '<div><div style="font-size:10px;color:#8C7B6D;">'+label+'</div><div style="font-weight:800;font-size:13px;color:'+(color||'#2B211B')+';">'+value+'</div></div>'
+    + '</div>';
+  };
+
+  const footerHtml = (pageNum===totalPages)
+    ? '<div style="text-align:center;font-size:13px;color:#8C7B6D;">شكرًا لحسن تعاونكم وحرصكم على الجودة ❤️</div>'
+    : '<div style="text-align:center;font-size:12px;color:#8C7B6D;">📋 الجودة في التفاصيل، والتفاصيل تصنع الفرق — <b style="color:#2A1810;">بن العراب</b></div>';
+
+  return '<div style="font-family:Tajawal,sans-serif;direction:rtl;width:1000px;background:#FBF3E6;padding:32px 36px;color:#2B211B;box-sizing:border-box;">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">'
+      + '<div style="display:flex;align-items:center;gap:10px;">'
+        + '<div style="font-size:34px;">☕</div>'
+        + '<div><div style="font-family:Cairo,sans-serif;font-weight:900;font-size:22px;color:#2A1810;">بن العراب</div>'
+        + '<div style="font-size:10px;color:#8C7B6D;letter-spacing:2px;">BIN ALARAB</div></div>'
+      + '</div>'
+      + '<div style="text-align:center;">'
+        + '<div style="font-family:Cairo,sans-serif;font-weight:900;font-size:24px;color:#2A1810;">تشيك ليست يومية</div>'
+        + '<div style="font-size:11.5px;color:#8C7B6D;margin-top:2px;">لضمان الجودة والنظافة والترتيب</div>'
+      + '</div>'
+      + '<div style="font-size:30px;">🫘🫘</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">'
+      + infoBox('📅','التاريخ', dateLabel)
+      + infoBox('🕐','الشيفت', shiftLabel)
+      + infoBox('🧑‍💼','اسم الموظف', esc(c.manager||'—'))
+      + infoBox('⚠️','عدد المشاكل', c.issueCount, c.issueCount>0 ? '#C0392B' : '#4C8B5D')
+    + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:18px;">'+boxesHtml+'</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
+      + '<div style="background:#2A1810;color:#F6EAD9;padding:5px 14px;border-radius:8px;font-size:12px;font-weight:700;">'+pageNum+'/'+totalPages+'</div>'
+      + '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:10px;padding:8px 16px;font-size:11.5px;display:flex;gap:12px;">'
+        + '<span>✅ سليم</span><span>❌ مشكلة</span>'
+      + '</div>'
+    + '</div>'
+    + '<div style="margin-top:14px;">'+footerHtml+'</div>'
+    + '</div>';
+}
+
+function renderChecklistPageToBlob(c, sections, pageNum, totalPages){
+  return new Promise((resolve, reject)=>{
+    const container = document.createElement('div');
+    container.style.position = 'fixed'; container.style.top = '-9999px'; container.style.left = '-9999px';
+    container.innerHTML = buildChecklistShareHTML(c, sections, pageNum, totalPages);
+    document.body.appendChild(container);
+    html2canvas(container.firstElementChild, {scale:2, backgroundColor:'#FBF3E6'}).then(canvas=>{
+      container.remove();
+      canvas.toBlob(blob=>{ blob ? resolve(blob) : reject(new Error('toBlob failed')); }, 'image/png');
+    }).catch(err=>{ container.remove(); reject(err); });
+  });
 }
 
 async function shareChecklistImage(id){
   const c = allChecklistsCache.find(x=>x.id===id);
   if(!c) return;
   const shareBtn = document.getElementById('clShareBtn');
-  if(shareBtn){ shareBtn.disabled = true; shareBtn.textContent = 'جارِ تجهيز الصورة...'; }
+  if(shareBtn){ shareBtn.disabled = true; shareBtn.textContent = 'جارِ تجهيز الصور...'; }
 
-  const container = document.createElement('div');
-  container.style.position = 'fixed'; container.style.top = '-9999px'; container.style.left = '-9999px';
-  container.innerHTML = buildChecklistShareHTML(c);
-  document.body.appendChild(container);
+  // split sections roughly in half so each image prints legibly on its own A4 sheet
+  const half = Math.ceil(CHECKLIST_SECTIONS.length / 2);
+  const page1Sections = CHECKLIST_SECTIONS.slice(0, half);
+  const page2Sections = CHECKLIST_SECTIONS.slice(half);
 
   try{
-    const canvas = await html2canvas(container.firstElementChild, {scale:2, backgroundColor:'#FBF3E6'});
-    container.remove();
-    canvas.toBlob(async (blob)=>{
-      if(shareBtn){ shareBtn.disabled = false; shareBtn.textContent = '📤 مشاركة كصورة'; }
-      if(!blob) return;
-      const dateStr = new Date(c.date).toISOString().slice(0,10);
-      const fileName = ('تشيك-ليست-'+dateStr+'-'+c.shift+'.png');
-      const file = new File([blob], fileName, {type:'image/png'});
-      if(navigator.canShare && navigator.canShare({files:[file]})){
-        try{ await navigator.share({files:[file], title:'تشيك ليست بن العراب', text:'تشيك ليست '+dateStr}); return; }
-        catch(e){ /* user cancelled share sheet - fall through to download */ }
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
-      URL.revokeObjectURL(url);
-      alert('تم حفظ صورة التشيك ليست في الجهاز، تقدر تشاركها من معرض الصور');
-    }, 'image/png');
-  }catch(e){
-    container.remove();
+    const [blob1, blob2] = await Promise.all([
+      renderChecklistPageToBlob(c, page1Sections, 1, 2),
+      renderChecklistPageToBlob(c, page2Sections, 2, 2)
+    ]);
     if(shareBtn){ shareBtn.disabled = false; shareBtn.textContent = '📤 مشاركة كصورة'; }
-    alert('تعذّرت مشاركة الصورة، حاول تاني');
+
+    const dateStr = new Date(c.date).toISOString().slice(0,10);
+    const file1 = new File([blob1], 'تشيك-ليست-'+dateStr+'-'+c.shift+'-1.png', {type:'image/png'});
+    const file2 = new File([blob2], 'تشيك-ليست-'+dateStr+'-'+c.shift+'-2.png', {type:'image/png'});
+
+    if(navigator.canShare && navigator.canShare({files:[file1,file2]})){
+      try{ await navigator.share({files:[file1,file2], title:'تشيك ليست بن العراب', text:'تشيك ليست '+dateStr}); return; }
+      catch(e){ /* user cancelled share sheet - fall through to download */ }
+    }
+    [file1,file2].forEach(f=>{
+      const url = URL.createObjectURL(f);
+      const a = document.createElement('a'); a.href = url; a.download = f.name; a.click();
+      URL.revokeObjectURL(url);
+    });
+    alert('تم حفظ صورتين للتشيك ليست في الجهاز (صفحة 1 و2)، تقدر تشاركهم أو تطبعهم من معرض الصور');
+  }catch(e){
+    if(shareBtn){ shareBtn.disabled = false; shareBtn.textContent = '📤 مشاركة كصورة'; }
+    alert('تعذّرت مشاركة الصور، حاول تاني');
   }
 }
 
