@@ -1752,64 +1752,86 @@ async function deleteChecklist(id){
   renderChecklistHistoryList();
 }
 
+// Splits a set of sections into 2 balanced column-groups (by item count), preserving section order —
+// used to lay each page out as two side-by-side columns, like the original paper checklist.
+function splitIntoTwoColumns(sections){
+  const totalItems = sections.reduce((s,sec)=>s+sec.items.length, 0);
+  let threshold = Math.max(1, Math.ceil(totalItems/2));
+  let cols = chunkChecklistSections(sections, threshold);
+  let guard = 0;
+  while(cols.length > 2 && guard < 12){
+    threshold = Math.ceil(threshold*1.15);
+    cols = chunkChecklistSections(sections, threshold);
+    guard++;
+  }
+  return [cols[0]||[], cols[1]||[]];
+}
+
 function buildChecklistShareHTML(c, sections, pageNum, totalPages){
   const dateLabel = new Date(c.date).toLocaleDateString('ar-EG', {year:'numeric', month:'2-digit', day:'2-digit'});
   const shiftLabel = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
 
-  const boxesHtml = sections.map(sec=>{
+  const sectionTable = function(sec){
     const rows = sec.items.map((item,idx)=>{
       const key = clItemKey(sec.key, idx);
       const d = (c.items && c.items[key]) || {status:'ok', note:''};
       const ok = d.status==='ok';
       return '<tr style="border-top:1px solid #F0E8DA;">'
-        + '<td style="padding:12px 8px;font-family:Tajawal,sans-serif;font-size:13px;font-weight:600;line-height:1.7;color:#C0392B;text-align:center;white-space:normal;">'+(d.note?esc(d.note):'—')+'</td>'
-        + '<td style="padding:12px 10px;font-family:Tajawal,sans-serif;font-size:18px;font-weight:700;line-height:1.7;color:'+(ok?'#2B211B':'#C0392B')+';">'+esc(item)+'</td>'
-        + '<td style="padding:12px 8px;text-align:center;font-size:20px;width:40px;">'+(ok?'✅':'❌')+'</td>'
+        + '<td style="padding:7px 6px;font-family:Tajawal,sans-serif;font-size:12px;font-weight:700;line-height:1.5;color:'+(ok?'#2B211B':'#C0392B')+';">'+esc(item)+'</td>'
+        + '<td style="padding:7px 4px;text-align:center;font-size:15px;width:26px;">'+(ok?'✅':'❌')+'</td>'
+        + '<td style="padding:7px 6px;font-family:Tajawal,sans-serif;font-size:10.5px;font-weight:600;line-height:1.5;color:#C0392B;text-align:center;">'+(d.note?esc(d.note):'—')+'</td>'
         + '</tr>';
     }).join('');
-    return '<div style="border:1px solid #E4DFD1;border-radius:12px;overflow:hidden;background:#fff;flex:1 1 340px;min-width:330px;align-self:flex-start;">'
-      + '<div style="background:#2A1810;color:#F6EAD9;padding:13px 16px;font-family:Cairo,sans-serif;font-weight:800;font-size:21px;line-height:1.4;text-align:center;">'+esc(sec.label)+'</div>'
+    return '<div style="border:1px solid #E4DFD1;border-radius:8px;overflow:hidden;background:#fff;margin-bottom:10px;">'
+      + '<div style="background:#2A1810;color:#F6EAD9;padding:7px 12px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;">'+esc(sec.label)+'</div>'
       + '<table style="width:100%;border-collapse:collapse;">'
-        + '<thead><tr style="background:#FBF3E6;"><th style="padding:8px;font-family:Cairo,sans-serif;font-size:12px;font-weight:700;color:#8C7B6D;">ملاحظات</th><th></th><th style="padding:8px;font-family:Cairo,sans-serif;font-size:12px;font-weight:700;color:#8C7B6D;width:40px;">الحالة</th></tr></thead>'
+        + '<thead><tr style="background:#FBF3E6;"><th style="padding:5px;font-family:Cairo,sans-serif;font-size:9.5px;font-weight:700;color:#8C7B6D;text-align:right;">الصنف</th><th style="padding:5px;font-family:Cairo,sans-serif;font-size:9.5px;font-weight:700;color:#8C7B6D;">الحالة</th><th style="padding:5px;font-family:Cairo,sans-serif;font-size:9.5px;font-weight:700;color:#8C7B6D;">ملاحظات</th></tr></thead>'
         + '<tbody>'+rows+'</tbody>'
       + '</table>'
     + '</div>';
-  }).join('');
+  };
+
+  const [colA, colB] = splitIntoTwoColumns(sections);
+  const columnsHtml = '<div style="display:flex;gap:16px;">'
+    + '<div style="flex:1;min-width:0;">'+colA.map(sectionTable).join('')+'</div>'
+    + '<div style="flex:1;min-width:0;">'+colB.map(sectionTable).join('')+'</div>'
+    + '</div>';
 
   const infoBox = function(icon, label, value, color){
-    return '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:10px;padding:11px 15px;display:flex;align-items:center;gap:9px;flex:1;min-width:160px;">'
-      + '<div style="width:34px;height:34px;flex-shrink:0;border-radius:8px;background:#F3E5D0;display:flex;align-items:center;justify-content:center;font-size:16px;">'+icon+'</div>'
-      + '<div><div style="font-family:Cairo,sans-serif;font-size:11px;color:#8C7B6D;">'+label+'</div><div style="font-family:Cairo,sans-serif;font-weight:800;font-size:15px;line-height:1.5;color:'+(color||'#2B211B')+';">'+value+'</div></div>'
+    return '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:7px;flex:1;min-width:130px;">'
+      + '<div style="width:26px;height:26px;flex-shrink:0;border-radius:6px;background:#F3E5D0;display:flex;align-items:center;justify-content:center;font-size:13px;">'+icon+'</div>'
+      + '<div><div style="font-family:Cairo,sans-serif;font-size:9.5px;color:#8C7B6D;">'+label+'</div><div style="font-family:Cairo,sans-serif;font-weight:800;font-size:12.5px;line-height:1.4;color:'+(color||'#2B211B')+';">'+value+'</div></div>'
     + '</div>';
   };
 
   const footerHtml = (pageNum===totalPages)
-    ? '<div style="text-align:center;font-family:Tajawal,sans-serif;font-size:14px;font-weight:700;color:#8C7B6D;">شكرًا لحسن تعاونكم وحرصكم على الجودة ❤️</div>'
-    : '<div style="text-align:center;font-family:Tajawal,sans-serif;font-size:13px;font-weight:700;color:#8C7B6D;">📋 الجودة في التفاصيل، والتفاصيل تصنع الفرق — <b style="color:#2A1810;">بن العراب</b></div>';
+    ? '<div style="text-align:center;font-family:Tajawal,sans-serif;font-size:12px;font-weight:700;color:#8C7B6D;">شكرًا لحسن تعاونكم وحرصكم على الجودة ❤️</div>'
+    : '<div style="text-align:center;font-family:Tajawal,sans-serif;font-size:11.5px;font-weight:700;color:#8C7B6D;">📋 الجودة في التفاصيل، والتفاصيل تصنع الفرق — <b style="color:#2A1810;">بن العراب</b></div>';
 
-  return '<div style="font-family:Tajawal,sans-serif;direction:rtl;width:1000px;background:#FBF3E6;padding:32px 36px;color:#2B211B;box-sizing:border-box;">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">'
-      + '<div style="display:flex;align-items:center;gap:10px;">'
-        + '<img src="'+LOGO_DATA_URI+'" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0;">'
-        + '<div><div style="font-family:Cairo,sans-serif;font-weight:900;font-size:22px;color:#2A1810;">بن العراب</div>'
-        + '<div style="font-size:10px;color:#8C7B6D;letter-spacing:2px;">BIN ALARAB</div></div>'
+  // A4-proportioned canvas (1240 x ~1754 at ~150dpi) so it prints cleanly on an A4 sheet
+  return '<div style="font-family:Tajawal,sans-serif;direction:rtl;width:1240px;background:#FBF3E6;padding:26px 30px;color:#2B211B;box-sizing:border-box;">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
+      + '<div style="display:flex;align-items:center;gap:8px;">'
+        + '<img src="'+LOGO_DATA_URI+'" style="width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0;">'
+        + '<div><div style="font-family:Cairo,sans-serif;font-weight:900;font-size:17px;color:#2A1810;">بن العراب</div>'
+        + '<div style="font-size:8.5px;color:#8C7B6D;letter-spacing:2px;">BIN ALARAB</div></div>'
       + '</div>'
       + '<div style="text-align:center;">'
-        + '<div style="font-family:Cairo,sans-serif;font-weight:900;font-size:24px;color:#2A1810;">تشيك ليست يومية</div>'
-        + '<div style="font-size:11.5px;color:#8C7B6D;margin-top:2px;">لضمان الجودة والنظافة والترتيب</div>'
+        + '<div style="font-family:Cairo,sans-serif;font-weight:900;font-size:18px;color:#2A1810;">تشيك ليست يومية</div>'
+        + '<div style="font-size:9.5px;color:#8C7B6D;margin-top:1px;">لضمان الجودة والنظافة والترتيب</div>'
       + '</div>'
-      + '<div style="font-size:30px;">🫘🫘</div>'
+      + '<div style="font-size:22px;">🫘🫘</div>'
     + '</div>'
-    + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">'
       + infoBox('📅','التاريخ', dateLabel)
       + infoBox('🕐','الشيفت', shiftLabel)
       + infoBox('🧑‍💼','اسم الموظف', esc(c.manager||'—'))
       + infoBox('⚠️','عدد المشاكل', c.issueCount, c.issueCount>0 ? '#C0392B' : '#4C8B5D')
     + '</div>'
-    + '<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:18px;">'+boxesHtml+'</div>'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">'
-      + '<div style="background:#2A1810;color:#F6EAD9;padding:6px 16px;border-radius:8px;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;">'+pageNum+'/'+totalPages+'</div>'
-      + '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:10px;padding:9px 18px;font-family:Tajawal,sans-serif;font-size:13px;font-weight:700;display:flex;gap:14px;">'
+    + columnsHtml
+    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;">'
+      + '<div style="background:#2A1810;color:#F6EAD9;padding:5px 13px;border-radius:6px;font-family:Cairo,sans-serif;font-size:11px;font-weight:700;">'+pageNum+'/'+totalPages+'</div>'
+      + '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:8px;padding:6px 14px;font-family:Tajawal,sans-serif;font-size:11px;font-weight:700;display:flex;gap:10px;">'
         + '<span>✅ سليم</span><span>❌ مشكلة</span>'
       + '</div>'
     + '</div>'
@@ -1827,7 +1849,7 @@ function renderChecklistPageToBlob(c, sections, pageNum, totalPages){
     container.innerHTML = buildChecklistShareHTML(c, sections, pageNum, totalPages);
     document.body.appendChild(container);
     const capture = ()=>{
-      html2canvas(container.firstElementChild, {scale:3, backgroundColor:'#FBF3E6', useCORS:true, width:1000, windowWidth:1000}).then(canvas=>{
+      html2canvas(container.firstElementChild, {scale:3, backgroundColor:'#FBF3E6', useCORS:true, width:1240, windowWidth:1240}).then(canvas=>{
         container.remove();
         canvas.toBlob(blob=>{ blob ? resolve(blob) : reject(new Error('toBlob failed')); }, 'image/png');
       }).catch(err=>{ container.remove(); reject(err); });
