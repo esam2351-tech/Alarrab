@@ -1502,12 +1502,14 @@ async function shareComplaintOnWhatsApp(id){
   if(btn){ btn.disabled = true; btn.textContent = 'جارِ تجهيز الصورة...'; }
 
   const container = document.createElement('div');
-  container.style.position = 'fixed'; container.style.top = '-9999px'; container.style.left = '-9999px';
+  container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
+  container.style.opacity = '0'; container.style.pointerEvents = 'none'; container.style.zIndex = '-9999';
   container.innerHTML = buildComplaintShareHTML(c);
   document.body.appendChild(container);
 
   try{
-    const canvas = await html2canvas(container.firstElementChild, {scale:2, backgroundColor:'#FBF3E6'});
+    if(document.fonts && document.fonts.ready){ await document.fonts.ready.catch(()=>{}); }
+    const canvas = await html2canvas(container.firstElementChild, {scale:3, backgroundColor:'#FBF3E6', useCORS:true, width:760, windowWidth:760});
     container.remove();
     canvas.toBlob(async (blob)=>{
       if(btn){ btn.disabled = false; btn.textContent = '📤 واتساب'; }
@@ -1814,14 +1816,42 @@ function buildChecklistShareHTML(c, sections, pageNum, totalPages){
 function renderChecklistPageToBlob(c, sections, pageNum, totalPages){
   return new Promise((resolve, reject)=>{
     const container = document.createElement('div');
-    container.style.position = 'fixed'; container.style.top = '-9999px'; container.style.left = '-9999px';
+    // visible-but-invisible (opacity 0) instead of far off-screen — far off-screen positions can make
+    // some mobile browsers render text blurry/incorrectly when html2canvas captures them.
+    container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
+    container.style.opacity = '0'; container.style.pointerEvents = 'none'; container.style.zIndex = '-9999';
     container.innerHTML = buildChecklistShareHTML(c, sections, pageNum, totalPages);
     document.body.appendChild(container);
-    html2canvas(container.firstElementChild, {scale:2, backgroundColor:'#FBF3E6'}).then(canvas=>{
-      container.remove();
-      canvas.toBlob(blob=>{ blob ? resolve(blob) : reject(new Error('toBlob failed')); }, 'image/png');
-    }).catch(err=>{ container.remove(); reject(err); });
+    const capture = ()=>{
+      html2canvas(container.firstElementChild, {scale:3, backgroundColor:'#FBF3E6', useCORS:true, width:1000, windowWidth:1000}).then(canvas=>{
+        container.remove();
+        canvas.toBlob(blob=>{ blob ? resolve(blob) : reject(new Error('toBlob failed')); }, 'image/png');
+      }).catch(err=>{ container.remove(); reject(err); });
+    };
+    // make sure Cairo/Tajawal have actually finished loading before rasterizing, or text falls back to a
+    // generic font mid-capture and can look inconsistent/blurry
+    if(document.fonts && document.fonts.ready){ document.fonts.ready.then(capture).catch(capture); }
+    else { capture(); }
   });
+}
+
+// Splits sections into several shorter pages (by total item count, not just section count) so each
+// image stays short enough to read clearly on a phone screen instead of one giant, overly dense image.
+function chunkChecklistSections(sections, maxItemsPerPage){
+  const pages = [];
+  let current = [];
+  let count = 0;
+  sections.forEach(sec=>{
+    if(count + sec.items.length > maxItemsPerPage && current.length){
+      pages.push(current);
+      current = [];
+      count = 0;
+    }
+    current.push(sec);
+    count += sec.items.length;
+  });
+  if(current.length) pages.push(current);
+  return pages;
 }
 
 async function shareChecklistImage(id){
@@ -1830,32 +1860,26 @@ async function shareChecklistImage(id){
   const shareBtn = document.getElementById('clShareBtn');
   if(shareBtn){ shareBtn.disabled = true; shareBtn.textContent = 'جارِ تجهيز الصور...'; }
 
-  // split sections roughly in half so each image prints legibly on its own A4 sheet
-  const half = Math.ceil(CHECKLIST_SECTIONS.length / 2);
-  const page1Sections = CHECKLIST_SECTIONS.slice(0, half);
-  const page2Sections = CHECKLIST_SECTIONS.slice(half);
+  const pages = chunkChecklistSections(CHECKLIST_SECTIONS, 45);
+  const totalPages = pages.length;
 
   try{
-    const [blob1, blob2] = await Promise.all([
-      renderChecklistPageToBlob(c, page1Sections, 1, 2),
-      renderChecklistPageToBlob(c, page2Sections, 2, 2)
-    ]);
+    const blobs = await Promise.all(pages.map((secs, i)=> renderChecklistPageToBlob(c, secs, i+1, totalPages)));
     if(shareBtn){ shareBtn.disabled = false; shareBtn.textContent = '📤 مشاركة كصورة'; }
 
     const dateStr = new Date(c.date).toISOString().slice(0,10);
-    const file1 = new File([blob1], 'تشيك-ليست-'+dateStr+'-'+c.shift+'-1.png', {type:'image/png'});
-    const file2 = new File([blob2], 'تشيك-ليست-'+dateStr+'-'+c.shift+'-2.png', {type:'image/png'});
+    const files = blobs.map((blob, i)=> new File([blob], 'تشيك-ليست-'+dateStr+'-'+c.shift+'-'+(i+1)+'.png', {type:'image/png'}));
 
-    if(navigator.canShare && navigator.canShare({files:[file1,file2]})){
-      try{ await navigator.share({files:[file1,file2], title:'تشيك ليست بن العراب', text:'تشيك ليست '+dateStr}); return; }
+    if(navigator.canShare && navigator.canShare({files})){
+      try{ await navigator.share({files, title:'تشيك ليست بن العراب', text:'تشيك ليست '+dateStr}); return; }
       catch(e){ /* user cancelled share sheet - fall through to download */ }
     }
-    [file1,file2].forEach(f=>{
+    files.forEach(f=>{
       const url = URL.createObjectURL(f);
       const a = document.createElement('a'); a.href = url; a.download = f.name; a.click();
       URL.revokeObjectURL(url);
     });
-    alert('تم حفظ صورتين للتشيك ليست في الجهاز (صفحة 1 و2)، تقدر تشاركهم أو تطبعهم من معرض الصور');
+    alert('تم حفظ '+totalPages+' صور للتشيك ليست في الجهاز، تقدر تشاركهم أو تطبعهم من معرض الصور');
   }catch(e){
     if(shareBtn){ shareBtn.disabled = false; shareBtn.textContent = '📤 مشاركة كصورة'; }
     alert('تعذّرت مشاركة الصور، حاول تاني');
