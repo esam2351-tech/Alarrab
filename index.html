@@ -1702,7 +1702,10 @@ function viewChecklistDetail(id){
       + '<button class="btn ghost" id="clBackToHistory" style="flex:1;">→ رجوع للسجل</button>'
       + '<button class="btn" id="clDeleteBtn" data-delcl="'+esc(c.id)+'" style="flex:1;background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>'
     + '</div>'
-    + '<button class="btn" id="clShareBtn" style="width:100%;justify-content:center;background:#25D366;color:#fff;margin-bottom:10px;">📤 مشاركة كصورة</button>'
+    + '<div style="display:flex;gap:8px;margin-bottom:10px;">'
+      + '<button class="btn" id="clShareBtn" style="flex:1;justify-content:center;background:#25D366;color:#fff;">📤 مشاركة كصورة</button>'
+      + '<button class="btn" id="clDownloadBtn" style="flex:1;justify-content:center;background:var(--primarySoft,#E4EEE9);color:var(--espresso-2);">⬇️ حفظ الصور بس</button>'
+    + '</div>'
     + '<p style="margin:0 0 4px;font-size:13px;font-weight:700;">'+dateLabel+' · '+shiftLabel+'</p>'
     + '<p style="margin:0;font-size:11.5px;color:var(--muted);">سجّلها: '+esc(c.manager||'—')+' · '+(c.issueCount>0 ? c.issueCount+' بند فيه مشكلة' : 'كل البنود سليمة')+'</p>'
     + '</div>';
@@ -1728,6 +1731,7 @@ function viewChecklistDetail(id){
   document.getElementById('clBackToHistory').addEventListener('click', ()=>{ viewingChecklistId = null; renderChecklistHistoryList(); });
   document.getElementById('clDeleteBtn').addEventListener('click', ()=> deleteChecklist(c.id));
   document.getElementById('clShareBtn').addEventListener('click', ()=> shareChecklistImage(c.id));
+  document.getElementById('clDownloadBtn').addEventListener('click', ()=> downloadChecklistImages(c.id));
   body.querySelectorAll('.clSecHead').forEach(head=>{
     head.addEventListener('click', ()=>{ head.closest('.clSection').classList.toggle('open'); });
   });
@@ -1854,13 +1858,28 @@ function chunkChecklistSections(sections, maxItemsPerPage){
   return pages;
 }
 
+// Targets a fixed number of images (e.g. exactly 2) instead of a fixed max-items-per-page —
+// keeps working correctly even if items are added/removed later via item management.
+function chunkChecklistSectionsBalanced(sections, targetPages){
+  const totalItems = sections.reduce((s,sec)=>s+sec.items.length, 0);
+  let threshold = Math.max(1, Math.ceil(totalItems / targetPages));
+  let pages = chunkChecklistSections(sections, threshold);
+  let guard = 0;
+  while(pages.length > targetPages && guard < 12){
+    threshold = Math.ceil(threshold * 1.15);
+    pages = chunkChecklistSections(sections, threshold);
+    guard++;
+  }
+  return pages;
+}
+
 async function shareChecklistImage(id){
   const c = allChecklistsCache.find(x=>x.id===id);
   if(!c) return;
   const shareBtn = document.getElementById('clShareBtn');
   if(shareBtn){ shareBtn.disabled = true; shareBtn.textContent = 'جارِ تجهيز الصور...'; }
 
-  const pages = chunkChecklistSections(CHECKLIST_SECTIONS, 45);
+  const pages = chunkChecklistSectionsBalanced(CHECKLIST_SECTIONS, 2);
   const totalPages = pages.length;
 
   try{
@@ -1883,6 +1902,37 @@ async function shareChecklistImage(id){
   }catch(e){
     if(shareBtn){ shareBtn.disabled = false; shareBtn.textContent = '📤 مشاركة كصورة'; }
     alert('تعذّرت مشاركة الصور، حاول تاني');
+  }
+}
+
+// Saves the images straight to the device without opening the share sheet — this avoids
+// WhatsApp (or other apps) auto-compressing the image when shared directly through the OS share flow.
+// The person can then attach the saved images in WhatsApp manually as a "Document" for full quality.
+async function downloadChecklistImages(id){
+  const c = allChecklistsCache.find(x=>x.id===id);
+  if(!c) return;
+  const btn = document.getElementById('clDownloadBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'جارِ التجهيز...'; }
+
+  const pages = chunkChecklistSectionsBalanced(CHECKLIST_SECTIONS, 2);
+  const totalPages = pages.length;
+
+  try{
+    const blobs = await Promise.all(pages.map((secs, i)=> renderChecklistPageToBlob(c, secs, i+1, totalPages)));
+    if(btn){ btn.disabled = false; btn.textContent = '⬇️ حفظ الصور بس'; }
+
+    const dateStr = new Date(c.date).toISOString().slice(0,10);
+    blobs.forEach((blob, i)=>{
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'تشيك-ليست-'+dateStr+'-'+c.shift+'-'+(i+1)+'.png';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    alert('اتحفظ '+totalPages+' صورة في الجهاز (مجلد التنزيلات). عشان الجودة تفضل عالية لما تبعتها واتساب: افتح الشات ← 📎 ← مستند (Document) ← اختار الصور من هناك، بدل ما تبعتها كصورة عادية.');
+  }catch(e){
+    if(btn){ btn.disabled = false; btn.textContent = '⬇️ حفظ الصور بس'; }
+    alert('تعذّر حفظ الصور، حاول تاني');
   }
 }
 
