@@ -1520,7 +1520,7 @@ async function shareComplaintOnWhatsApp(id){
     const fileName = 'شكوى-'+(c.name||'عميل')+'-'+dateStr+'.png';
     const file = new File([blob], fileName, {type:'image/png'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
-      try{ await navigator.share({files:[file], title:'شكوى - بن العراب', text:'شكوى '+(c.name||'')}); return; }
+      try{ await navigator.share({files:[file], title:'شكوى - بن العراب', text:'شكوى - قسم '+(c.department||'غير محدد')}); return; }
       catch(e){ /* user cancelled - fall through to download */ }
     }
     const url = URL.createObjectURL(file);
@@ -2319,6 +2319,38 @@ async function renderReports(){
     ).join('');
   }
 
+  // full customer feedback table — every feedback entry in the filtered period, one row each
+  const feedbackSorted = feedbackList.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  const tableRows = feedbackSorted.map(f=>{
+    const ratingsVals = Object.values(f.ratings||{}).filter(v=>v>0);
+    const favg = ratingsVals.length ? (ratingsVals.reduce((a,b)=>a+b,0)/ratingsVals.length).toFixed(1) : '—';
+    return '<tr style="border-top:1px solid var(--line);">'
+      + '<td style="padding:8px 6px;font-size:11.5px;font-weight:700;white-space:nowrap;">'+esc(f.name||'—')+'</td>'
+      + '<td style="padding:8px 6px;font-size:11px;color:var(--muted);white-space:nowrap;">'+esc(f.phone||'—')+'</td>'
+      + '<td style="padding:8px 6px;font-size:11px;color:var(--muted);white-space:nowrap;">'+new Date(f.date).toLocaleDateString('ar-EG')+'</td>'
+      + '<td style="padding:8px 6px;font-size:11px;white-space:nowrap;">'+esc((f.products||[]).join('، ')||'—')+'</td>'
+      + '<td style="padding:8px 6px;font-size:11px;white-space:nowrap;">'+esc((f.likes||[]).join('، ')||'—')+'</td>'
+      + '<td style="padding:8px 6px;font-size:11px;text-align:center;white-space:nowrap;">⭐'+favg+'</td>'
+      + '<td style="padding:8px 6px;font-size:11px;color:var(--muted);white-space:nowrap;">'+esc(f.staff||'—')+'</td>'
+      + '</tr>';
+  }).join('');
+  const customerTableHtml = feedbackSorted.length
+    ? '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
+      + '<table style="border-collapse:collapse;width:100%;min-width:680px;">'
+        + '<thead><tr style="background:#FBF3E6;">'
+          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap;">الاسم</th>'
+          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">الموبايل</th>'
+          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">التاريخ</th>'
+          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">المنتجات</th>'
+          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">أكتر حاجة عجبته</th>'
+          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">التقييم</th>'
+          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">الموظف</th>'
+        + '</tr></thead>'
+        + '<tbody>'+tableRows+'</tbody>'
+      + '</table>'
+    + '</div>'
+    : '<div style="color:var(--muted);font-size:12.5px;">لا توجد بيانات فيدباك بعد.</div>';
+
   body.innerHTML =
     '<div class="repcard" style="margin:0 18px 14px;">'
       + '<h4>📅 اختر الفترة</h4>'
@@ -2351,6 +2383,11 @@ async function renderReports(){
     + '<div class="repcard" style="margin:0 18px 18px;">'
       + '<h4>🧑‍💼 عدد الفيدباك لكل موظف</h4>'
       + staffCountsHtml
+    + '</div>'
+    + '<div class="repcard" style="margin:0 18px 18px;">'
+      + '<h4>📋 تقرير العملاء الكامل (كل الفيدباكات)</h4>'
+      + '<p style="font-size:10.5px;color:var(--muted);margin:0 0 8px;">مرّر الجدول يمين/شمال لو مش شايف كل الأعمدة</p>'
+      + customerTableHtml
     + '</div>'
     + '<div class="repcard" style="margin:0 18px 18px;">'
       + '<h4>📋 الملاحظات مجمّعة حسب الصنف</h4>'
