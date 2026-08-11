@@ -1045,325 +1045,6 @@ function renderWizard(){
       + PRODUCTS.map(p=>productChip(p.icon,p.label)).join('')
       + '</div></div>';
     html += '<div class="card"><h3>لو المنتج اللي بيشتريه خلص...</h3>'
-    + radioRow('بستنى لحد ما يتوفر') + radioRow('بجيب نوع تاني')
-      + '<div class="field" style="margin-top:10px;"><label>البديل المفضل</label><input type="text" data-field="altProduct" placeholder="اكتب المنتج البديل" value="'+esc(data.altProduct)+'"></div>'
-      + '</div>';
-  }
-  else if(step===3){
-    html += '<div class="card"><h3>أكتر حاجة عجباك في المكان؟</h3><p class="sub">يمكن اختيار أكثر من خيار</p><div class="chiprow">'
-      + LIKES.map(l=>likeChip(l.icon,l.label)).join('')
-      + '</div>'
-      + '<div class="field" style="margin-top:10px;"><label>أخرى</label><input data-field="other" placeholder="اكتب هنا..." value="'+esc(data.other)+'"></div>'
-      + '</div>';
-  }
-  else if(step===4){
-    html += '<div class="card"><h3>تقييم العميل</h3><p class="sub">من 1 إلى 5 نجوم</p>';
-    Object.keys(data.ratings).forEach(cat=>{
-      html += '<div class="ratingrow"><span class="rlabel">'+cat+'</span>'+starsHTML(cat)+'</div>';
-    });
-    html += '</div>';
-  }
-  else if(step===5){
-    html += '<div class="card"><h3>ملاحظات</h3><p class="sub">اكتب ملاحظة على كل صنف اشتراه العميل (اختياري)</p>';
-    if(!data.products.length){
-      html += '<p class="sub" style="margin:0;">لسه مختارتش منتجات في خطوة "المشتريات".</p>';
-    } else {
-      data.products.forEach(p=>{
-        html += '<div class="field"><label>'+esc(p)+'</label><input data-note-product="'+esc(p)+'" placeholder="ملاحظة عن '+esc(p)+'..." value="'+esc(data.productNotes[p]||'')+'"></div>';
-      });
-    }
-    html += '</div>';
-  }
-  else if(step===6){
-    const rated = Object.values(data.ratings).filter(v=>v>0);
-    const avg = (rated.reduce((a,b)=>a+b,0) / (rated.length || 1)).toFixed(1);
-    html += '<div class="card"><h3>ملخص الفيدباك</h3><p class="sub">راجع البيانات قبل الإرسال</p>'
-      + row('الاسم', data.name || '—') + row('الموبايل', data.phone || '—')
-      + row('المنتجات', data.products.join('، ') || '—')
-      + row('البديل المفضل', data.altProduct || '—')
-      + row('أكتر حاجة عجبته', data.likes.join('، ') || '—')
-      + row('متوسط التقييم', avg+' ⭐')
-      + row('سجّله', currentStaff ? currentStaff.name : '—')
-      + '</div>';
-  }
-  body.innerHTML = html;
-}
-
-function updateNavButtons(){
-  const prevBtn = document.getElementById('prevBtn');
-  const nextBtn = document.getElementById('nextBtn');
-  prevBtn.textContent = 'السابق';
-  nextBtn.textContent = step===6 ? 'إرسال الفيدباك' : 'التالي';
-}
-
-function wizBack(){
-  if(step>1){ step--; renderWizard(); } else { go('home'); }
-}
-
-async function wizNext(){
-  if(step===1 && (!data.name || !data.phone)){
-    alert('من فضلك أدخل الاسم ورقم الموبايل');
-    return;
-  }
-  if(step < 6){ step++; renderWizard(); return; }
-
-  // step 6 -> submit
-  const nextBtn = document.getElementById('nextBtn');
-  nextBtn.disabled = true; nextBtn.textContent = 'جارِ الإرسال...';
-  await submitFeedback();
-  nextBtn.disabled = false;
-  go('success');
-}
-
-/* ================= SUBMIT: persist customer + feedback ================= */
-async function submitFeedback(){
-  const now = new Date();
-  const staffName = currentStaff ? currentStaff.name : 'غير معروف';
-  const phoneKey = normalizePhone(data.phone);
-
-  // upsert customer (match by normalized phone so "010 123" and "01012345678..." etc. are treated as the same person)
-  const customers = await getCustomers();
-  let cust = customers.find(c => normalizePhone(c.phone) === phoneKey);
-  if(!cust){
-    cust = { phone:phoneKey, name:data.name, birth:data.birth, address:data.address, createdAt:now.toISOString(), registeredBy:staffName };
-    customers.push(cust);
-  } else {
-    cust.phone = phoneKey;
-    cust.name = data.name || cust.name;
-    cust.birth = data.birth || cust.birth;
-    cust.address = data.address || cust.address;
-  }
-  await saveCustomers(customers);
-
-  // append feedback entry
-  const feedbackList = await getFeedback();
-  const cleanProductNotes = {};
-  Object.keys(data.productNotes).forEach(p=>{
-    if(data.products.includes(p) && data.productNotes[p] && data.productNotes[p].trim()){
-      cleanProductNotes[p] = data.productNotes[p].trim();
-    }
-  });
-  const entry = {
-    id: phoneKey + '_' + now.getTime(),
-    phone: phoneKey,
-    name: data.name,
-    products: data.products.slice(),
-    repeatPref: data.repeatPref,
-    altProduct: data.altProduct,
-    likes: data.likes.slice(),
-    other: data.other,
-    productNotes: cleanProductNotes,
-    ratings: Object.assign({}, data.ratings),
-    staff: staffName,
-    date: now.toISOString()
-  };
-  feedbackList.push(entry);
-  await saveFeedback(feedbackList);
-
-  document.getElementById('successTitle').textContent = 'تم إرسال الفيدباك بنجاح';
-  document.getElementById('successMsg').textContent = 'شكراً لتسجيل بيانات وتقييم العميل، تم حفظ التفاصيل في ملف العميل باسم '+data.name+'.';
-}
-
-/* ================= QUICK ADD CUSTOMER (no feedback) ================= */
-async function submitQuickAdd(){
-  const name = document.getElementById('qa_name').value.trim();
-  const phone = document.getElementById('qa_phone').value.trim();
-  const birth = document.getElementById('qa_birth').value;
-  const address = document.getElementById('qa_address').value.trim();
-
-  if(!name || !phone){
-    alert('من فضلك أدخل الاسم ورقم الموبايل');
-    return;
-  }
-
-  const btn = document.getElementById('qaSaveBtn');
-  btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
-
-  const staffName = currentStaff ? currentStaff.name : 'غير معروف';
-  const phoneKey = normalizePhone(phone);
-  const customers = await getCustomers();
-  let cust = customers.find(c=>normalizePhone(c.phone)===phoneKey);
-  if(!cust){
-    cust = { phone:phoneKey, name, birth, address, createdAt:new Date().toISOString(), registeredBy:staffName };
-    customers.push(cust);
-  } else {
-    cust.phone = phoneKey;
-    cust.name = name || cust.name;
-    cust.birth = birth || cust.birth;
-    cust.address = address || cust.address;
-  }
-  await saveCustomers(customers);
-
-  btn.disabled = false; btn.textContent = 'حفظ العميل';
-  document.getElementById('qa_name').value = '';
-  document.getElementById('qa_phone').value = '';
-  document.getElementById('qa_birth').value = '';
-  document.getElementById('qa_address').value = '';
-
-  document.getElementById('successTitle').textContent = 'تم تسجيل العميل بنجاح';
-  document.getElementById('successMsg').textContent = 'تم حفظ بيانات '+name+'. تقدر تسجّل فيدباك ليه في أي وقت من صفحة العملاء.';
-  go('success');
-}
-
-/* ================= COMPLAINT ================= */
-function populateComplaintProductSelect(){
-  const sel = document.getElementById('cp_product');
-  if(!sel || sel.options.length > 1) return; // already populated
-  PRODUCTS.forEach(p=>{
-    const opt = document.createElement('option');
-    opt.value = p.label;
-    opt.textContent = p.icon+' '+p.label;
-    sel.appendChild(opt);
-  });
-}
-
-async function submitComplaint(){
-  const name = document.getElementById('cp_name').value.trim();
-  const phone = document.getElementById('cp_phone').value.trim();
-  const product = document.getElementById('cp_product').value;
-  const productDetails = document.getElementById('cp_product_details').value.trim();
-  const invoiceDate = document.getElementById('cp_invoice_date').value;
-  const issue = document.getElementById('cp_issue').value.trim();
-  const department = document.getElementById('cp_department').value;
-  const action = document.getElementById('cp_action').value.trim();
-
-  if(!name || !phone || !issue){
-    alert('من فضلك أدخل على الأقل اسم العميل ورقم الموبايل وتوصيف المشكلة');
-    return;
-  }
-
-  const btn = document.getElementById('cpSaveBtn');
-  btn.disabled = true; btn.textContent = editingComplaintId ? 'جارِ الحفظ...' : 'جارِ التسجيل...';
-
-  const staffName = currentStaff ? currentStaff.name : 'غير معروف';
-  const complaints = await getComplaints();
-
-  let successTitle, successMsg;
-  if(editingComplaintId){
-    const idx = complaints.findIndex(c=>c.id===editingComplaintId);
-    if(idx===-1){
-      alert('تعذر إيجاد الشكوى دي، ممكن تكون اتحذفت');
-    } else {
-      complaints[idx] = Object.assign({}, complaints[idx], {
-        name, phone: normalizePhone(phone), product, productDetails, invoiceDate,
-        issue, department, actionTaken: action
-      });
-      await saveComplaints(complaints);
-    }
-    successTitle = 'تم حفظ التعديل بنجاح';
-    successMsg = 'تم تحديث بيانات شكوى '+name+'.';
-  } else {
-    const entry = {
-      id: normalizePhone(phone) + '_' + Date.now(),
-      name, phone: normalizePhone(phone), product, productDetails, invoiceDate,
-      issue, department, actionTaken: action, status: 'pending',
-      staff: staffName, date: new Date().toISOString()
-    };
-    complaints.push(entry);
-    await saveComplaints(complaints);
-    successTitle = 'تم تسجيل الشكوى بنجاح';
-    successMsg = 'تم حفظ شكوى '+name+' وهيتم متابعتها.';
-  }
-
-  btn.disabled = false;
-  resetComplaintForm();
-
-  document.getElementById('successTitle').textContent = successTitle;
-  document.getElementById('successMsg').textContent = successMsg;
-  go('success');
-}
-
-/* ================= COMPLAINTS FOLLOW-UP ================= */
-let allComplaintsCache = [];
-let complaintsFilter = 'all'; // all | pending | resolved
-let cpMonth = null; // 1-12, null = كل الشهور
-let cpYear = null;  // e.g. 2026, null = كل السنين
-
-function populateComplaintsTimeFilters(){
-  const monthSel = document.getElementById('cpMonthSel');
-  const yearSel = document.getElementById('cpYearSel');
-  if(monthSel.options.length <= 1){
-    ARABIC_MONTHS.forEach((m,i)=>{
-      const opt = document.createElement('option');
-      opt.value = i+1; opt.textContent = m;
-      monthSel.appendChild(opt);
-    });
-  }
-  const yearsInData = new Set(allComplaintsCache.map(c=> new Date(c.date).getFullYear()));
-  yearsInData.add(new Date().getFullYear());
-  const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
-  const currentVal = yearSel.value;
-  yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
-  yearSel.value = currentVal;
-}
-
-async function renderComplaintsList(){
-  const box = document.getElementById('complaintsListBox');
-  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
-  const complaints = await getComplaints();
-  allComplaintsCache = complaints.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
-  populateComplaintsTimeFilters();
-  paintComplaintsList();
-}
-function renderDeptReport(list){
-  const box = document.getElementById('cpDeptReport');
-  if(!box) return;
-  const counts = {};
-  DEPARTMENTS.forEach(d=> counts[d.label] = {total:0, pending:0, resolved:0});
-  let noDept = 0;
-  list.forEach(c=>{
-    const dep = c.department;
-    if(!dep || !counts[dep]){ noDept++; return; }
-    counts[dep].total++;
-    if((c.status||'pending')==='resolved') counts[dep].resolved++;
-    else counts[dep].pending++;
-  });
-  box.innerHTML = '<div class="repcard" style="margin-bottom:14px;">'
-    + '<h4>📊 تقرير الشكاوى حسب القسم</h4>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-    + DEPARTMENTS.map(d=>{
-        const c = counts[d.label];
-        return '<div style="background:#FCF9F3;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;">'
-          + '<div style="font-size:18px;">'+d.icon+'</div>'
-          + '<div style="font-weight:800;font-family:\'Cairo\';font-size:15px;color:var(--espresso-2);">'+c.total+'</div>'
-          + '<div style="font-size:10.5px;color:var(--muted);margin-bottom:4px;">'+d.label+'</div>'
-          + '<div style="font-size:10px;color:var(--good,#4C8B5D);">تم الحل: '+c.resolved+'</div>'
-          + '<div style="font-size:10px;color:var(--bad);">قيد المتابعة: '+c.pending+'</div>'
-          + '</div>';
-      }).join('')
-    + '</div>'
-    + (noDept ? '<p style="font-size:11px;color:var(--muted);margin:10px 0 0;">'+noDept+' شكوى من غير قسم محدد</p>' : '')
-    + '</div>';
-}
-
-function paintComplaintsList(){
-  const box = document.getElementById('complaintsListBox');
-  const q = (document.getElementById('cpSearch').value||'').trim().toLowerCase();
-  let timeFiltered = allComplaintsCache;
-  if(cpMonth!=null){ timeFiltered = timeFiltered.filter(c => (new Date(c.date).getMonth()+1) === cpMonth); }
-  if(cpYear!=null){ timeFiltered = timeFiltered.filter(c => new Date(c.date).getFullYear() === cpYear); }
-
-  renderDeptReport(timeFiltered);
-
-  let list = timeFiltered;
-  const deptFilter = document.getElementById('cpDeptSel').value;
-  if(deptFilter){ list = list.filter(c => c.department === deptFilter); }
-  if(complaintsFilter !== 'all'){ list = list.filter(c => (c.status||'pending') === complaintsFilter); }
-  if(q){ list = list.filter(c => (c.name||'').toLowerCase().includes(q) || (c.phone||'').includes(q)); }
-
-  if(!list.length){
-    box.innerHTML = '<div class="emptystate">لا توجد شكاوى مطابقة.</div>';
-    return;
-  }
-  box.innerHTML = list.map(c=>{
-    const status = c.status || 'pending';
-    const statusLabel = status==='resolved' ? 'تم الحل' : 'قيد المتابعة';
-    const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
-    const invLabel = c.invoiceDate ? new Date(c.invoiceDate).toLocaleDateString('ar-EG') : '—';
-    return '<div class="complaintcard">'
-      + '<div class="ctop"><div><h4>'+esc(c.name)+'</h4><small>📞 '+esc(c.phone)+' · '+dateLabel+'</small></div>'
-      + '<span class="cstatus '+status+'">'+statusLabel+'</span></div>'
-      + '<div class="crow"><b>الصنف:</b> '+esc(c.product||'—')+' · <b>تاريخ الفاتورة:</b> '+invLabel+'</div>'
       + (c.productDetails ? '<div class="crow"><b>تفاصيل الصنف:</b> '+esc(c.productDetails)+'</div>' : '')
       + '<div class="crow"><b>المشكلة:</b> '+esc(c.issue||'—')+'</div>'
       + (c.department ? '<div class="crow"><b>القسم المُحال إليه:</b> '+esc(c.department)+'</div>' : '')
@@ -1512,18 +1193,13 @@ async function shareComplaintOnWhatsApp(id){
     if(document.fonts && document.fonts.ready){ await document.fonts.ready.catch(()=>{}); }
     const canvas = await html2canvas(container.firstElementChild, {scale:3, backgroundColor:'#FBF3E6', useCORS:true, width:760, windowWidth:760});
     container.remove();
-
-    // PDF instead of PNG — WhatsApp (and most apps) never re-compress PDF files, so quality stays
-    // full no matter how the person chooses to send it.
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit:'px', format:[canvas.width, canvas.height], orientation: canvas.width>=canvas.height?'l':'p' });
-    pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, canvas.width, canvas.height);
-    const pdfBlob = pdf.output('blob');
+    const blob = await new Promise(res=> canvas.toBlob(res, 'image/png', 1.0));
 
     if(btn){ btn.disabled = false; btn.textContent = '📤 واتساب'; }
+    if(!blob) throw new Error('toBlob failed');
     const dateStr = new Date(c.date).toISOString().slice(0,10);
-    const fileName = 'شكوى-'+(c.name||'عميل')+'-'+dateStr+'.pdf';
-    const file = new File([pdfBlob], fileName, {type:'application/pdf'});
+    const fileName = 'شكوى-'+(c.name||'عميل')+'-'+dateStr+'.png';
+    const file = new File([blob], fileName, {type:'image/png'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
       try{ await navigator.share({files:[file], title:'شكوى - بن العراب', text:'شكوى '+(c.name||'')}); return; }
       catch(e){ /* user cancelled - fall through to download */ }
@@ -1531,7 +1207,7 @@ async function shareComplaintOnWhatsApp(id){
     const url = URL.createObjectURL(file);
     const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
     URL.revokeObjectURL(url);
-    alert('تم حفظ ملف الشكوى (PDF) في الجهاز، تقدر تبعته من واتساب بجودة كاملة');
+    alert('المتصفح ده مش بيدعم فتح شاشة المشاركة مباشرة، فاتحفظت الصورة في الجهاز. افتح واتساب بنفسك وابعتها من هناك.');
   }catch(e){
     container.remove();
     if(btn){ btn.disabled = false; btn.textContent = '📤 واتساب'; }
@@ -1708,10 +1384,7 @@ function viewChecklistDetail(id){
       + '<button class="btn ghost" id="clBackToHistory" style="flex:1;">→ رجوع للسجل</button>'
       + '<button class="btn" id="clDeleteBtn" data-delcl="'+esc(c.id)+'" style="flex:1;background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>'
     + '</div>'
-    + '<div style="display:flex;gap:8px;margin-bottom:10px;">'
-      + '<button class="btn" id="clShareBtn" style="flex:1;justify-content:center;background:#25D366;color:#fff;">📤 مشاركة (PDF)</button>'
-      + '<button class="btn" id="clDownloadBtn" style="flex:1;justify-content:center;background:var(--primarySoft,#E4EEE9);color:var(--espresso-2);">⬇️ حفظ PDF</button>'
-    + '</div>'
+    + '<button class="btn" id="clDownloadBtn" style="width:100%;justify-content:center;background:#25D366;color:#fff;margin-bottom:10px;">📤 مشاركة (PDF)</button>'
     + '<p style="margin:0 0 4px;font-size:13px;font-weight:700;">'+dateLabel+' · '+shiftLabel+'</p>'
     + '<p style="margin:0;font-size:11.5px;color:var(--muted);">سجّلها: '+esc(c.manager||'—')+' · '+(c.issueCount>0 ? c.issueCount+' بند فيه مشكلة' : 'كل البنود سليمة')+'</p>'
     + '</div>';
@@ -1736,7 +1409,6 @@ function viewChecklistDetail(id){
 
   document.getElementById('clBackToHistory').addEventListener('click', ()=>{ viewingChecklistId = null; renderChecklistHistoryList(); });
   document.getElementById('clDeleteBtn').addEventListener('click', ()=> deleteChecklist(c.id));
-  document.getElementById('clShareBtn').addEventListener('click', ()=> shareChecklistImage(c.id));
   document.getElementById('clDownloadBtn').addEventListener('click', ()=> downloadChecklistImages(c.id));
   body.querySelectorAll('.clSecHead').forEach(head=>{
     head.addEventListener('click', ()=>{ head.closest('.clSection').classList.toggle('open'); });
@@ -1920,40 +1592,8 @@ async function buildChecklistPDF(c, pages){
   return pdf.output('blob');
 }
 
-async function shareChecklistImage(id){
-  const c = allChecklistsCache.find(x=>x.id===id);
-  if(!c) return;
-  const shareBtn = document.getElementById('clShareBtn');
-  if(shareBtn){ shareBtn.disabled = true; shareBtn.textContent = 'جارِ تجهيز الملف...'; }
-
-  const pages = [CHECKLIST_SECTIONS]; // one single page with all sections
-
-  try{
-    const pdfBlob = await buildChecklistPDF(c, pages);
-    if(shareBtn){ shareBtn.disabled = false; shareBtn.textContent = '📤 مشاركة (PDF)'; }
-
-    const dateStr = new Date(c.date).toISOString().slice(0,10);
-    const shiftLabelShare = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
-    const dateLabelShare = new Date(c.date).toLocaleDateString('ar-EG', {year:'numeric', month:'2-digit', day:'2-digit'});
-    const shareCaption = 'تشيك ليست بن العراب — الشيفت: '+shiftLabelShare+' — التاريخ: '+dateLabelShare;
-    const fileName = 'تشيك-ليست-'+dateStr+'-'+c.shift+'.pdf';
-    const file = new File([pdfBlob], fileName, {type:'application/pdf'});
-
-    if(navigator.canShare && navigator.canShare({files:[file]})){
-      try{ await navigator.share({files:[file], title:'تشيك ليست بن العراب', text: shareCaption}); return; }
-      catch(e){ /* user cancelled share sheet - fall through to download */ }
-    }
-    const url = URL.createObjectURL(file);
-    const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
-    URL.revokeObjectURL(url);
-    alert('تم حفظ ملف PDF للتشيك ليست في الجهاز، تقدر تشاركه أو تطبعه بجودة كاملة');
-  }catch(e){
-    if(shareBtn){ shareBtn.disabled = false; shareBtn.textContent = '📤 مشاركة (PDF)'; }
-    alert('تعذّرت مشاركة الملف، حاول تاني');
-  }
-}
-
-// Saves the PDF straight to the device without opening the share sheet.
+// Downloads or shares the checklist as a PDF — used to be a separate PNG "share" button too, but a
+// single PDF-based button avoids confusing staff with two similar-looking options.
 async function downloadChecklistImages(id){
   const c = allChecklistsCache.find(x=>x.id===id);
   if(!c) return;
@@ -1964,18 +1604,31 @@ async function downloadChecklistImages(id){
 
   try{
     const pdfBlob = await buildChecklistPDF(c, pages);
-    if(btn){ btn.disabled = false; btn.textContent = '⬇️ حفظ PDF'; }
+    if(btn){ btn.disabled = false; btn.textContent = '📤 مشاركة (PDF)'; }
 
     const dateStr = new Date(c.date).toISOString().slice(0,10);
+    const shiftLabelShare = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
+    const dateLabelShare = new Date(c.date).toLocaleDateString('ar-EG', {year:'numeric', month:'2-digit', day:'2-digit'});
     const fileName = 'تشيك-ليست-'+dateStr+'-'+c.shift+'.pdf';
-    const url = URL.createObjectURL(pdfBlob);
+    const file = new File([pdfBlob], fileName, {type:'application/pdf'});
+
+    // try the native share sheet first — on browsers that support sharing PDFs this opens WhatsApp
+    // (or any app) directly; if it isn't supported, canShare returns false and we just download instead.
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file], title:'تشيك ليست بن العراب', text:'تشيك ليست بن العراب — الشيفت: '+shiftLabelShare+' — التاريخ: '+dateLabelShare});
+        return;
+      }catch(e){ /* user cancelled - fall through to plain download */ }
+    }
+
+    const url = URL.createObjectURL(file);
     const a = document.createElement('a');
     a.href = url; a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
-    alert('اتحفظ ملف PDF في الجهاز بجودة كاملة، تقدر تبعته من واتساب زي أي ملف عادي من غير أي فقدان في الجودة.');
+    alert('المتصفح ده مش بيدعم فتح شاشة المشاركة مباشرة لملفات PDF، فاتحفظ الملف في الجهاز بجودة كاملة. افتح واتساب بنفسك وابعته من هناك كـ مستند (📎 ← Document).');
   }catch(e){
-    if(btn){ btn.disabled = false; btn.textContent = '⬇️ حفظ PDF'; }
+    if(btn){ btn.disabled = false; btn.textContent = '📤 مشاركة (PDF)'; }
     alert('تعذّر حفظ الملف، حاول تاني');
   }
 }
