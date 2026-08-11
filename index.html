@@ -2335,16 +2335,16 @@ async function renderReports(){
       + '</tr>';
   }).join('');
   const customerTableHtml = feedbackSorted.length
-    ? '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
+    ? '<div style="overflow:auto;-webkit-overflow-scrolling:touch;max-height:480px;border:1px solid var(--line);border-radius:10px;">'
       + '<table style="border-collapse:collapse;width:100%;min-width:680px;">'
         + '<thead><tr style="background:#FBF3E6;">'
-          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap;">الاسم</th>'
-          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">الموبايل</th>'
-          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">التاريخ</th>'
-          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">المنتجات</th>'
-          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">أكتر حاجة عجبته</th>'
-          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">التقييم</th>'
-          + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">الموظف</th>'
+          + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">الاسم</th>'
+          + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">الموبايل</th>'
+          + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">التاريخ</th>'
+          + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">المنتجات</th>'
+          + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">أكتر حاجة عجبته</th>'
+          + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">التقييم</th>'
+          + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">الموظف</th>'
         + '</tr></thead>'
         + '<tbody>'+tableRows+'</tbody>'
       + '</table>'
@@ -2385,9 +2385,14 @@ async function renderReports(){
       + staffCountsHtml
     + '</div>'
     + '<div class="repcard" style="margin:0 18px 18px;">'
-      + '<h4>📋 تقرير العملاء الكامل (كل الفيدباكات)</h4>'
-      + '<p style="font-size:10.5px;color:var(--muted);margin:0 0 8px;">مرّر الجدول يمين/شمال لو مش شايف كل الأعمدة</p>'
-      + customerTableHtml
+      + '<div id="custReportToggle" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">'
+        + '<h4 style="margin:0;">📋 تقرير العملاء الكامل (كل الفيدباكات)</h4>'
+        + '<span id="custReportChevron" style="color:var(--muted);font-size:13px;transition:transform .15s ease;">▾</span>'
+      + '</div>'
+      + '<div id="custReportBody" style="display:none;margin-top:10px;">'
+        + '<p style="font-size:10.5px;color:var(--muted);margin:0 0 8px;">مرّر لجوه الجدول لفوق وتحت ويمين وشمال — الصف الأول (العناوين) هيفضل ثابت</p>'
+        + customerTableHtml
+      + '</div>'
     + '</div>'
     + '<div class="repcard" style="margin:0 18px 18px;">'
       + '<h4>📋 الملاحظات مجمّعة حسب الصنف</h4>'
@@ -2401,6 +2406,13 @@ async function renderReports(){
   document.getElementById('reportsYearSel').addEventListener('change', e=>{
     reportsYear = e.target.value ? parseInt(e.target.value,10) : null;
     renderReports();
+  });
+  document.getElementById('custReportToggle').addEventListener('click', ()=>{
+    const box = document.getElementById('custReportBody');
+    const chevron = document.getElementById('custReportChevron');
+    const open = box.style.display !== 'none';
+    box.style.display = open ? 'none' : 'block';
+    chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
   });
 }
 
