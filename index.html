@@ -1850,7 +1850,7 @@ function renderChecklistPageToCanvas(c, sections, pageNum, totalPages){
     container.innerHTML = buildChecklistShareHTML(c, sections, pageNum, totalPages);
     document.body.appendChild(container);
     const capture = ()=>{
-      html2canvas(container.firstElementChild, {scale:3, backgroundColor:'#FBF3E6', useCORS:true, width:1500, windowWidth:1500}).then(canvas=>{
+      html2canvas(container.firstElementChild, {scale:2, backgroundColor:'#FBF3E6', useCORS:true, width:1500, windowWidth:1500}).then(canvas=>{
         container.remove();
         resolve(canvas);
       }).catch(err=>{ container.remove(); reject(err); });
