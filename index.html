@@ -1703,7 +1703,10 @@ function viewChecklistDetail(id){
       + '<button class="btn ghost" id="clBackToHistory" style="flex:1;">→ رجوع للسجل</button>'
       + '<button class="btn" id="clDeleteBtn" data-delcl="'+esc(c.id)+'" style="flex:1;background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>'
     + '</div>'
-    + '<button class="btn" id="clDownloadBtn" style="width:100%;justify-content:center;background:#25D366;color:#fff;margin-bottom:10px;">📤 مشاركة (PDF)</button>'
+    + '<div style="display:flex;gap:8px;margin-bottom:10px;">'
+      + '<button class="btn" id="clShareImagesBtn" style="flex:1;justify-content:center;background:#25D366;color:#fff;">📤 مشاركة كصورتين</button>'
+      + '<button class="btn" id="clDownloadBtn" style="flex:1;justify-content:center;background:var(--primarySoft,#E4EEE9);color:var(--espresso-2);">📤 مشاركة (PDF)</button>'
+    + '</div>'
     + '<p style="margin:0 0 4px;font-size:13px;font-weight:700;">'+dateLabel+' · '+shiftLabel+'</p>'
     + '<p style="margin:0;font-size:11.5px;color:var(--muted);">سجّلها: '+esc(c.manager||'—')+' · '+(c.issueCount>0 ? c.issueCount+' بند فيه مشكلة' : 'كل البنود سليمة')+'</p>'
     + '</div>';
@@ -1728,6 +1731,7 @@ function viewChecklistDetail(id){
 
   document.getElementById('clBackToHistory').addEventListener('click', ()=>{ viewingChecklistId = null; renderChecklistHistoryList(); });
   document.getElementById('clDeleteBtn').addEventListener('click', ()=> deleteChecklist(c.id));
+  document.getElementById('clShareImagesBtn').addEventListener('click', ()=> shareChecklistAsImages(c.id));
   document.getElementById('clDownloadBtn').addEventListener('click', ()=> downloadChecklistImages(c.id));
   body.querySelectorAll('.clSecHead').forEach(head=>{
     head.addEventListener('click', ()=>{ head.closest('.clSection').classList.toggle('open'); });
@@ -1764,7 +1768,7 @@ function splitIntoNColumns(sections, n){
   while(cols.length < n) cols.push([]);
   return cols;
 }
-const CHECKLIST_COLUMNS_PER_PAGE = 4;
+const CHECKLIST_COLUMNS_PER_PAGE = 2;
 
 function buildChecklistShareHTML(c, sections, pageNum, totalPages){
   const dateLabel = new Date(c.date).toLocaleDateString('ar-EG', {year:'numeric', month:'2-digit', day:'2-digit'});
@@ -1911,15 +1915,54 @@ async function buildChecklistPDF(c, pages){
   return pdf.output('blob');
 }
 
-// Downloads or shares the checklist as a PDF — used to be a separate PNG "share" button too, but a
-// single PDF-based button avoids confusing staff with two similar-looking options.
+// Shares the checklist as 2 PNG images (same design as the PDF) — this is the flow proven to
+// actually open the OS share sheet / WhatsApp directly on most phones.
+async function shareChecklistAsImages(id){
+  const c = allChecklistsCache.find(x=>x.id===id);
+  if(!c) return;
+  const btn = document.getElementById('clShareImagesBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'جارِ تجهيز الصور...'; }
+
+  const pages = chunkChecklistSectionsBalanced(CHECKLIST_SECTIONS, 2);
+
+  try{
+    const canvases = [];
+    for(let i=0;i<pages.length;i++){
+      canvases.push(await renderChecklistPageToCanvas(c, pages[i], i+1, pages.length));
+    }
+    const blobs = await Promise.all(canvases.map(canvas => new Promise(res=> canvas.toBlob(res, 'image/png', 1.0))));
+    if(btn){ btn.disabled = false; btn.textContent = '📤 مشاركة كصورتين'; }
+
+    const dateStr = new Date(c.date).toISOString().slice(0,10);
+    const shiftLabelShare = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
+    const dateLabelShare = new Date(c.date).toLocaleDateString('ar-EG', {year:'numeric', month:'2-digit', day:'2-digit'});
+    const shareCaption = 'تشيك ليست بن العراب — الشيفت: '+shiftLabelShare+' — التاريخ: '+dateLabelShare;
+    const files = blobs.map((blob, i)=> new File([blob], 'تشيك-ليست-'+dateStr+'-'+c.shift+'-'+(i+1)+'.png', {type:'image/png'}));
+
+    if(navigator.canShare && navigator.canShare({files})){
+      try{ await navigator.share({files, title:'تشيك ليست بن العراب', text: shareCaption}); return; }
+      catch(e){ /* user cancelled share sheet - fall through to download */ }
+    }
+    files.forEach(f=>{
+      const url = URL.createObjectURL(f);
+      const a = document.createElement('a'); a.href = url; a.download = f.name; a.click();
+      URL.revokeObjectURL(url);
+    });
+    alert('اتحفظت الصورتين في الجهاز، تقدر تشاركهم من معرض الصور');
+  }catch(e){
+    if(btn){ btn.disabled = false; btn.textContent = '📤 مشاركة كصورتين'; }
+    alert('تعذّرت مشاركة الصور، حاول تاني');
+  }
+}
+
+// Downloads or shares the checklist as a PDF (2 pages, matching the image version).
 async function downloadChecklistImages(id){
   const c = allChecklistsCache.find(x=>x.id===id);
   if(!c) return;
   const btn = document.getElementById('clDownloadBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'جارِ التجهيز...'; }
 
-  const pages = [CHECKLIST_SECTIONS]; // one single page with all sections
+  const pages = chunkChecklistSectionsBalanced(CHECKLIST_SECTIONS, 2);
 
   try{
     const pdfBlob = await buildChecklistPDF(c, pages);
