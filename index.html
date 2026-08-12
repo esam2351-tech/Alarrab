@@ -1780,13 +1780,13 @@ function buildChecklistShareHTML(c, sections, pageNum, totalPages){
       const d = (c.items && c.items[key]) || {status:'ok', note:''};
       const ok = d.status==='ok';
       return '<tr style="border-top:1px solid #F0E8DA;">'
-        + '<td style="padding:7px 8px;font-family:Tajawal,sans-serif;font-size:14px;font-weight:800;color:'+(ok?'#2B211B':'#C0392B')+';">'+esc(item)+'</td>'
-        + '<td style="padding:7px 6px;text-align:center;font-size:15px;width:30px;">'+(ok?'✅':'❌')+'</td>'
-        + '<td style="padding:7px 6px;font-family:Tajawal,sans-serif;font-size:13.5px;font-weight:800;color:#C0392B;text-align:center;">'+(d.note?esc(d.note):'—')+'</td>'
+        + '<td style="padding:9px 10px;font-family:Tajawal,sans-serif;font-size:17px;font-weight:800;color:'+(ok?'#2B211B':'#C0392B')+';">'+esc(item)+'</td>'
+        + '<td style="padding:9px 6px;text-align:center;font-size:18px;width:36px;">'+(ok?'✅':'❌')+'</td>'
+        + '<td style="padding:9px 8px;font-family:Tajawal,sans-serif;font-size:15px;font-weight:800;color:#C0392B;text-align:center;">'+(d.note?esc(d.note):'—')+'</td>'
         + '</tr>';
     }).join('');
     return '<div style="border:1px solid #E4DFD1;border-radius:8px;overflow:hidden;background:#fff;margin-bottom:10px;">'
-      + '<div style="background:#2A1810;color:#F6EAD9;padding:7px 12px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;">'+esc(sec.label)+'</div>'
+      + '<div style="background:#2A1810;color:#F6EAD9;padding:8px 14px;font-family:Cairo,sans-serif;font-weight:800;font-size:16px;">'+esc(sec.label)+'</div>'
       + '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">'
         + '<tbody>'+rows+'</tbody>'
       + '</table>'
@@ -1799,9 +1799,9 @@ function buildChecklistShareHTML(c, sections, pageNum, totalPages){
     + '</div>';
 
   const infoBox = function(icon, label, value, color){
-    return '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:7px;flex:1;min-width:130px;">'
-      + '<div style="width:26px;height:26px;flex-shrink:0;border-radius:6px;background:#F3E5D0;display:flex;align-items:center;justify-content:center;font-size:13px;">'+icon+'</div>'
-      + '<div><div style="font-family:Cairo,sans-serif;font-size:9.5px;color:#8C7B6D;">'+label+'</div><div style="font-family:Cairo,sans-serif;font-weight:800;font-size:12.5px;line-height:1.4;color:'+(color||'#2B211B')+';">'+value+'</div></div>'
+    return '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:10px;padding:11px 16px;display:flex;align-items:center;gap:10px;flex:1;min-width:150px;">'
+      + '<div style="width:34px;height:34px;flex-shrink:0;border-radius:8px;background:#F3E5D0;display:flex;align-items:center;justify-content:center;font-size:17px;">'+icon+'</div>'
+      + '<div><div style="font-family:Cairo,sans-serif;font-size:11.5px;color:#8C7B6D;">'+label+'</div><div style="font-family:Cairo,sans-serif;font-weight:800;font-size:16px;line-height:1.4;color:'+(color||'#2B211B')+';">'+value+'</div></div>'
     + '</div>';
   };
 
