@@ -174,10 +174,11 @@
   .radiorow.sel{border-color:var(--gold);background:#FBF0DD;}
   .radiorow.sel .dot{border-color:var(--gold);background:radial-gradient(var(--gold) 45%,transparent 50%);}
 
-  .stars{display:flex;gap:4px;font-size:20px;cursor:pointer;direction:ltr;}
-  .stars span{color:var(--starOff);}
-  .stars span.on{color:var(--star);}
-  .ratingrow{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);}
+  .emojirow{display:flex;justify-content:space-between;gap:6px;margin-top:8px;}
+  .emojibtn{flex:1;text-align:center;font-family:'Cairo';font-weight:800;font-size:18px;color:var(--espresso-2);padding:11px 4px;border-radius:12px;border:2px solid var(--line);cursor:pointer;background:#FCF9F3;transition:transform .1s ease;}
+  .emojibtn:active{transform:scale(.92);}
+  .emojibtn.on{border-color:var(--gold);background:#FBF0DD;box-shadow:0 0 0 3px rgba(192,138,52,.15);}
+  .ratingrow{display:flex;flex-direction:column;align-items:stretch;padding:13px 0;border-bottom:1px solid var(--line);}
   .ratingrow:last-child{border-bottom:none;}
   .ratingrow .rlabel{font-size:13.5px;font-weight:700;}
 
@@ -262,6 +263,15 @@
   .clmAddItemBtn{background:var(--primarySoft,#E4EEE9);color:var(--espresso-2);border:none;border-radius:8px;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;width:100%;margin-top:4px;}
   .toggleStatusBtn.pending{background:var(--good);color:#fff;}
   .toggleStatusBtn.resolved{background:var(--brickSoft,#F7E3DC);color:var(--bad);}
+
+  .wsItemCard{background:#FCF9F3;border:1.5px solid var(--line);border-radius:10px;padding:11px;margin-bottom:10px;}
+  .wsItemCard select.wsItemName{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;font-size:12.5px;font-family:'Tajawal';background:#fff;margin-bottom:9px;}
+  .wsItemNums{display:flex;align-items:flex-end;gap:6px;}
+  .wsItemNums .numcol{flex:1;min-width:0;}
+  .wsItemNums label{display:block;font-size:9.5px;color:var(--muted);margin-bottom:3px;}
+  .wsItemNums input{width:100%;text-align:center;border:1.5px solid var(--line);border-radius:8px;padding:8px 4px;font-size:12.5px;font-family:'Tajawal';background:#fff;}
+  .wsItemNums .wsItemTotalDisplay{font-family:'Cairo';font-weight:800;font-size:13px;color:var(--espresso-2);text-align:center;padding:8px 2px;}
+  .wsItemCard .wsDelItemBtn{background:#F7E3DC;color:var(--bad);border:none;border-radius:8px;width:34px;height:34px;font-size:13px;cursor:pointer;flex-shrink:0;}
 
   #profile .head{background:var(--espresso);color:#F6EAD9;padding-bottom:20px;}
   #profile .back{background:rgba(255,255,255,.1);border:none;color:#F6EAD9;}
@@ -387,6 +397,7 @@
       <div class="tile js-go" data-go="customers"><span class="ic">👥</span><span>متابعة العملاء</span></div>
       <div class="tile js-go" data-go="reports"><span class="ic">📊</span><span>التقارير والإحصائيات</span></div>
       <div class="tile js-go" data-go="checklist"><span class="ic">📋</span><span>تشيك ليست الفرع</span></div>
+      <div class="tile js-go" data-go="wholesaleCustomers"><span class="ic">🏢</span><span>متابعة عملاء الجملة</span></div>
     </div>
   </div>
 
@@ -477,6 +488,10 @@
         <div class="t" data-cpfilter="pending">قيد المتابعة</div>
         <div class="t" data-cpfilter="resolved">تم الحل</div>
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <button class="btn ghost" id="cpExportExcelBtn" style="flex:1;">📊 تصدير Excel</button>
+        <button class="btn ghost" id="cpExportPdfBtn" style="flex:1;">📄 تصدير PDF</button>
+      </div>
     </div>
     <div id="complaintsListBox"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
@@ -542,6 +557,86 @@
     <div id="reportsBody"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
 
+  <!-- ============ WHOLESALE CUSTOMERS LIST ============ -->
+  <div class="screen" id="wholesaleCustomers">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>عملاء الجملة</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <div class="field"><input id="wsSearch" placeholder="ابحث بالاسم أو رقم الموبايل"></div>
+      <button class="btn primary full" id="wsAddBtn" style="margin-bottom:10px;">+ تسجيل عميل جديد</button>
+      <button class="btn ghost full" id="wsManageProductsBtn" style="margin-bottom:14px;">📦 إدارة قائمة الأصناف</button>
+    </div>
+    <div id="wsList"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ WHOLESALE PRODUCTS CATALOG ============ -->
+  <div class="screen" id="wholesaleProducts">
+    <div class="head"><div class="back js-go" data-go="wholesaleCustomers">→</div><h2>قائمة الأصناف</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <p class="sub" style="margin-bottom:10px;">الأصناف دي هي اللي هتظهر في قائمة الاختيار وقت تسجيل طلب لعميل جملة</p>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <input id="wsNewProductInput" placeholder="اسم الصنف الجديد" style="margin-bottom:0;">
+        <button class="btn primary" id="wsAddProductBtn" style="flex:0 0 auto;padding:11px 16px;">+ إضافة</button>
+      </div>
+    </div>
+    <div id="wsProductsList"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ WHOLESALE ADD CUSTOMER ============ -->
+  <div class="screen" id="wholesaleAdd">
+    <div class="head"><div class="back js-go" data-go="wholesaleCustomers">→</div><h2 id="wsAddTitle">تسجيل عميل جملة</h2></div>
+    <div class="wrap">
+      <div class="card">
+        <h3>بيانات العميل</h3>
+        <p class="sub">بيانات عميل الجملة الأساسية</p>
+        <div class="field"><label>اسم العميل / المحل</label><input id="ws_name" placeholder="أدخل الاسم"></div>
+        <div class="field"><label>رقم الموبايل</label><input id="ws_phone" type="tel" placeholder="01012345678"></div>
+        <div class="field"><label>العنوان (اختياري)</label><input id="ws_address" placeholder="أدخل العنوان"></div>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="btn ghost js-go" data-go="wholesaleCustomers">إلغاء</button>
+      <button class="btn primary" id="wsSaveBtn">حفظ العميل</button>
+    </div>
+  </div>
+
+  <!-- ============ WHOLESALE CUSTOMER PROFILE ============ -->
+  <div class="screen" id="wholesaleProfile">
+    <div class="head"><div class="back js-go" data-go="wholesaleCustomers">→</div><h2>ملف عميل الجملة</h2></div>
+    <div id="wsProfileBody"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ WHOLESALE LOG ORDER ============ -->
+  <div class="screen" id="wholesaleLogOrder">
+    <div class="head"><div class="back js-go" data-go="wholesaleProfile">→</div><h2>تسجيل طلب جديد</h2></div>
+    <div class="wrap">
+      <div class="card">
+        <h3>الأصناف والكميات</h3>
+        <p class="sub">اختار الصنف، وحدد الكمية وسعر الكيلو — الإجمالي بيتحسب تلقائي</p>
+        <div id="wsItemsBox"></div>
+        <button class="btn ghost full" id="wsAddItemRowBtn" style="margin-top:6px;">+ إضافة صنف</button>
+      </div>
+      <div class="card">
+        <h3>الفاتورة</h3>
+        <div class="field"><label>إجمالي الفاتورة</label><input id="ws_invoiceTotal" type="number" min="0" step="0.01" placeholder="0"></div>
+        <div class="field"><label>الخصم</label><input id="ws_discount" type="number" min="0" step="0.01" placeholder="0" value="0"></div>
+        <div class="field" style="margin-bottom:0;">
+          <label>المستحق بعد الخصم</label>
+          <div id="ws_finalTotal" style="font-family:'Cairo';font-weight:800;font-size:18px;color:var(--espresso-2);padding:11px 12px;background:#FCF9F3;border:1.5px solid var(--line);border-radius:10px;">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="btn ghost js-go" data-go="wholesaleProfile">إلغاء</button>
+      <button class="btn primary" id="wsSaveOrderBtn">حفظ الطلب</button>
+    </div>
+  </div>
+
+  <!-- ============ WHOLESALE REPORT ============ -->
+  <div class="screen" id="wholesaleReport">
+    <div class="head"><div class="back js-go" data-go="wholesaleCustomers">→</div><h2>تقرير عملاء الجملة</h2></div>
+    <div id="wsReportBody"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
   <!-- ============ SETTINGS ============ -->
   <div class="screen" id="settings">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>الإعدادات</h2></div>
@@ -598,6 +693,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* =====================================================================
    DATA BACKEND — Firebase Firestore (real shared cloud database)
@@ -632,7 +728,7 @@ const DEFAULT_STAFF = [
 ];
 
 let currentStaff = null; // {user,name,role} - in-memory only, resets on reload
-let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [] };
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [] };
 let backendReady = false;
 let currentScreen = 'login';
 let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
@@ -711,6 +807,27 @@ function attachLiveSync(){
       if(currentScreen==='checklistManage') renderChecklistManage();
     }
   });
+  subscribeShared('wholesaleCustomers', list=>{
+    APP_STATE.wholesaleCustomers = list;
+    if(currentScreen==='wholesaleCustomers') renderWholesaleList();
+    if(currentScreen==='wholesaleProfile') renderWholesaleProfile();
+  });
+  subscribeShared('wholesaleOrders', list=>{
+    APP_STATE.wholesaleOrders = list;
+    if(currentScreen==='wholesaleCustomers') renderWholesaleList();
+    if(currentScreen==='wholesaleProfile') renderWholesaleProfile();
+    if(currentScreen==='wholesaleReport') renderWholesaleReport();
+  });
+  subscribeShared('wholesaleCalls', list=>{
+    APP_STATE.wholesaleCalls = list;
+    if(currentScreen==='wholesaleCustomers') renderWholesaleList();
+    if(currentScreen==='wholesaleProfile') renderWholesaleProfile();
+    if(currentScreen==='wholesaleReport') renderWholesaleReport();
+  });
+  subscribeShared('wholesaleProducts', list=>{
+    APP_STATE.wholesaleProducts = list;
+    if(currentScreen==='wholesaleProducts') renderWholesaleProducts();
+  });
 }
 
 // Shows the number of feedback entries registered SINCE the bell was last opened —
@@ -736,14 +853,18 @@ async function loadAppState(){
   if(!backendConfigured()){ backendReady = false; return { ok:false, reason:'not-configured' }; }
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
-    const [staff, customers, feedback, complaints, checklists, checklistSections] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', [])
+    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
     APP_STATE.feedback = feedback;
     APP_STATE.complaints = complaints;
     APP_STATE.checklists = checklists;
+    APP_STATE.wholesaleCustomers = wholesaleCustomers;
+    APP_STATE.wholesaleOrders = wholesaleOrders;
+    APP_STATE.wholesaleCalls = wholesaleCalls;
+    APP_STATE.wholesaleProducts = wholesaleProducts;
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -774,6 +895,14 @@ async function getFeedback(){ return APP_STATE.feedback; }
 async function saveFeedback(arr){ APP_STATE.feedback = arr; saveShared('feedback', arr); }
 async function getComplaints(){ return APP_STATE.complaints; }
 async function saveComplaints(arr){ APP_STATE.complaints = arr; saveShared('complaints', arr); }
+async function getWholesaleCustomers(){ return APP_STATE.wholesaleCustomers; }
+async function saveWholesaleCustomers(arr){ APP_STATE.wholesaleCustomers = arr; saveShared('wholesaleCustomers', arr); }
+async function getWholesaleOrders(){ return APP_STATE.wholesaleOrders; }
+async function saveWholesaleOrders(arr){ APP_STATE.wholesaleOrders = arr; saveShared('wholesaleOrders', arr); }
+async function getWholesaleCalls(){ return APP_STATE.wholesaleCalls; }
+async function saveWholesaleCalls(arr){ APP_STATE.wholesaleCalls = arr; saveShared('wholesaleCalls', arr); }
+async function getWholesaleProducts(){ return APP_STATE.wholesaleProducts; }
+async function saveWholesaleProducts(arr){ APP_STATE.wholesaleProducts = arr; saveShared('wholesaleProducts', arr); }
 async function getChecklists(){ return APP_STATE.checklists; }
 async function saveChecklists(arr){ APP_STATE.checklists = arr; saveShared('checklists', arr); }
 async function getChecklistSections(){ return APP_STATE.checklistSections; }
@@ -961,6 +1090,9 @@ function go(id){
   if(id==='complaintsList') renderComplaintsList();
   if(id==='checklist') renderChecklistScreen();
   if(id==='checklistManage') renderChecklistManage();
+  if(id==='wholesaleCustomers') renderWholesaleList();
+  if(id==='wholesaleReport') renderWholesaleReport();
+  if(id==='wholesaleProducts') renderWholesaleProducts();
   if(id==='settings'){ if(typeof resetStaffForm==='function') resetStaffForm(); renderSettings(); }
 }
 
@@ -983,6 +1115,56 @@ function normalizePhone(p){
   const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
   let s = String(p||'').replace(/[٠-٩]/g, d => arabicDigits.indexOf(d));
   return s.replace(/[^0-9]/g,'');
+}
+
+/* ================= GENERIC REPORT EXPORT (Excel / PDF) =================
+   Reused by every report screen (feedback, complaints, wholesale, checklist).
+   Excel: SheetJS writes Arabic text natively, no special handling needed.
+   PDF: jsPDF can't draw Arabic text reliably on its own (needs embedded fonts),
+   so instead we render a styled HTML table with the browser's own fonts and
+   rasterize it via html2canvas — same trick already used for the checklist/
+   complaint image exports — which guarantees correct Arabic rendering. */
+function exportRowsToExcel(filename, sheetName, headers, rows){
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, filename);
+}
+
+async function exportRowsToPDF(filename, title, headers, rows){
+  const container = document.createElement('div');
+  container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
+  container.style.opacity = '0'; container.style.pointerEvents = 'none'; container.style.zIndex = '-9999';
+
+  const headHtml = headers.map(h=>'<th style="padding:8px 10px;font-family:Cairo,sans-serif;font-size:12px;font-weight:800;color:#F6EAD9;background:#2A1810;white-space:nowrap;text-align:right;">'+esc(h)+'</th>').join('');
+  const bodyHtml = rows.map((r,i)=>
+    '<tr style="background:'+(i%2?'#FBF3E6':'#fff')+';">'
+      + r.map(cell=>'<td style="padding:7px 10px;font-family:Tajawal,sans-serif;font-size:11.5px;font-weight:600;color:#2B211B;white-space:nowrap;border-top:1px solid #EEE2D1;">'+esc(cell==null?'':cell)+'</td>').join('')
+    + '</tr>'
+  ).join('');
+
+  container.innerHTML = '<div style="font-family:Tajawal,sans-serif;direction:rtl;width:fit-content;min-width:800px;background:#FBF3E6;padding:26px 30px;color:#2B211B;box-sizing:border-box;">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">'
+      + '<img src="'+LOGO_DATA_URI+'" style="width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0;">'
+      + '<div><div style="font-family:Cairo,sans-serif;font-weight:900;font-size:18px;color:#2A1810;">بن العراب</div>'
+      + '<div style="font-family:Cairo,sans-serif;font-weight:800;font-size:14px;color:#8C7B6D;">'+esc(title)+'</div></div>'
+    + '</div>'
+    + '<table style="border-collapse:collapse;"><thead><tr>'+headHtml+'</tr></thead><tbody>'+bodyHtml+'</tbody></table>'
+    + '</div>';
+  document.body.appendChild(container);
+
+  try{
+    if(document.fonts && document.fonts.ready){ await document.fonts.ready.catch(()=>{}); }
+    const canvas = await html2canvas(container.firstElementChild, {scale:2.5, backgroundColor:'#FBF3E6', useCORS:true});
+    container.remove();
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit:'px', format:[canvas.width, canvas.height], orientation: canvas.width>=canvas.height?'l':'p' });
+    pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, canvas.width, canvas.height);
+    pdf.save(filename);
+  }catch(e){
+    container.remove();
+    alert('تعذّر تصدير PDF، حاول تاني');
+  }
 }
 
 /* ================= WIZARD RENDER ================= */
@@ -1008,9 +1190,9 @@ function likeChip(icon,label){
 }
 function starsHTML(cat){
   const val = data.ratings[cat];
-  let s = '<div class="stars" data-cat="'+esc(cat)+'">';
+  let s = '<div class="emojirow" data-cat="'+esc(cat)+'">';
   for(let i=1;i<=5;i++){
-    s += '<span class="'+(i<=val?'on':'')+'" data-action="set-rating" data-cat="'+esc(cat)+'" data-val="'+i+'">★</span>';
+    s += '<div class="emojibtn '+(i===val?'on':'')+'" data-action="set-rating" data-cat="'+esc(cat)+'" data-val="'+i+'">'+i+'</div>';
   }
   s += '</div>';
   return s;
@@ -1275,6 +1457,7 @@ async function submitComplaint(){
 
 /* ================= COMPLAINTS FOLLOW-UP ================= */
 let allComplaintsCache = [];
+let currentFilteredComplaints = [];
 let complaintsFilter = 'all'; // all | pending | resolved
 let cpMonth = null; // 1-12, null = كل الشهور
 let cpYear = null;  // e.g. 2026, null = كل السنين
@@ -1350,6 +1533,7 @@ function paintComplaintsList(){
   if(deptFilter){ list = list.filter(c => c.department === deptFilter); }
   if(complaintsFilter !== 'all'){ list = list.filter(c => (c.status||'pending') === complaintsFilter); }
   if(q){ list = list.filter(c => (c.name||'').toLowerCase().includes(q) || (c.phone||'').includes(q)); }
+  currentFilteredComplaints = list;
 
   if(!list.length){
     box.innerHTML = '<div class="emptystate">لا توجد شكاوى مطابقة.</div>';
@@ -1670,7 +1854,11 @@ async function renderChecklistHistoryList(){
     body.innerHTML = '<div class="emptystate">لا توجد تشيك ليستات مسجلة بعد.</div>';
     return;
   }
-  body.innerHTML = allChecklistsCache.map(c=>{
+  body.innerHTML = '<div style="display:flex;gap:8px;margin:0 18px 12px;">'
+      + '<button class="btn ghost" id="clExportExcelBtn" style="flex:1;">📊 تصدير Excel</button>'
+      + '<button class="btn ghost" id="clExportPdfBtn" style="flex:1;">📄 تصدير PDF</button>'
+    + '</div>'
+    + allChecklistsCache.map(c=>{
     const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
     const shiftLabel = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
     const tag = c.issueCount>0 ? '<span class="clIssueTag">'+c.issueCount+' مشكلة</span>' : '<span class="clOkTag">كله سليم</span>';
@@ -1687,6 +1875,16 @@ async function renderChecklistHistoryList(){
   });
   body.querySelectorAll('[data-delcl2]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteChecklist(btn.getAttribute('data-delcl2')); });
+  });
+  const clHeaders = ['التاريخ','الشيفت','مين سجّلها','عدد المشاكل'];
+  const clRows = allChecklistsCache.map(c=>[
+    new Date(c.date).toLocaleDateString('ar-EG'), c.shift==='evening' ? 'مسائي' : 'صباحي', c.manager||'—', c.issueCount||0
+  ]);
+  document.getElementById('clExportExcelBtn').addEventListener('click', ()=>{
+    exportRowsToExcel('تقرير-تشيك-ليست.xlsx', 'تشيك ليست', clHeaders, clRows);
+  });
+  document.getElementById('clExportPdfBtn').addEventListener('click', ()=>{
+    exportRowsToPDF('تقرير-تشيك-ليست.pdf', 'تقرير التشيك ليست', clHeaders, clRows);
   });
 }
 
@@ -1930,14 +2128,14 @@ async function shareChecklistAsImages(id){
     for(let i=0;i<pages.length;i++){
       canvases.push(await renderChecklistPageToCanvas(c, pages[i], i+1, pages.length));
     }
-    const blobs = await Promise.all(canvases.map(canvas => new Promise(res=> canvas.toBlob(res, 'image/png', 1.0))));
+    const blobs = await Promise.all(canvases.map(canvas => new Promise(res=> canvas.toBlob(res, 'image/jpeg', 0.92))));
     if(btn){ btn.disabled = false; btn.textContent = '📤 مشاركة كصورتين'; }
 
     const dateStr = new Date(c.date).toISOString().slice(0,10);
     const shiftLabelShare = c.shift==='evening' ? 'مسائي 🌙' : 'صباحي ☀️';
     const dateLabelShare = new Date(c.date).toLocaleDateString('ar-EG', {year:'numeric', month:'2-digit', day:'2-digit'});
     const shareCaption = 'تشيك ليست بن العراب — الشيفت: '+shiftLabelShare+' — التاريخ: '+dateLabelShare;
-    const files = blobs.map((blob, i)=> new File([blob], 'تشيك-ليست-'+dateStr+'-'+c.shift+'-'+(i+1)+'.png', {type:'image/png'}));
+    const files = blobs.map((blob, i)=> new File([blob], 'تشيك-ليست-'+dateStr+'-'+c.shift+'-'+(i+1)+'.jpg', {type:'image/jpeg'}));
 
     if(navigator.canShare && navigator.canShare({files})){
       try{ await navigator.share({files, title:'تشيك ليست بن العراب', text: shareCaption}); return; }
@@ -2237,6 +2435,457 @@ async function deleteCustomer(cust){
   go('customers');
 }
 
+/* ================= WHOLESALE CUSTOMERS ================= */
+let allWholesaleCache = [];
+
+async function renderWholesaleList(){
+  const listEl = document.getElementById('wsList');
+  const customers = await getWholesaleCustomers();
+  const orders = await getWholesaleOrders();
+  const calls = await getWholesaleCalls();
+  allWholesaleCache = customers.map(c=>{
+    const orderCount = orders.filter(o=>o.phone===c.phone).length;
+    const callCount = calls.filter(cl=>cl.phone===c.phone).length;
+    const lastOrderDate = orders.filter(o=>o.phone===c.phone).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    return Object.assign({}, c, {orderCount, callCount, lastDate: lastOrderDate ? lastOrderDate.date : c.createdAt});
+  }).sort((a,b)=> new Date(b.lastDate) - new Date(a.lastDate));
+  paintWholesaleList(allWholesaleCache);
+}
+function paintWholesaleList(list){
+  const listEl = document.getElementById('wsList');
+  if(!list.length){
+    listEl.innerHTML = '<div class="emptystate">لا يوجد عملاء جملة مسجلين بعد.<br>سجّل أول عميل عشان يظهر هنا.</div>';
+    return;
+  }
+  listEl.innerHTML = '<div style="margin:0 18px 12px;"><button class="btn ghost full" id="wsReportBtnList">📊 تقرير عملاء الجملة</button></div>'
+    + list.map(c=>{
+      const initials = (c.name||'؟').trim().split(' ').slice(0,2).map(w=>w[0]).join(' ');
+      return '<div class="custcard" data-phone="'+esc(c.phone)+'">'
+        + '<div class="avatar">'+esc(initials)+'</div>'
+        + '<div class="info"><h4>'+esc(c.name)+'</h4><small>'+esc(c.phone)+'</small></div>'
+        + '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0;">'
+          + '<span style="font-size:10.5px;font-weight:800;color:var(--espresso-2);white-space:nowrap;">📦 '+c.orderCount+' طلب</span>'
+          + '<span style="font-size:10.5px;font-weight:800;color:var(--bad);white-space:nowrap;">📞 '+c.callCount+' مكالمة</span>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  listEl.querySelectorAll('.custcard').forEach(el=>{
+    el.addEventListener('click', ()=> openWholesaleProfile(el.getAttribute('data-phone')));
+  });
+  const reportBtn = document.getElementById('wsReportBtnList');
+  if(reportBtn) reportBtn.addEventListener('click', ()=> go('wholesaleReport'));
+}
+function filterWholesale(q){
+  q = (q||'').trim().toLowerCase();
+  if(!q){ paintWholesaleList(allWholesaleCache); return; }
+  paintWholesaleList(allWholesaleCache.filter(c =>
+    (c.name||'').toLowerCase().includes(q) || (c.phone||'').includes(q)
+  ));
+}
+
+let editingWholesaleCustomer = null;
+function resetWholesaleAddForm(){
+  editingWholesaleCustomer = null;
+  document.getElementById('ws_name').value = '';
+  document.getElementById('ws_phone').value = '';
+  document.getElementById('ws_address').value = '';
+  document.getElementById('wsAddTitle').textContent = 'تسجيل عميل جملة';
+  document.getElementById('wsSaveBtn').textContent = 'حفظ العميل';
+}
+async function submitWholesaleAdd(){
+  const name = document.getElementById('ws_name').value.trim();
+  const phone = document.getElementById('ws_phone').value.trim();
+  const address = document.getElementById('ws_address').value.trim();
+  if(!name || !phone){
+    alert('من فضلك أدخل الاسم ورقم الموبايل');
+    return;
+  }
+  const btn = document.getElementById('wsSaveBtn');
+  btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
+
+  const staffName = currentStaff ? currentStaff.name : 'غير معروف';
+  const phoneKey = normalizePhone(phone);
+  const customers = await getWholesaleCustomers();
+  let cust = customers.find(c=>normalizePhone(c.phone)===phoneKey);
+  if(!cust){
+    cust = { phone:phoneKey, name, address, createdAt:new Date().toISOString(), registeredBy:staffName };
+    customers.push(cust);
+  } else {
+    cust.name = name || cust.name;
+    cust.address = address || cust.address;
+  }
+  await saveWholesaleCustomers(customers);
+
+  btn.disabled = false;
+  resetWholesaleAddForm();
+  go('wholesaleCustomers');
+}
+
+let currentWholesalePhone = null;
+async function openWholesaleProfile(phone){
+  currentWholesalePhone = phone;
+  go('wholesaleProfile');
+  await renderWholesaleProfile();
+}
+async function renderWholesaleProfile(){
+  const body = document.getElementById('wsProfileBody');
+  const customers = await getWholesaleCustomers();
+  const orders = await getWholesaleOrders();
+  const calls = await getWholesaleCalls();
+  const cust = customers.find(c=>c.phone===currentWholesalePhone);
+  if(!cust){ body.innerHTML = '<div class="emptystate">تعذر إيجاد بيانات هذا العميل.</div>'; return; }
+
+  const custOrders = orders.filter(o=>o.phone===currentWholesalePhone).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const custCalls = calls.filter(cl=>cl.phone===currentWholesalePhone).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const initials = (cust.name||'؟').trim().split(' ').slice(0,2).map(w=>w[0]).join(' ');
+  const totalQty = custOrders.reduce((sum,o)=> sum + (o.items||[]).reduce((s,it)=>s+(Number(it.qty)||0),0), 0);
+  const totalInvoiced = custOrders.reduce((sum,o)=> sum + (Number(o.invoiceTotal)||0), 0);
+  const totalDiscount = custOrders.reduce((sum,o)=> sum + (Number(o.discount)||0), 0);
+  const totalPaid = custOrders.reduce((sum,o)=> sum + (Number(o.finalTotal)||0), 0);
+
+  const ordersHtml = custOrders.length
+    ? custOrders.map(o=>{
+        const itemsSummary = (o.items && o.items.length)
+          ? o.items.map(it=> (it.qty||1)+'× '+esc(it.name)).join('، ')
+          : '—';
+        return '<div class="frow" style="flex-direction:column;align-items:flex-start;gap:3px;">'
+          + '<div style="display:flex;justify-content:space-between;width:100%;"><b>'+new Date(o.date).toLocaleDateString('ar-EG')+'</b><span>'+esc(o.staff||'—')+'</span></div>'
+          + '<div style="color:var(--ink);">'+itemsSummary+'</div>'
+          + '<div style="font-size:11px;color:var(--muted);">الإجمالي: '+(o.invoiceTotal||0).toFixed(2)+' · الخصم: '+(o.discount||0).toFixed(2)+' · <b style="color:var(--good);">المدفوع: '+(o.finalTotal||0).toFixed(2)+'</b></div>'
+          + '</div>';
+      }).join('')
+    : 'لا توجد طلبات مسجلة بعد.';
+  const callsHtml = custCalls.length
+    ? custCalls.map(cl=>'<div class="frow"><span>'+new Date(cl.date).toLocaleDateString('ar-EG')+'</span><span>'+esc(cl.staff||'—')+(cl.note?' — '+esc(cl.note):'')+'</span></div>').join('')
+    : 'لا توجد مكالمات مسجلة بعد.';
+
+  body.innerHTML =
+    '<div class="p-top"><div class="avatar">'+esc(initials)+'</div><div>'
+    + '<h3>'+esc(cust.name)+'</h3>'
+    + '<small>📞 '+esc(cust.phone)+(cust.address ? ' · '+esc(cust.address) : '')+'</small></div></div>'
+    + '<div class="statgrid">'
+      + '<div class="statbox"><b>'+custOrders.length+'</b><span>عدد مرات الطلب</span></div>'
+      + '<div class="statbox"><b>'+custCalls.length+'</b><span>عدد مكالمات خدمة العملاء</span></div>'
+    + '</div>'
+    + '<div class="prefrow">'
+      + '<div class="prefbox"><span>إجمالي الكميات</span><b>'+totalQty+'</b></div>'
+      + '<div class="prefbox"><span>إجمالي المدفوع</span><b>'+totalPaid.toFixed(2)+'</b></div>'
+    + '</div>'
+    + '<div class="prefrow">'
+      + '<div class="prefbox"><span>إجمالي الفواتير</span><b>'+totalInvoiced.toFixed(2)+'</b></div>'
+      + '<div class="prefbox"><span>إجمالي الخصومات</span><b>'+totalDiscount.toFixed(2)+'</b></div>'
+    + '</div>'
+    + '<div class="wrap" style="padding-top:14px;">'
+      + '<div class="btnrow" style="padding:0;">'
+        + '<button class="btn primary" id="wsLogOrderBtn">📦 تسجيل طلب جديد</button>'
+        + '<button class="btn ghost" id="wsLogCallBtn">📞 تسجيل مكالمة</button>'
+      + '</div>'
+    + '</div>'
+    + '<div class="tabs">'
+      + '<div class="t active" data-panel="orders">سجل الطلبات</div>'
+      + '<div class="t" data-panel="calls">سجل المكالمات</div>'
+    + '</div>'
+    + '<div class="tabpanel" id="wsTabpanel">'+ordersHtml+'</div>';
+
+  const panels = {orders:ordersHtml, calls:callsHtml};
+  body.querySelectorAll('.tabs .t').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      body.querySelectorAll('.tabs .t').forEach(t=>t.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('wsTabpanel').innerHTML = panels[el.getAttribute('data-panel')];
+    });
+  });
+  document.getElementById('wsLogOrderBtn').addEventListener('click', async ()=>{ await resetWsOrderForm(); go('wholesaleLogOrder'); });
+  document.getElementById('wsLogCallBtn').addEventListener('click', logWholesaleCall);
+}
+
+/* ---- log a wholesale order, with optional invoice-photo OCR to prefill items ---- */
+let wsWorkingItems = [];
+let wsProductCatalog = [];
+async function resetWsOrderForm(){
+  wsProductCatalog = await getWholesaleProducts();
+  wsWorkingItems = [{name:'', qty:1, price:0}];
+  renderWsItemsBox();
+  const totalInput = document.getElementById('ws_invoiceTotal');
+  totalInput.value = '';
+  delete totalInput.dataset.userEdited;
+  document.getElementById('ws_discount').value = '0';
+  updateWsInvoiceSummary();
+}
+function wsItemTotal(it){ return (Number(it.qty)||0) * (Number(it.price)||0); }
+function updateWsInvoiceSummary(){
+  const suggested = wsWorkingItems.reduce((s,it)=> s + wsItemTotal(it), 0);
+  const totalInput = document.getElementById('ws_invoiceTotal');
+  // only auto-fill if the person hasn't typed a custom total yet (so we don't overwrite their own number)
+  if(!totalInput.dataset.userEdited && suggested>0){ totalInput.value = suggested.toFixed(2); }
+  const invoiceTotal = parseFloat(totalInput.value) || 0;
+  const discount = parseFloat(document.getElementById('ws_discount').value) || 0;
+  const finalTotal = Math.max(0, invoiceTotal - discount);
+  document.getElementById('ws_finalTotal').textContent = finalTotal.toFixed(2);
+}
+function renderWsItemsBox(){
+  const box = document.getElementById('wsItemsBox');
+  if(!box) return;
+  if(!wsProductCatalog.length){
+    box.innerHTML = '<p style="font-size:12px;color:var(--muted);margin:0;">لسه معملتش أي أصناف في القائمة. ارجع لصفحة عملاء الجملة ودوس "📦 إدارة قائمة الأصناف" وضيف الأصناف الأول.</p>';
+    return;
+  }
+  const options = '<option value="">اختر الصنف</option>' + wsProductCatalog.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('');
+  box.innerHTML = wsWorkingItems.map((it,idx)=>
+    '<div class="wsItemCard">'
+      + '<select class="wsItemName" data-idx="'+idx+'">'+options.replace('value="'+esc(it.name)+'"','value="'+esc(it.name)+'" selected')+'</select>'
+      + '<div class="wsItemNums">'
+        + '<div class="numcol"><label>الكمية</label><input class="wsItemQty" type="number" min="1" data-idx="'+idx+'" value="'+esc(it.qty)+'"></div>'
+        + '<div class="numcol"><label>سعر الكيلو</label><input class="wsItemPrice" type="number" min="0" step="0.01" data-idx="'+idx+'" value="'+esc(it.price||0)+'"></div>'
+        + '<div class="numcol"><label>الإجمالي</label><div class="wsItemTotalDisplay" data-idx="'+idx+'">'+wsItemTotal(it).toFixed(2)+'</div></div>'
+        + '<button type="button" class="wsDelItemBtn" data-idx="'+idx+'">✕</button>'
+      + '</div>'
+    + '</div>'
+  ).join('');
+  box.querySelectorAll('.wsItemName').forEach(sel=>{
+    sel.addEventListener('change', ()=>{ wsWorkingItems[parseInt(sel.dataset.idx,10)].name = sel.value; });
+  });
+  box.querySelectorAll('.wsItemQty, .wsItemPrice').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const idx = parseInt(inp.dataset.idx,10);
+      const it = wsWorkingItems[idx];
+      if(inp.classList.contains('wsItemQty')) it.qty = parseInt(inp.value,10) || 0;
+      else it.price = parseFloat(inp.value) || 0;
+      const totalEl = box.querySelector('.wsItemTotalDisplay[data-idx="'+idx+'"]');
+      if(totalEl) totalEl.textContent = wsItemTotal(it).toFixed(2);
+      updateWsInvoiceSummary();
+    });
+  });
+  box.querySelectorAll('.wsDelItemBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      wsWorkingItems.splice(parseInt(btn.dataset.idx,10),1);
+      if(!wsWorkingItems.length) wsWorkingItems.push({name:'', qty:1, price:0});
+      renderWsItemsBox();
+      updateWsInvoiceSummary();
+    });
+  });
+}
+
+/* ---- product catalog management (list of item names offered when logging an order) ---- */
+async function renderWholesaleProducts(){
+  const box = document.getElementById('wsProductsList');
+  const products = await getWholesaleProducts();
+  paintWholesaleProducts(products);
+}
+function paintWholesaleProducts(products){
+  const box = document.getElementById('wsProductsList');
+  if(!products.length){
+    box.innerHTML = '<div class="emptystate">لسه مفيش أصناف مسجلة، ضيف أول صنف من فوق.</div>';
+    return;
+  }
+  box.innerHTML = products.map((p,idx)=>
+    '<div class="staffrow" style="margin:0 18px 8px;"><b>'+esc(p)+'</b><button class="delStaff" data-idx="'+idx+'">حذف</button></div>'
+  ).join('');
+  box.querySelectorAll('[data-idx]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const products = await getWholesaleProducts();
+      const idx = parseInt(btn.dataset.idx,10);
+      products.splice(idx,1);
+      await saveWholesaleProducts(products);
+      paintWholesaleProducts(products);
+    });
+  });
+}
+async function addWholesaleProduct(){
+  const input = document.getElementById('wsNewProductInput');
+  const name = input.value.trim();
+  if(!name){ alert('اكتب اسم الصنف الأول'); return; }
+  const products = await getWholesaleProducts();
+  if(products.includes(name)){ alert('الصنف ده موجود بالفعل'); return; }
+  products.push(name);
+  await saveWholesaleProducts(products);
+  input.value = '';
+  paintWholesaleProducts(products);
+}
+
+
+
+async function submitWholesaleOrder(){
+  // pull any in-progress typing before validating (input events already keep wsWorkingItems in sync,
+  // but this guards against a value not yet committed if the person tapped save very fast)
+  document.querySelectorAll('.wsItemName').forEach(inp=>{ wsWorkingItems[parseInt(inp.dataset.idx,10)].name = inp.value; });
+  document.querySelectorAll('.wsItemQty').forEach(inp=>{ wsWorkingItems[parseInt(inp.dataset.idx,10)].qty = parseInt(inp.value,10) || 0; });
+  document.querySelectorAll('.wsItemPrice').forEach(inp=>{ wsWorkingItems[parseInt(inp.dataset.idx,10)].price = parseFloat(inp.value) || 0; });
+
+  const cleanItems = wsWorkingItems
+    .filter(it=> it.name && it.name.trim())
+    .map(it=>({name:it.name.trim(), qty: it.qty||0, price: it.price||0, total: wsItemTotal(it)}));
+
+  const invoiceTotal = parseFloat(document.getElementById('ws_invoiceTotal').value) || 0;
+  const discount = parseFloat(document.getElementById('ws_discount').value) || 0;
+  const finalTotal = Math.max(0, invoiceTotal - discount);
+
+  const btn = document.getElementById('wsSaveOrderBtn');
+  btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
+
+  const staffName = currentStaff ? currentStaff.name : 'غير معروف';
+  const orders = await getWholesaleOrders();
+  orders.push({
+    id: currentWholesalePhone+'_'+Date.now(), phone: currentWholesalePhone, date: new Date().toISOString(), staff: staffName,
+    items: cleanItems, invoiceTotal, discount, finalTotal
+  });
+  await saveWholesaleOrders(orders);
+
+  btn.disabled = false; btn.textContent = 'حفظ الطلب';
+  go('wholesaleProfile');
+}
+
+async function logWholesaleCall(){
+  const note = prompt('ملاحظة عن المكالمة (اختياري):', '') || '';
+  const staffName = currentStaff ? currentStaff.name : 'غير معروف';
+  const calls = await getWholesaleCalls();
+  calls.push({ id: currentWholesalePhone+'_'+Date.now(), phone: currentWholesalePhone, date: new Date().toISOString(), staff: staffName, note: note.trim() });
+  await saveWholesaleCalls(calls);
+  await renderWholesaleProfile();
+}
+
+/* ---- wholesale report: month/year filtered order & call counts per customer ---- */
+let wsReportMonth = null;
+let wsReportYear = null;
+async function renderWholesaleReport(){
+  const body = document.getElementById('wsReportBody');
+  const customers = await getWholesaleCustomers();
+  const orders = await getWholesaleOrders();
+  const calls = await getWholesaleCalls();
+
+  const yearsInData = new Set([...orders, ...calls].map(x=> new Date(x.date).getFullYear()));
+  yearsInData.add(new Date().getFullYear());
+  const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
+
+  const ordersFiltered = orders.filter(o=>{
+    const d = new Date(o.date);
+    if(wsReportMonth!=null && (d.getMonth()+1)!==wsReportMonth) return false;
+    if(wsReportYear!=null && d.getFullYear()!==wsReportYear) return false;
+    return true;
+  });
+  const callsFiltered = calls.filter(cl=>{
+    const d = new Date(cl.date);
+    if(wsReportMonth!=null && (d.getMonth()+1)!==wsReportMonth) return false;
+    if(wsReportYear!=null && d.getFullYear()!==wsReportYear) return false;
+    return true;
+  });
+
+  const rows = customers.map(c=>{
+    const custOrders = ordersFiltered.filter(o=>o.phone===c.phone);
+    const cCount = callsFiltered.filter(cl=>cl.phone===c.phone).length;
+    const qty = custOrders.reduce((s,o)=> s + (o.items||[]).reduce((s2,it)=>s2+(Number(it.qty)||0),0), 0);
+    const invoiced = custOrders.reduce((s,o)=> s + (Number(o.invoiceTotal)||0), 0);
+    const discount = custOrders.reduce((s,o)=> s + (Number(o.discount)||0), 0);
+    const paid = custOrders.reduce((s,o)=> s + (Number(o.finalTotal)||0), 0);
+    return {name:c.name, phone:c.phone, oCount:custOrders.length, cCount, qty, invoiced, discount, paid};
+  }).sort((a,b)=> b.paid - a.paid);
+
+  const tableRows = rows.map(r=>
+    '<tr style="border-top:1px solid var(--line);">'
+      + '<td style="padding:8px 6px;font-size:12px;font-weight:700;white-space:nowrap;">'+esc(r.name)+'</td>'
+      + '<td style="padding:8px 6px;font-size:11px;color:var(--muted);white-space:nowrap;">'+esc(r.phone)+'</td>'
+      + '<td style="padding:8px 6px;font-size:12px;text-align:center;white-space:nowrap;">📦 '+r.oCount+'</td>'
+      + '<td style="padding:8px 6px;font-size:12px;text-align:center;white-space:nowrap;">📞 '+r.cCount+'</td>'
+      + '<td style="padding:8px 6px;font-size:12px;text-align:center;white-space:nowrap;">'+r.qty+'</td>'
+      + '<td style="padding:8px 6px;font-size:12px;text-align:center;white-space:nowrap;">'+r.invoiced.toFixed(2)+'</td>'
+      + '<td style="padding:8px 6px;font-size:12px;text-align:center;white-space:nowrap;color:var(--bad);">'+r.discount.toFixed(2)+'</td>'
+      + '<td style="padding:8px 6px;font-size:12px;text-align:center;white-space:nowrap;font-weight:800;color:var(--good);">'+r.paid.toFixed(2)+'</td>'
+    + '</tr>'
+  ).join('');
+  const totalOrders = ordersFiltered.length;
+  const totalCalls = callsFiltered.length;
+  const totalQtyAll = rows.reduce((s,r)=>s+r.qty,0);
+  const totalInvoicedAll = rows.reduce((s,r)=>s+r.invoiced,0);
+  const totalDiscountAll = rows.reduce((s,r)=>s+r.discount,0);
+  const totalPaidAll = rows.reduce((s,r)=>s+r.paid,0);
+
+  // aggregate total quantity per item across all filtered orders (all wholesale customers combined)
+  const itemTotals = {};
+  ordersFiltered.forEach(o=>{
+    (o.items||[]).forEach(it=>{
+      const key = (it.name||'').trim();
+      if(!key) return;
+      itemTotals[key] = (itemTotals[key]||0) + (Number(it.qty)||0);
+    });
+  });
+  const itemEntries = Object.entries(itemTotals).sort((a,b)=> b[1]-a[1]);
+  const itemsTableHtml = itemEntries.length
+    ? '<div style="overflow-x:auto;"><table style="border-collapse:collapse;width:100%;min-width:280px;">'
+      + '<thead><tr style="background:#FBF3E6;"><th style="padding:8px 6px;font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap;">الصنف</th><th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">إجمالي الكمية</th></tr></thead>'
+      + '<tbody>'+itemEntries.map(([name,qty])=>
+          '<tr style="border-top:1px solid var(--line);"><td style="padding:8px 6px;font-size:12px;font-weight:700;">'+esc(name)+'</td><td style="padding:8px 6px;font-size:12px;text-align:center;">'+qty+'</td></tr>'
+        ).join('')
+      + '</tbody></table></div>'
+    : '<div style="color:var(--muted);font-size:12.5px;">لا توجد أصناف مسجلة في الفترة دي بعد.</div>';
+
+  body.innerHTML =
+    '<div class="repcard" style="margin:0 18px 14px;">'
+      + '<h4>📅 اختر الفترة</h4>'
+      + '<div style="display:flex;gap:8px;">'
+        + '<select id="wsReportMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:\'Tajawal\';background:#FCF9F3;">'
+          + '<option value="">كل الشهور</option>'
+          + ARABIC_MONTHS.map((m,i)=>'<option value="'+(i+1)+'" '+(wsReportMonth===(i+1)?'selected':'')+'>'+m+'</option>').join('')
+        + '</select>'
+        + '<select id="wsReportYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:\'Tajawal\';background:#FCF9F3;">'
+          + '<option value="">كل السنين</option>'
+          + yearOptions.map(y=>'<option value="'+y+'" '+(wsReportYear===y?'selected':'')+'>'+y+'</option>').join('')
+        + '</select>'
+      + '</div>'
+    + '</div>'
+    + '<div class="statrow3">'
+      + '<div class="box"><b>'+customers.length+'</b><span>عدد عملاء الجملة</span></div>'
+      + '<div class="box"><b>'+totalOrders+'</b><span>عدد الطلبات</span></div>'
+      + '<div class="box"><b>'+totalCalls+'</b><span>عدد المكالمات</span></div>'
+    + '</div>'
+    + '<div class="statrow3">'
+      + '<div class="box"><b>'+totalQtyAll+'</b><span>إجمالي الكميات</span></div>'
+      + '<div class="box"><b>'+totalInvoicedAll.toFixed(2)+'</b><span>إجمالي الفواتير</span></div>'
+      + '<div class="box"><b style="color:var(--good);">'+totalPaidAll.toFixed(2)+'</b><span>إجمالي المدفوع بعد الخصم</span></div>'
+    + '</div>'
+    + '<div class="repcard" style="margin:0 18px 18px;">'
+      + '<h4>تفاصيل كل عميل</h4>'
+      + '<div style="display:flex;gap:8px;margin-bottom:10px;">'
+        + '<button class="btn ghost" id="wsExportExcelBtn" style="flex:1;">📊 تصدير Excel</button>'
+        + '<button class="btn ghost" id="wsExportPdfBtn" style="flex:1;">📄 تصدير PDF</button>'
+      + '</div>'
+      + (rows.length
+          ? '<div style="overflow-x:auto;"><table style="border-collapse:collapse;width:100%;min-width:680px;">'
+            + '<thead><tr style="background:#FBF3E6;">'
+              + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap;">الاسم</th>'
+              + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">الموبايل</th>'
+              + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">الطلبات</th>'
+              + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">المكالمات</th>'
+              + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">الكمية</th>'
+              + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">إجمالي الفاتورة</th>'
+              + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">الخصم</th>'
+              + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">المدفوع</th>'
+            + '</tr></thead>'
+            + '<tbody>'+tableRows+'</tbody></table></div>'
+          : '<div style="color:var(--muted);font-size:12.5px;">لا يوجد عملاء جملة مسجلين بعد.</div>')
+    + '</div>'
+    + '<div class="repcard" style="margin:0 18px 18px;">'
+      + '<h4>📦 إجمالي الكميات حسب الصنف</h4>'
+      + itemsTableHtml
+    + '</div>';
+
+  document.getElementById('wsReportMonthSel').addEventListener('change', e=>{
+    wsReportMonth = e.target.value ? parseInt(e.target.value,10) : null;
+    renderWholesaleReport();
+  });
+  document.getElementById('wsReportYearSel').addEventListener('change', e=>{
+    wsReportYear = e.target.value ? parseInt(e.target.value,10) : null;
+    renderWholesaleReport();
+  });
+  const wsExportHeaders = ['الاسم','الموبايل','عدد الطلبات','عدد المكالمات','الكمية','إجمالي الفاتورة','الخصم','المدفوع'];
+  const wsExportRows = rows.map(r=>[r.name||'—', r.phone||'—', r.oCount, r.cCount, r.qty, r.invoiced.toFixed(2), r.discount.toFixed(2), r.paid.toFixed(2)]);
+  document.getElementById('wsExportExcelBtn').addEventListener('click', ()=>{
+    exportRowsToExcel('تقرير-عملاء-الجملة.xlsx', 'عملاء الجملة', wsExportHeaders, wsExportRows);
+  });
+  document.getElementById('wsExportPdfBtn').addEventListener('click', ()=>{
+    exportRowsToPDF('تقرير-عملاء-الجملة.pdf', 'تقرير عملاء الجملة', wsExportHeaders, wsExportRows);
+  });
+}
+
 /* ================= REPORTS ================= */
 let reportsMonth = null; // 1-12, null = كل الشهور
 let reportsYear = null;  // e.g. 2026, null = كل السنين
@@ -2434,6 +3083,10 @@ async function renderReports(){
       + '</div>'
       + '<div id="custReportBody" style="display:none;margin-top:10px;">'
         + '<p style="font-size:10.5px;color:var(--muted);margin:0 0 8px;">مرّر لجوه الجدول لفوق وتحت ويمين وشمال — الصف الأول (العناوين) هيفضل ثابت</p>'
+        + '<div style="display:flex;gap:8px;margin-bottom:10px;">'
+          + '<button class="btn ghost" id="custExportExcelBtn" style="flex:1;">📊 تصدير Excel</button>'
+          + '<button class="btn ghost" id="custExportPdfBtn" style="flex:1;">📄 تصدير PDF</button>'
+        + '</div>'
         + customerTableHtml
       + '</div>'
     + '</div>'
@@ -2456,6 +3109,19 @@ async function renderReports(){
     const open = box.style.display !== 'none';
     box.style.display = open ? 'none' : 'block';
     chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+  });
+
+  const custExportHeaders = ['الاسم','الموبايل','التاريخ','المنتجات','أكتر حاجة عجبته','التقييم','الموظف'];
+  const custExportRows = feedbackSorted.map(f=>{
+    const ratingsVals = Object.values(f.ratings||{}).filter(v=>v>0);
+    const favg = ratingsVals.length ? (ratingsVals.reduce((a,b)=>a+b,0)/ratingsVals.length).toFixed(1) : '—';
+    return [f.name||'—', f.phone||'—', new Date(f.date).toLocaleDateString('ar-EG'), (f.products||[]).join('، ')||'—', (f.likes||[]).join('، ')||'—', favg, f.staff||'—'];
+  });
+  document.getElementById('custExportExcelBtn').addEventListener('click', ()=>{
+    exportRowsToExcel('تقرير-العملاء.xlsx', 'العملاء', custExportHeaders, custExportRows);
+  });
+  document.getElementById('custExportPdfBtn').addEventListener('click', ()=>{
+    exportRowsToPDF('تقرير-العملاء.pdf', 'تقرير العملاء الكامل', custExportHeaders, custExportRows);
   });
 }
 
@@ -2657,6 +3323,16 @@ document.addEventListener('DOMContentLoaded', function(){
 
   document.getElementById('custSearch').addEventListener('input', e=> filterCustomers(e.target.value));
 
+  document.getElementById('wsSearch').addEventListener('input', e=> filterWholesale(e.target.value));
+  document.getElementById('wsAddBtn').addEventListener('click', ()=>{ resetWholesaleAddForm(); go('wholesaleAdd'); });
+  document.getElementById('wsSaveBtn').addEventListener('click', submitWholesaleAdd);
+  document.getElementById('wsAddItemRowBtn').addEventListener('click', ()=>{ wsWorkingItems.push({name:'', qty:1, price:0}); renderWsItemsBox(); });
+  document.getElementById('ws_invoiceTotal').addEventListener('input', function(){ this.dataset.userEdited = '1'; updateWsInvoiceSummary(); });
+  document.getElementById('ws_discount').addEventListener('input', updateWsInvoiceSummary);
+  document.getElementById('wsSaveOrderBtn').addEventListener('click', submitWholesaleOrder);
+  document.getElementById('wsManageProductsBtn').addEventListener('click', ()=> go('wholesaleProducts'));
+  document.getElementById('wsAddProductBtn').addEventListener('click', addWholesaleProduct);
+
   document.getElementById('cpSearch').addEventListener('input', paintComplaintsList);
   document.getElementById('cpMonthSel').addEventListener('change', e=>{
     cpMonth = e.target.value ? parseInt(e.target.value,10) : null;
@@ -2667,6 +3343,26 @@ document.addEventListener('DOMContentLoaded', function(){
     paintComplaintsList();
   });
   document.getElementById('cpDeptSel').addEventListener('change', paintComplaintsList);
+  document.getElementById('cpExportExcelBtn').addEventListener('click', ()=>{
+    const headers = ['الاسم','الموبايل','الصنف','تفاصيل الصنف','تاريخ الفاتورة','المشكلة','القسم','الإجراء المتخذ','الحالة','سجّلها','التاريخ'];
+    const rows = currentFilteredComplaints.map(c=>[
+      c.name||'—', c.phone||'—', c.product||'—', c.productDetails||'—',
+      c.invoiceDate ? new Date(c.invoiceDate).toLocaleDateString('ar-EG') : '—',
+      c.issue||'—', c.department||'—', c.actionTaken||'—',
+      (c.status||'pending')==='resolved' ? 'تم الحل' : 'قيد المتابعة',
+      c.staff||'—', new Date(c.date).toLocaleDateString('ar-EG')
+    ]);
+    exportRowsToExcel('تقرير-الشكاوى.xlsx', 'الشكاوى', headers, rows);
+  });
+  document.getElementById('cpExportPdfBtn').addEventListener('click', ()=>{
+    const headers = ['الاسم','الموبايل','الصنف','المشكلة','القسم','الحالة','التاريخ'];
+    const rows = currentFilteredComplaints.map(c=>[
+      c.name||'—', c.phone||'—', c.product||'—', c.issue||'—', c.department||'—',
+      (c.status||'pending')==='resolved' ? 'تم الحل' : 'قيد المتابعة',
+      new Date(c.date).toLocaleDateString('ar-EG')
+    ]);
+    exportRowsToPDF('تقرير-الشكاوى.pdf', 'تقرير الشكاوى', headers, rows);
+  });
   document.querySelectorAll('[data-cpfilter]').forEach(el=>{
     el.addEventListener('click', ()=>{
       document.querySelectorAll('[data-cpfilter]').forEach(t=>t.classList.remove('active'));
