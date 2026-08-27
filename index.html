@@ -398,6 +398,7 @@
       <div class="tile js-go" data-go="reports"><span class="ic">📊</span><span>التقارير والإحصائيات</span></div>
       <div class="tile js-go" data-go="checklist"><span class="ic">📋</span><span>تشيك ليست الفرع</span></div>
       <div class="tile js-go" data-go="wholesaleCustomers"><span class="ic">🏢</span><span>متابعة عملاء الجملة</span></div>
+      <div class="tile js-go" data-go="issueReports"><span class="ic">📝</span><span>تقارير المشاكل</span></div>
     </div>
   </div>
 
@@ -637,6 +638,44 @@
     <div id="wsReportBody"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
 
+  <!-- ============ ISSUE REPORTS LIST ============ -->
+  <div class="screen" id="issueReports">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>تقارير المشاكل</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <button class="btn primary full" id="irAddBtn" style="margin-bottom:14px;">+ تسجيل مشكلة جديدة</button>
+    </div>
+    <div id="irList"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ ISSUE REPORT ADD ============ -->
+  <div class="screen" id="issueReportAdd">
+    <div class="head"><div class="back js-go" data-go="issueReports">→</div><h2>تسجيل مشكلة</h2></div>
+    <div class="wrap">
+      <div class="card">
+        <h3>تفاصيل المشكلة</h3>
+        <div class="field"><label>القسم</label>
+          <select id="ir_department">
+            <option value="">اختر القسم</option>
+            <option value="البن">☕ البن</option>
+            <option value="المشروبات">🥤 المشروبات</option>
+            <option value="الصيانة">🔧 الصيانة</option>
+            <option value="المخزن">📦 المخزن</option>
+          </select>
+        </div>
+        <div class="field"><label>وصف المشكلة</label><textarea id="ir_description" placeholder="اكتب المشكلة بالتفصيل..."></textarea></div>
+        <div class="field" style="margin-bottom:0;">
+          <label>صورة (اختياري)</label>
+          <input type="file" id="ir_photo" accept="image/*">
+          <div id="ir_photoPreviewBox" style="margin-top:10px;display:none;"><img id="ir_photoPreview" style="max-width:100%;border-radius:10px;border:1px solid var(--line);"></div>
+        </div>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="btn ghost js-go" data-go="issueReports">إلغاء</button>
+      <button class="btn primary" id="irSaveBtn">حفظ التقرير</button>
+    </div>
+  </div>
+
   <!-- ============ SETTINGS ============ -->
   <div class="screen" id="settings">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>الإعدادات</h2></div>
@@ -728,7 +767,7 @@ const DEFAULT_STAFF = [
 ];
 
 let currentStaff = null; // {user,name,role} - in-memory only, resets on reload
-let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [] };
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [] };
 let backendReady = false;
 let currentScreen = 'login';
 let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
@@ -828,6 +867,10 @@ function attachLiveSync(){
     APP_STATE.wholesaleProducts = list;
     if(currentScreen==='wholesaleProducts') renderWholesaleProducts();
   });
+  subscribeShared('issueReports', list=>{
+    APP_STATE.issueReports = list;
+    if(currentScreen==='issueReports') renderIssueReportsList();
+  });
 }
 
 // Shows the number of feedback entries registered SINCE the bell was last opened —
@@ -853,8 +896,8 @@ async function loadAppState(){
   if(!backendConfigured()){ backendReady = false; return { ok:false, reason:'not-configured' }; }
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
-    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', [])
+    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), loadShared('issueReports', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -865,6 +908,7 @@ async function loadAppState(){
     APP_STATE.wholesaleOrders = wholesaleOrders;
     APP_STATE.wholesaleCalls = wholesaleCalls;
     APP_STATE.wholesaleProducts = wholesaleProducts;
+    APP_STATE.issueReports = issueReports;
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -903,6 +947,8 @@ async function getWholesaleCalls(){ return APP_STATE.wholesaleCalls; }
 async function saveWholesaleCalls(arr){ APP_STATE.wholesaleCalls = arr; saveShared('wholesaleCalls', arr); }
 async function getWholesaleProducts(){ return APP_STATE.wholesaleProducts; }
 async function saveWholesaleProducts(arr){ APP_STATE.wholesaleProducts = arr; saveShared('wholesaleProducts', arr); }
+async function getIssueReports(){ return APP_STATE.issueReports; }
+async function saveIssueReports(arr){ APP_STATE.issueReports = arr; saveShared('issueReports', arr); }
 async function getChecklists(){ return APP_STATE.checklists; }
 async function saveChecklists(arr){ APP_STATE.checklists = arr; saveShared('checklists', arr); }
 async function getChecklistSections(){ return APP_STATE.checklistSections; }
@@ -1092,6 +1138,7 @@ function go(id){
   if(id==='checklistManage') renderChecklistManage();
   if(id==='wholesaleCustomers') renderWholesaleList();
   if(id==='wholesaleReport') renderWholesaleReport();
+  if(id==='issueReports') renderIssueReportsList();
   if(id==='wholesaleProducts') renderWholesaleProducts();
   if(id==='settings'){ if(typeof resetStaffForm==='function') resetStaffForm(); renderSettings(); }
 }
@@ -2483,7 +2530,7 @@ function filterWholesale(q){
   ));
 }
 
-let editingWholesaleCustomer = null;
+let editingWholesaleCustomer = null; // null = adding new; otherwise the ORIGINAL phone key being edited
 function resetWholesaleAddForm(){
   editingWholesaleCustomer = null;
   document.getElementById('ws_name').value = '';
@@ -2491,6 +2538,18 @@ function resetWholesaleAddForm(){
   document.getElementById('ws_address').value = '';
   document.getElementById('wsAddTitle').textContent = 'تسجيل عميل جملة';
   document.getElementById('wsSaveBtn').textContent = 'حفظ العميل';
+}
+async function editWholesaleCustomer(phone){
+  const customers = await getWholesaleCustomers();
+  const cust = customers.find(c=>c.phone===phone);
+  if(!cust) return;
+  editingWholesaleCustomer = phone;
+  document.getElementById('ws_name').value = cust.name || '';
+  document.getElementById('ws_phone').value = cust.phone || '';
+  document.getElementById('ws_address').value = cust.address || '';
+  document.getElementById('wsAddTitle').textContent = 'تعديل بيانات العميل';
+  document.getElementById('wsSaveBtn').textContent = 'حفظ التعديل';
+  go('wholesaleAdd');
 }
 async function submitWholesaleAdd(){
   const name = document.getElementById('ws_name').value.trim();
@@ -2506,15 +2565,43 @@ async function submitWholesaleAdd(){
   const staffName = currentStaff ? currentStaff.name : 'غير معروف';
   const phoneKey = normalizePhone(phone);
   const customers = await getWholesaleCustomers();
-  let cust = customers.find(c=>normalizePhone(c.phone)===phoneKey);
-  if(!cust){
-    cust = { phone:phoneKey, name, address, createdAt:new Date().toISOString(), registeredBy:staffName };
-    customers.push(cust);
+
+  if(editingWholesaleCustomer){
+    const idx = customers.findIndex(c=>c.phone===editingWholesaleCustomer);
+    if(idx===-1){
+      alert('تعذر إيجاد العميل ده، ممكن يكون اتحذف');
+    } else {
+      const dupe = customers.find(c=> c.phone!==editingWholesaleCustomer && normalizePhone(c.phone)===phoneKey);
+      if(dupe){
+        alert('رقم الموبايل ده مسجل بالفعل لعميل تاني');
+        btn.disabled = false; btn.textContent = 'حفظ التعديل';
+        return;
+      }
+      const phoneChanged = phoneKey !== editingWholesaleCustomer;
+      customers[idx] = Object.assign({}, customers[idx], { name, phone: phoneKey, address });
+      await saveWholesaleCustomers(customers);
+      // keep their order/call history linked if the phone number itself was corrected
+      if(phoneChanged){
+        const orders = await getWholesaleOrders();
+        orders.forEach(o=>{ if(o.phone===editingWholesaleCustomer) o.phone = phoneKey; });
+        await saveWholesaleOrders(orders);
+        const calls = await getWholesaleCalls();
+        calls.forEach(cl=>{ if(cl.phone===editingWholesaleCustomer) cl.phone = phoneKey; });
+        await saveWholesaleCalls(calls);
+        if(currentWholesalePhone===editingWholesaleCustomer) currentWholesalePhone = phoneKey;
+      }
+    }
   } else {
-    cust.name = name || cust.name;
-    cust.address = address || cust.address;
+    let cust = customers.find(c=>normalizePhone(c.phone)===phoneKey);
+    if(!cust){
+      cust = { phone:phoneKey, name, address, createdAt:new Date().toISOString(), registeredBy:staffName };
+      customers.push(cust);
+    } else {
+      cust.name = name || cust.name;
+      cust.address = address || cust.address;
+    }
+    await saveWholesaleCustomers(customers);
   }
-  await saveWholesaleCustomers(customers);
 
   btn.disabled = false;
   resetWholesaleAddForm();
@@ -2563,6 +2650,12 @@ async function renderWholesaleProfile(){
     '<div class="p-top"><div class="avatar">'+esc(initials)+'</div><div>'
     + '<h3>'+esc(cust.name)+'</h3>'
     + '<small>📞 '+esc(cust.phone)+(cust.address ? ' · '+esc(cust.address) : '')+'</small></div></div>'
+    + '<div class="wrap" style="padding-top:12px;padding-bottom:0;">'
+      + '<div class="btnrow" style="padding:0;">'
+        + '<button class="btn ghost" id="wsEditCustBtn" style="background:var(--primarySoft,#E4EEE9);color:var(--espresso-2);">✏️ تعديل البيانات</button>'
+        + '<button class="btn ghost" id="wsDeleteCustBtn" style="background:#F7E3DC;color:var(--bad);">🗑️ حذف العميل</button>'
+      + '</div>'
+    + '</div>'
     + '<div class="statgrid">'
       + '<div class="statbox"><b>'+custOrders.length+'</b><span>عدد مرات الطلب</span></div>'
       + '<div class="statbox"><b>'+custCalls.length+'</b><span>عدد مكالمات خدمة العملاء</span></div>'
@@ -2597,6 +2690,8 @@ async function renderWholesaleProfile(){
   });
   document.getElementById('wsLogOrderBtn').addEventListener('click', async ()=>{ await resetWsOrderForm(); go('wholesaleLogOrder'); });
   document.getElementById('wsLogCallBtn').addEventListener('click', logWholesaleCall);
+  document.getElementById('wsEditCustBtn').addEventListener('click', ()=> editWholesaleCustomer(cust.phone));
+  document.getElementById('wsDeleteCustBtn').addEventListener('click', ()=> deleteWholesaleCustomer(cust.phone));
 }
 
 /* ---- log a wholesale order, with optional invoice-photo OCR to prefill items ---- */
@@ -2744,6 +2839,25 @@ async function logWholesaleCall(){
   await renderWholesaleProfile();
 }
 
+async function deleteWholesaleCustomer(phone){
+  const customers = await getWholesaleCustomers();
+  const cust = customers.find(c=>c.phone===phone);
+  if(!cust) return;
+  const ok = confirm('متأكد إنك عايز تحذف عميل الجملة "'+cust.name+'" نهائيًا؟ هيتحذف معاه كل سجل الطلبات والمكالمات بتاعته، ومفيش رجوع بعد الحذف.');
+  if(!ok) return;
+
+  const updatedCustomers = customers.filter(c=>c.phone!==phone);
+  await saveWholesaleCustomers(updatedCustomers);
+
+  const orders = await getWholesaleOrders();
+  await saveWholesaleOrders(orders.filter(o=>o.phone!==phone));
+
+  const calls = await getWholesaleCalls();
+  await saveWholesaleCalls(calls.filter(cl=>cl.phone!==phone));
+
+  go('wholesaleCustomers');
+}
+
 /* ---- wholesale report: month/year filtered order & call counts per customer ---- */
 let wsReportMonth = null;
 let wsReportYear = null;
@@ -2884,6 +2998,162 @@ async function renderWholesaleReport(){
   document.getElementById('wsExportPdfBtn').addEventListener('click', ()=>{
     exportRowsToPDF('تقرير-عملاء-الجملة.pdf', 'تقرير عملاء الجملة', wsExportHeaders, wsExportRows);
   });
+}
+
+/* ================= ISSUE REPORTS (internal problem reports with photo) ================= */
+let allIssueReportsCache = [];
+let irPhotoDataUrl = null;
+
+async function renderIssueReportsList(){
+  const box = document.getElementById('irList');
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const reports = await getIssueReports();
+  allIssueReportsCache = reports.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  if(!allIssueReportsCache.length){
+    box.innerHTML = '<div class="emptystate">لا توجد تقارير مسجلة بعد.</div>';
+    return;
+  }
+  box.innerHTML = allIssueReportsCache.map(r=>{
+    const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
+    return '<div class="complaintcard">'
+      + '<div class="ctop"><div><h4>'+esc(r.department||'بدون قسم')+'</h4><small>'+dateLabel+' · '+esc(r.staff||'—')+'</small></div></div>'
+      + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;border-radius:10px;margin-bottom:8px;">' : '')
+      + '<div class="crow">'+esc(r.description||'—')+'</div>'
+      + '<div class="cbtnrow" style="margin-top:8px;">'
+        + '<button class="shareWaBtn" data-irshare="'+esc(r.id)+'">📤 واتساب</button>'
+        + '<button class="delCpBtn" data-irdel="'+esc(r.id)+'" style="background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+  box.querySelectorAll('[data-irshare]').forEach(btn=>{
+    btn.addEventListener('click', ()=> shareIssueReport(btn.getAttribute('data-irshare')));
+  });
+  box.querySelectorAll('[data-irdel]').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteIssueReport(btn.getAttribute('data-irdel')));
+  });
+}
+
+function resetIssueReportForm(){
+  document.getElementById('ir_department').value = '';
+  document.getElementById('ir_description').value = '';
+  document.getElementById('ir_photo').value = '';
+  document.getElementById('ir_photoPreviewBox').style.display = 'none';
+  irPhotoDataUrl = null;
+}
+
+// Resizes + compresses the photo client-side before storing it (keeps each report well under
+// Firestore's per-document size limit, and keeps the shared database small and fast).
+function compressPhotoToDataUrl(file, maxW){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const scale = Math.min(maxW / img.width, 1);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function submitIssueReport(){
+  const department = document.getElementById('ir_department').value;
+  const description = document.getElementById('ir_description').value.trim();
+  if(!description){
+    alert('من فضلك اكتب وصف المشكلة على الأقل');
+    return;
+  }
+  const btn = document.getElementById('irSaveBtn');
+  btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
+
+  const staffName = currentStaff ? currentStaff.name : 'غير معروف';
+  const reports = await getIssueReports();
+  reports.push({
+    id: Date.now()+'_'+Math.random().toString(36).slice(2),
+    date: new Date().toISOString(), department, description, staff: staffName,
+    photoDataUrl: irPhotoDataUrl
+  });
+  await saveIssueReports(reports);
+
+  btn.disabled = false; btn.textContent = 'حفظ التقرير';
+  resetIssueReportForm();
+  go('issueReports');
+}
+
+function buildIssueReportShareHTML(r){
+  const dateLabel = new Date(r.date).toLocaleDateString('ar-EG', {year:'numeric', month:'2-digit', day:'2-digit'});
+  return '<div style="font-family:Tajawal,sans-serif;direction:rtl;width:760px;background:#FBF3E6;padding:32px 36px;color:#2B211B;box-sizing:border-box;">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">'
+      + '<div style="display:flex;align-items:center;gap:10px;">'
+        + '<img src="'+LOGO_DATA_URI+'" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0;">'
+        + '<div><div style="font-family:Cairo,sans-serif;font-weight:900;font-size:22px;color:#2A1810;">بن العراب</div>'
+        + '<div style="font-size:10px;color:#8C7B6D;letter-spacing:2px;">BIN ALARAB</div></div>'
+      + '</div>'
+      + '<div style="text-align:center;"><div style="font-family:Cairo,sans-serif;font-weight:900;font-size:20px;color:#2A1810;">📝 تقرير مشكلة</div></div>'
+    + '</div>'
+    + '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:12px;padding:6px 18px;margin-bottom:16px;">'
+      + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">القسم</div><div style="font-size:14px;font-weight:700;">'+esc(r.department||'—')+'</div></div>'
+      + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">التاريخ</div><div style="font-size:14px;font-weight:700;">'+dateLabel+'</div></div>'
+      + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">اسم الموظف</div><div style="font-size:14px;font-weight:700;">'+esc(r.staff||'—')+'</div></div>'
+      + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">وصف المشكلة</div><div style="font-size:14px;font-weight:600;line-height:1.6;">'+esc(r.description||'—')+'</div></div>'
+    + '</div>'
+    + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;border-radius:12px;border:1px solid #EEE2D1;">' : '')
+    + '<div style="text-align:center;margin-top:18px;padding:14px;background:#2A1810;color:#C08A34;border-radius:10px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;">بن العراب</div>'
+    + '</div>';
+}
+
+async function shareIssueReport(id){
+  const r = allIssueReportsCache.find(x=>x.id===id);
+  if(!r) return;
+  const btn = document.querySelector('[data-irshare="'+id+'"]');
+  if(btn){ btn.disabled = true; btn.textContent = 'جارِ تجهيز الصورة...'; }
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
+  container.style.opacity = '0'; container.style.pointerEvents = 'none'; container.style.zIndex = '-9999';
+  container.innerHTML = buildIssueReportShareHTML(r);
+  document.body.appendChild(container);
+
+  try{
+    if(document.fonts && document.fonts.ready){ await document.fonts.ready.catch(()=>{}); }
+    const canvas = await html2canvas(container.firstElementChild, {scale:3, backgroundColor:'#FBF3E6', useCORS:true, width:760, windowWidth:760});
+    container.remove();
+    const blob = await new Promise(res=> canvas.toBlob(res, 'image/png', 1.0));
+
+    if(btn){ btn.disabled = false; btn.textContent = '📤 واتساب'; }
+    if(!blob) throw new Error('toBlob failed');
+    const dateStr = new Date(r.date).toISOString().slice(0,10);
+    const fileName = 'تقرير-مشكلة-'+(r.department||'عام')+'-'+dateStr+'.png';
+    const file = new File([blob], fileName, {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file], title:'تقرير مشكلة - بن العراب', text:'تقرير مشكلة - قسم '+(r.department||'عام')}); return; }
+      catch(e){ /* user cancelled - fall through to download */ }
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+    URL.revokeObjectURL(url);
+    alert('المتصفح ده مش بيدعم فتح شاشة المشاركة مباشرة، فاتحفظت الصورة في الجهاز. افتح واتساب بنفسك وابعتها من هناك.');
+  }catch(e){
+    container.remove();
+    if(btn){ btn.disabled = false; btn.textContent = '📤 واتساب'; }
+    alert('تعذّرت مشاركة الصورة، حاول تاني');
+  }
+}
+
+async function deleteIssueReport(id){
+  const r = allIssueReportsCache.find(x=>x.id===id);
+  if(!r) return;
+  const ok = confirm('متأكد إنك عايز تحذف تقرير المشكلة ده نهائيًا؟ مفيش رجوع بعد الحذف.');
+  if(!ok) return;
+  const reports = await getIssueReports();
+  const updated = reports.filter(x=>x.id!==id);
+  await saveIssueReports(updated);
+  allIssueReportsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  renderIssueReportsList();
 }
 
 /* ================= REPORTS ================= */
@@ -3332,6 +3602,16 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('wsSaveOrderBtn').addEventListener('click', submitWholesaleOrder);
   document.getElementById('wsManageProductsBtn').addEventListener('click', ()=> go('wholesaleProducts'));
   document.getElementById('wsAddProductBtn').addEventListener('click', addWholesaleProduct);
+
+  document.getElementById('irAddBtn').addEventListener('click', ()=>{ resetIssueReportForm(); go('issueReportAdd'); });
+  document.getElementById('ir_photo').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    irPhotoDataUrl = await compressPhotoToDataUrl(file, 900);
+    document.getElementById('ir_photoPreview').src = irPhotoDataUrl;
+    document.getElementById('ir_photoPreviewBox').style.display = 'block';
+  });
+  document.getElementById('irSaveBtn').addEventListener('click', submitIssueReport);
 
   document.getElementById('cpSearch').addEventListener('input', paintComplaintsList);
   document.getElementById('cpMonthSel').addEventListener('change', e=>{
