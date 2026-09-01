@@ -865,10 +865,14 @@ function initFirebase(){
 }
 
 async function loadShared(key, fallback){
-  try{
-    const snap = await db.collection(DATA_COL).doc(key).get();
-    return snap.exists ? (snap.data().list || fallback) : fallback;
-  }catch(e){ console.error('loadShared', key, e); return fallback; }
+  // IMPORTANT: do NOT catch errors here. A network hiccup must not look identical to
+  // "this collection is genuinely empty" — that ambiguity previously caused a bug where a
+  // failed read silently returned [] for the staff list, which loadAppState then mistook for
+  // "no staff registered yet" and overwrote (and saved!) the real staff list with just the
+  // default admin account, permanently wiping out real accounts. Letting the error bubble up
+  // makes the whole loadAppState() call fail loudly instead, so nothing gets overwritten.
+  const snap = await db.collection(DATA_COL).doc(key).get();
+  return snap.exists ? (snap.data().list || fallback) : fallback;
 }
 function saveShared(key, val){
   // Firestore commits to its local offline cache synchronously, so the UI can
