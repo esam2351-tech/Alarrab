@@ -801,6 +801,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -860,6 +861,23 @@ function initFirebase(){
     return true;
   }catch(e){
     console.error('Firebase init failed', e);
+    return false;
+  }
+}
+
+// Anonymous sign-in raises the bar against random strangers hitting the database directly with
+// just the exposed apiKey (Firestore rules can then require request.auth != null) — it does NOT
+// replace the app's own staff username/password screen, which stays exactly as it is.
+let firebaseSignedIn = false;
+async function ensureSignedIn(){
+  if(firebaseSignedIn) return true;
+  try{
+    if(firebase.auth().currentUser){ firebaseSignedIn = true; return true; }
+    await firebase.auth().signInAnonymously();
+    firebaseSignedIn = true;
+    return true;
+  }catch(e){
+    console.error('Anonymous sign-in failed', e);
     return false;
   }
 }
@@ -974,6 +992,7 @@ function markNotificationsSeen(){
 async function loadAppState(){
   if(!backendConfigured()){ backendReady = false; return { ok:false, reason:'not-configured' }; }
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
+  if(!(await ensureSignedIn())){ backendReady = false; return { ok:false, reason:'auth-failed' }; }
   try{
     const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes] = await Promise.all([
       loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), loadShared('issueReports', []), loadShared('dailyNotes', [])
@@ -2719,7 +2738,7 @@ async function renderWholesaleProfile(){
           ? o.items.map(it=> (it.qty||1)+'× '+esc(it.name)).join('، ')
           : '—';
         return '<div class="frow" style="flex-direction:column;align-items:flex-start;gap:3px;">'
-          + '<div style="display:flex;justify-content:space-between;width:100%;"><b>'+new Date(o.date).toLocaleDateString('ar-EG')+'</b><span>'+esc(o.staff||'—')+'</span></div>'
+          + '<div style="display:flex;justify-content:space-between;width:100%;align-items:center;"><b>'+new Date(o.date).toLocaleDateString('ar-EG')+'</b><span style="display:flex;align-items:center;gap:8px;">'+esc(o.staff||'—')+'<button class="delStaff" data-delorder="'+esc(o.id)+'" style="color:var(--bad);flex-shrink:0;">حذف</button></span></div>'
           + '<div style="color:var(--ink);">'+itemsSummary+'</div>'
           + '<div style="font-size:11px;color:var(--muted);">الإجمالي: '+(o.invoiceTotal||0).toFixed(2)+' · الخصم: '+(o.discount||0).toFixed(2)+' · <b style="color:var(--good);">المدفوع: '+(o.finalTotal||0).toFixed(2)+'</b></div>'
           + '</div>';
@@ -2776,8 +2795,10 @@ async function renderWholesaleProfile(){
   document.getElementById('wsEditCustBtn').addEventListener('click', ()=> editWholesaleCustomer(cust.phone));
   document.getElementById('wsDeleteCustBtn').addEventListener('click', ()=> deleteWholesaleCustomer(cust.phone));
   document.getElementById('wsTabpanel').addEventListener('click', (e)=>{
-    const btn = e.target.closest('[data-delcall]');
-    if(btn) deleteWholesaleCall(btn.getAttribute('data-delcall'));
+    const callBtn = e.target.closest('[data-delcall]');
+    if(callBtn){ deleteWholesaleCall(callBtn.getAttribute('data-delcall')); return; }
+    const orderBtn = e.target.closest('[data-delorder]');
+    if(orderBtn){ deleteWholesaleOrderEntry(orderBtn.getAttribute('data-delorder')); }
   });
 }
 
@@ -2817,7 +2838,7 @@ function renderWsItemsBox(){
     '<div class="wsItemCard">'
       + '<select class="wsItemName" data-idx="'+idx+'">'+options.replace('value="'+esc(it.name)+'"','value="'+esc(it.name)+'" selected')+'</select>'
       + '<div class="wsItemNums">'
-        + '<div class="numcol"><label>الكمية</label><input class="wsItemQty" type="number" min="1" data-idx="'+idx+'" value="'+esc(it.qty)+'"></div>'
+        + '<div class="numcol"><label>الكمية</label><input class="wsItemQty" type="number" min="0.01" step="0.01" data-idx="'+idx+'" value="'+esc(it.qty)+'"></div>'
         + '<div class="numcol"><label>سعر الكيلو</label><input class="wsItemPrice" type="number" min="0" step="0.01" data-idx="'+idx+'" value="'+esc(it.price||0)+'"></div>'
         + '<div class="numcol"><label>الإجمالي</label><div class="wsItemTotalDisplay" data-idx="'+idx+'">'+wsItemTotal(it).toFixed(2)+'</div></div>'
         + '<button type="button" class="wsDelItemBtn" data-idx="'+idx+'">✕</button>'
@@ -2831,7 +2852,7 @@ function renderWsItemsBox(){
     inp.addEventListener('input', ()=>{
       const idx = parseInt(inp.dataset.idx,10);
       const it = wsWorkingItems[idx];
-      if(inp.classList.contains('wsItemQty')) it.qty = parseInt(inp.value,10) || 0;
+      if(inp.classList.contains('wsItemQty')) it.qty = parseFloat(inp.value) || 0;
       else it.price = parseFloat(inp.value) || 0;
       const totalEl = box.querySelector('.wsItemTotalDisplay[data-idx="'+idx+'"]');
       if(totalEl) totalEl.textContent = wsItemTotal(it).toFixed(2);
@@ -2891,7 +2912,7 @@ async function submitWholesaleOrder(){
   // pull any in-progress typing before validating (input events already keep wsWorkingItems in sync,
   // but this guards against a value not yet committed if the person tapped save very fast)
   document.querySelectorAll('.wsItemName').forEach(inp=>{ wsWorkingItems[parseInt(inp.dataset.idx,10)].name = inp.value; });
-  document.querySelectorAll('.wsItemQty').forEach(inp=>{ wsWorkingItems[parseInt(inp.dataset.idx,10)].qty = parseInt(inp.value,10) || 0; });
+  document.querySelectorAll('.wsItemQty').forEach(inp=>{ wsWorkingItems[parseInt(inp.dataset.idx,10)].qty = parseFloat(inp.value) || 0; });
   document.querySelectorAll('.wsItemPrice').forEach(inp=>{ wsWorkingItems[parseInt(inp.dataset.idx,10)].price = parseFloat(inp.value) || 0; });
 
   const cleanItems = wsWorkingItems
@@ -2931,6 +2952,14 @@ async function deleteWholesaleCall(id){
   if(!ok) return;
   const calls = await getWholesaleCalls();
   await saveWholesaleCalls(calls.filter(cl=>cl.id!==id));
+  await renderWholesaleProfile();
+}
+
+async function deleteWholesaleOrderEntry(id){
+  const ok = confirm('متأكد إنك عايز تحذف الطلب ده نهائيًا؟ مفيش رجوع بعد الحذف.');
+  if(!ok) return;
+  const orders = await getWholesaleOrders();
+  await saveWholesaleOrders(orders.filter(o=>o.id!==id));
   await renderWholesaleProfile();
 }
 
