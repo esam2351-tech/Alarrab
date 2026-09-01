@@ -3793,6 +3793,19 @@ async function addStaffMember(){
 }
 
 /* ================= LOGIN ================= */
+// Retries loadAppState a few times before giving up — smooths over brief weak-signal blips
+// without ever silently treating "connection failed" as "no data" (that distinction is what
+// keeps the staff list safe from being wiped by a bad connection).
+async function loadAppStateWithRetry(attempts, delayMs){
+  let res;
+  for(let i=0;i<attempts;i++){
+    res = await loadAppState();
+    if(res.ok) return res;
+    if(i < attempts-1) await new Promise(r=>setTimeout(r, delayMs));
+  }
+  return res;
+}
+
 async function initLoginScreen(){
   const err = document.getElementById('loginErr');
   const loginBtn = document.getElementById('loginBtn');
@@ -3803,7 +3816,7 @@ async function initLoginScreen(){
   }
   err.textContent = 'جارِ الاتصال بقاعدة البيانات...';
   loginBtn.disabled = true;
-  const res = await loadAppState();
+  const res = await loadAppStateWithRetry(3, 1200);
   if(!res.ok){
     err.textContent = 'تعذر الاتصال بقاعدة البيانات. تأكد من الإنترنت واضغط دخول للمحاولة تاني.';
     loginBtn.disabled = false;
@@ -3821,7 +3834,7 @@ async function doLogin(){
   loginBtn.disabled = true; loginBtn.textContent = 'جارِ الدخول...';
 
   if(!backendReady){
-    const res = await loadAppState();
+    const res = await loadAppStateWithRetry(3, 1200);
     if(!res.ok){
       err.textContent = 'تعذر الاتصال بقاعدة البيانات. حاول تاني.';
       loginBtn.disabled = false; loginBtn.textContent = 'دخول';
