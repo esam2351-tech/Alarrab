@@ -753,7 +753,8 @@
   <div class="screen" id="wasteReports">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>تقارير هوالك</h2></div>
     <div class="wrap" style="padding-top:0;">
-      <button class="btn primary full" id="wrAddBtn" style="margin-bottom:12px;">+ تسجيل مشكلة هوالك</button>
+      <button class="btn primary full" id="wrAddBtn" style="margin-bottom:10px;">+ تسجيل مشكلة هوالك</button>
+      <button class="btn ghost full" id="wrManageEquipBtn" style="margin-bottom:12px;">🔧 إدارة المعدات والأدوات (الأعداد)</button>
       <div style="display:flex;gap:8px;margin-bottom:6px;">
         <select id="wrMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
           <option value="">كل الشهور</option>
@@ -764,6 +765,20 @@
       </div>
     </div>
     <div id="wrList"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ EQUIPMENT CATALOG (name + qty) ============ -->
+  <div class="screen" id="equipmentManage">
+    <div class="head"><div class="back js-go" data-go="wasteReports">→</div><h2>المعدات والأدوات</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <p class="sub" style="margin-bottom:10px;">الأعداد دي بتتحدث تلقائي كل ما تسجّل تقرير هوالك على معدة معينة</p>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <input id="eqNewName" placeholder="اسم المعدة/الأداة" style="margin-bottom:0;">
+        <input id="eqNewQty" type="number" min="0" placeholder="العدد" style="margin-bottom:0;max-width:90px;">
+        <button class="btn primary" id="eqAddBtn" style="flex:0 0 auto;padding:11px 16px;">+ إضافة</button>
+      </div>
+    </div>
+    <div id="eqList"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
 
   <!-- ============ WASTE REPORT ADD ============ -->
@@ -782,6 +797,12 @@
             <option value="المخزن">📦 المخزن</option>
           </select>
         </div>
+        <div class="field"><label>المعدة/الأداة (اختياري)</label>
+          <select id="wr_equipment">
+            <option value="">بدون معدة محددة</option>
+          </select>
+        </div>
+        <div class="field" id="wr_qtyField" style="display:none;"><label>الكمية التالفة</label><input id="wr_qty" type="number" min="1" value="1"></div>
         <div class="field"><label>وصف المشكلة</label><textarea id="wr_description" placeholder="اكتب المشكلة بالتفصيل..."></textarea></div>
         <div class="field" style="margin-bottom:0;">
           <label>صورة (اختياري)</label>
@@ -892,7 +913,7 @@ const DEFAULT_STAFF = [
 
 let currentStaff = null; // {user,name,role} - in-memory only, resets on reload
 function isViewer(){ return !!(currentStaff && currentStaff.role === 'viewer'); }
-let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [] };
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [] };
 let backendReady = false;
 let currentScreen = 'login';
 let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
@@ -1025,6 +1046,10 @@ function attachLiveSync(){
     APP_STATE.wasteReports = list;
     if(currentScreen==='wasteReports') renderWasteReportsList();
   });
+  subscribeShared('equipment', list=>{
+    APP_STATE.equipment = list;
+    if(currentScreen==='equipmentManage') renderEquipmentManage();
+  });
 }
 
 // Shows the number of feedback entries registered SINCE the bell was last opened —
@@ -1051,8 +1076,8 @@ async function loadAppState(){
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
     if(!(await ensureSignedIn())){ backendReady = false; return { ok:false, reason:'auth-failed' }; }
-    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), loadShared('issueReports', []), loadShared('dailyNotes', []), loadShared('wasteReports', [])
+    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), loadShared('issueReports', []), loadShared('dailyNotes', []), loadShared('wasteReports', []), loadShared('equipment', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -1066,6 +1091,7 @@ async function loadAppState(){
     APP_STATE.issueReports = issueReports;
     APP_STATE.dailyNotes = dailyNotes;
     APP_STATE.wasteReports = wasteReports;
+    APP_STATE.equipment = equipment;
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -1110,6 +1136,8 @@ async function getDailyNotes(){ return APP_STATE.dailyNotes; }
 async function saveDailyNotes(arr){ APP_STATE.dailyNotes = arr; saveShared('dailyNotes', arr); }
 async function getWasteReports(){ return APP_STATE.wasteReports; }
 async function saveWasteReports(arr){ APP_STATE.wasteReports = arr; saveShared('wasteReports', arr); }
+async function getEquipment(){ return APP_STATE.equipment; }
+async function saveEquipment(arr){ APP_STATE.equipment = arr; saveShared('equipment', arr); }
 async function getChecklists(){ return APP_STATE.checklists; }
 async function saveChecklists(arr){ APP_STATE.checklists = arr; saveShared('checklists', arr); }
 async function getChecklistSections(){ return APP_STATE.checklistSections; }
@@ -1305,7 +1333,12 @@ function go(id){
   if(id==='wholesaleReport') renderWholesaleReport();
   if(id==='issueReports'){ renderIssueReportsList(); document.getElementById('irAddBtn').style.display = isViewer() ? 'none' : ''; }
   if(id==='dailyNotes'){ renderDailyNotesList(); document.getElementById('dnAddBtn').style.display = isViewer() ? 'none' : ''; }
-  if(id==='wasteReports'){ renderWasteReportsList(); document.getElementById('wrAddBtn').style.display = isViewer() ? 'none' : ''; }
+  if(id==='wasteReports'){
+    renderWasteReportsList();
+    document.getElementById('wrAddBtn').style.display = isViewer() ? 'none' : '';
+    document.getElementById('wrManageEquipBtn').style.display = isViewer() ? 'none' : '';
+  }
+  if(id==='equipmentManage') renderEquipmentManage();
   if(id==='home'){
     const hideForViewer = ['tileNewFeedback','tileNewCustomer','tileNewComplaint'];
     hideForViewer.forEach(tid=>{
@@ -3580,6 +3613,7 @@ function paintWasteReportsList(){
     return '<div class="complaintcard">'
       + '<div class="ctop"><div><h4>'+esc(r.department||'بدون قسم')+'</h4><small>'+dateLabel+' · '+esc(r.staff||'—')+'</small></div></div>'
       + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;border-radius:10px;margin-bottom:8px;">' : '')
+      + (r.equipmentName ? '<div class="crow"><b>المعدة:</b> '+esc(r.equipmentName)+' · <b>الكمية التالفة:</b> '+r.damagedQty+'</div>' : '')
       + '<div class="crow">'+esc(r.description||'—')+'</div>'
       + '<div class="cbtnrow" style="margin-top:8px;">'
         + '<button class="shareWaBtn" data-wrshare="'+esc(r.id)+'">📤 واتساب</button>'
@@ -3595,16 +3629,26 @@ function paintWasteReportsList(){
   });
 }
 
-function resetWasteReportForm(){
+async function resetWasteReportForm(){
   document.getElementById('wr_department').value = '';
   document.getElementById('wr_description').value = '';
   document.getElementById('wr_photo').value = '';
   document.getElementById('wr_photoPreviewBox').style.display = 'none';
   wrPhotoDataUrl = null;
+  document.getElementById('wr_qty').value = '1';
+  document.getElementById('wr_qtyField').style.display = 'none';
+
+  const equipment = await getEquipment();
+  const sel = document.getElementById('wr_equipment');
+  sel.innerHTML = '<option value="">بدون معدة محددة</option>'
+    + equipment.map(e=>'<option value="'+esc(e.name)+'">'+esc(e.name)+' (متاح: '+e.qty+')</option>').join('');
+  sel.value = '';
 }
 
 async function submitWasteReport(){
   const department = document.getElementById('wr_department').value;
+  const equipmentName = document.getElementById('wr_equipment').value;
+  const damagedQty = parseInt(document.getElementById('wr_qty').value,10) || 1;
   const description = document.getElementById('wr_description').value.trim();
   if(!description){
     alert('من فضلك اكتب وصف المشكلة على الأقل');
@@ -3613,12 +3657,23 @@ async function submitWasteReport(){
   const btn = document.getElementById('wrSaveBtn');
   btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
 
+  // if this report is against a specific piece of equipment, deduct the damaged quantity from its count
+  if(equipmentName){
+    const equipment = await getEquipment();
+    const idx = equipment.findIndex(e=>e.name===equipmentName);
+    if(idx!==-1){
+      equipment[idx].qty = Math.max(0, (Number(equipment[idx].qty)||0) - damagedQty);
+      await saveEquipment(equipment);
+    }
+  }
+
   const staffName = currentStaff ? currentStaff.name : 'غير معروف';
   const reports = await getWasteReports();
   reports.push({
     id: Date.now()+'_'+Math.random().toString(36).slice(2),
     date: new Date().toISOString(), department, description, staff: staffName,
-    photoDataUrl: wrPhotoDataUrl
+    photoDataUrl: wrPhotoDataUrl,
+    equipmentName: equipmentName || null, damagedQty: equipmentName ? damagedQty : null
   });
   await saveWasteReports(reports);
 
@@ -3642,6 +3697,7 @@ function buildWasteReportShareHTML(r){
       + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">القسم</div><div style="font-size:14px;font-weight:700;">'+esc(r.department||'—')+'</div></div>'
       + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">التاريخ</div><div style="font-size:14px;font-weight:700;">'+dateLabel+'</div></div>'
       + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">اسم الموظف</div><div style="font-size:14px;font-weight:700;">'+esc(r.staff||'—')+'</div></div>'
+      + (r.equipmentName ? '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">المعدة / الكمية التالفة</div><div style="font-size:14px;font-weight:700;">'+esc(r.equipmentName)+' — '+r.damagedQty+'</div></div>' : '')
       + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">وصف المشكلة</div><div style="font-size:14px;font-weight:600;line-height:1.6;">'+esc(r.description||'—')+'</div></div>'
     + '</div>'
     + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;border-radius:12px;border:1px solid #EEE2D1;">' : '')
@@ -3690,13 +3746,85 @@ async function shareWasteReport(id){
 async function deleteWasteReport(id){
   const r = allWasteReportsCache.find(x=>x.id===id);
   if(!r) return;
-  const ok = confirm('متأكد إنك عايز تحذف تقرير الهوالك ده نهائيًا؟ مفيش رجوع بعد الحذف.');
+  const ok = confirm('متأكد إنك عايز تحذف تقرير الهوالك ده نهائيًا؟ مفيش رجوع بعد الحذف.'+(r.equipmentName ? ' هيترجع '+r.damagedQty+' لعدد "'+r.equipmentName+'".' : ''));
   if(!ok) return;
   const reports = await getWasteReports();
   const updated = reports.filter(x=>x.id!==id);
   await saveWasteReports(updated);
+  // put the deducted quantity back since this report is being undone
+  if(r.equipmentName && r.damagedQty){
+    const equipment = await getEquipment();
+    const idx = equipment.findIndex(e=>e.name===r.equipmentName);
+    if(idx!==-1){
+      equipment[idx].qty = (Number(equipment[idx].qty)||0) + r.damagedQty;
+      await saveEquipment(equipment);
+    }
+  }
   allWasteReportsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
   paintWasteReportsList();
+}
+
+/* ---- equipment catalog (tracked quantities, deducted automatically by waste reports) ---- */
+async function renderEquipmentManage(){
+  const equipment = await getEquipment();
+  paintEquipmentList(equipment);
+}
+function paintEquipmentList(equipment){
+  const box = document.getElementById('eqList');
+  if(!equipment.length){
+    box.innerHTML = '<div class="emptystate">لسه مفيش معدات مسجلة، ضيف أول معدة من فوق.</div>';
+    return;
+  }
+  box.innerHTML = equipment.map((e,idx)=>
+    '<div class="staffrow" style="margin:0 18px 8px;">'
+      + '<div><b>'+esc(e.name)+'</b><br><span>العدد المتاح: '+e.qty+'</span></div>'
+      + '<div style="display:flex;gap:8px;align-items:center;">'
+        + '<button class="delStaff" data-eqedit="'+idx+'" style="color:var(--espresso-2);">تعديل العدد</button>'
+        + '<button class="delStaff" data-eqdel="'+idx+'">حذف</button>'
+      + '</div>'
+    + '</div>'
+  ).join('');
+  box.querySelectorAll('[data-eqedit]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const idx = parseInt(btn.getAttribute('data-eqedit'),10);
+      const equipment = await getEquipment();
+      const current = equipment[idx];
+      if(!current) return;
+      const newQty = prompt('العدد الجديد لـ "'+current.name+'":', current.qty);
+      if(newQty===null) return;
+      const parsed = parseInt(newQty,10);
+      if(isNaN(parsed) || parsed<0){ alert('اكتب رقم صحيح'); return; }
+      equipment[idx].qty = parsed;
+      await saveEquipment(equipment);
+      paintEquipmentList(equipment);
+    });
+  });
+  box.querySelectorAll('[data-eqdel]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const idx = parseInt(btn.getAttribute('data-eqdel'),10);
+      const equipment = await getEquipment();
+      const target = equipment[idx];
+      if(!target) return;
+      const ok = confirm('متأكد إنك عايز تحذف "'+target.name+'" من قائمة المعدات؟');
+      if(!ok) return;
+      equipment.splice(idx,1);
+      await saveEquipment(equipment);
+      paintEquipmentList(equipment);
+    });
+  });
+}
+async function addEquipment(){
+  const nameInput = document.getElementById('eqNewName');
+  const qtyInput = document.getElementById('eqNewQty');
+  const name = nameInput.value.trim();
+  const qty = parseInt(qtyInput.value,10) || 0;
+  if(!name){ alert('اكتب اسم المعدة الأول'); return; }
+  const equipment = await getEquipment();
+  if(equipment.some(e=>e.name===name)){ alert('المعدة دي موجودة بالفعل'); return; }
+  equipment.push({name, qty});
+  await saveEquipment(equipment);
+  nameInput.value = ''; qtyInput.value = '';
+  paintEquipmentList(equipment);
 }
 
 /* ================= REPORTS ================= */
@@ -4206,7 +4334,12 @@ document.addEventListener('DOMContentLoaded', function(){
     exportRowsToExcel('ملاحظات-يومية.xlsx', 'ملاحظات', headers, rows);
   });
 
-  document.getElementById('wrAddBtn').addEventListener('click', ()=>{ resetWasteReportForm(); go('wasteReportAdd'); });
+  document.getElementById('wrAddBtn').addEventListener('click', async ()=>{ await resetWasteReportForm(); go('wasteReportAdd'); });
+  document.getElementById('wr_equipment').addEventListener('change', function(){
+    document.getElementById('wr_qtyField').style.display = this.value ? 'block' : 'none';
+  });
+  document.getElementById('wrManageEquipBtn').addEventListener('click', ()=> go('equipmentManage'));
+  document.getElementById('eqAddBtn').addEventListener('click', addEquipment);
   document.getElementById('wr_photo').addEventListener('change', async (e)=>{
     const file = e.target.files[0];
     if(!file) return;
