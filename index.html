@@ -754,7 +754,8 @@
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>تقارير هوالك</h2></div>
     <div class="wrap" style="padding-top:0;">
       <button class="btn primary full" id="wrAddBtn" style="margin-bottom:10px;">+ تسجيل مشكلة هوالك</button>
-      <button class="btn ghost full" id="wrManageEquipBtn" style="margin-bottom:12px;">🔧 إدارة المعدات والأدوات (الأعداد)</button>
+      <button class="btn ghost full" id="wrManageEquipBtn" style="margin-bottom:10px;">🔧 إدارة المعدات والأدوات (الأعداد)</button>
+      <button class="btn ghost full" id="wrEquipReportBtn" style="margin-bottom:12px;">📊 تقرير الكميات المتاحة</button>
       <div style="display:flex;gap:8px;margin-bottom:6px;">
         <select id="wrMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
           <option value="">كل الشهور</option>
@@ -765,6 +766,15 @@
       </div>
     </div>
     <div id="wrList"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ EQUIPMENT QUANTITIES REPORT (read-only, visible to viewer accounts too) ============ -->
+  <div class="screen" id="equipmentReport">
+    <div class="head"><div class="back js-go" data-go="wasteReports">→</div><h2>تقرير الكميات المتاحة</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <button class="btn ghost full" id="eqReportExportBtn" style="margin-bottom:12px;">📊 تصدير Excel</button>
+    </div>
+    <div id="eqReportBody"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
 
   <!-- ============ EQUIPMENT CATALOG (name + qty) ============ -->
@@ -1339,6 +1349,7 @@ function go(id){
     document.getElementById('wrManageEquipBtn').style.display = isViewer() ? 'none' : '';
   }
   if(id==='equipmentManage') renderEquipmentManage();
+  if(id==='equipmentReport') renderEquipmentReport();
   if(id==='home'){
     const hideForViewer = ['tileNewFeedback','tileNewCustomer','tileNewComplaint'];
     hideForViewer.forEach(tid=>{
@@ -3827,6 +3838,25 @@ async function addEquipment(){
   paintEquipmentList(equipment);
 }
 
+/* ---- read-only quantities report — open to every role, including viewer accounts ---- */
+let currentEquipmentReport = [];
+async function renderEquipmentReport(){
+  const body = document.getElementById('eqReportBody');
+  body.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const equipment = await getEquipment();
+  currentEquipmentReport = equipment.slice().sort((a,b)=> a.name.localeCompare(b.name,'ar'));
+  if(!currentEquipmentReport.length){
+    body.innerHTML = '<div class="emptystate">لسه مفيش معدات مسجلة.</div>';
+    return;
+  }
+  body.innerHTML = '<div style="overflow-x:auto;margin:0 18px;"><table style="border-collapse:collapse;width:100%;min-width:280px;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;">'
+    + '<thead><tr style="background:#FBF3E6;"><th style="padding:10px 8px;font-size:11px;color:var(--muted);text-align:right;">اسم المعدة/الأداة</th><th style="padding:10px 8px;font-size:11px;color:var(--muted);">العدد المتاح</th></tr></thead>'
+    + '<tbody>'+currentEquipmentReport.map(e=>
+        '<tr style="border-top:1px solid var(--line);"><td style="padding:10px 8px;font-size:13px;font-weight:700;">'+esc(e.name)+'</td><td style="padding:10px 8px;font-size:13px;text-align:center;font-weight:800;color:'+(e.qty<=0 ? 'var(--bad)' : 'var(--espresso-2)')+';">'+e.qty+'</td></tr>'
+      ).join('')
+    + '</tbody></table></div>';
+}
+
 /* ================= REPORTS ================= */
 let reportsMonth = null; // 1-12, null = كل الشهور
 let reportsYear = null;  // e.g. 2026, null = كل السنين
@@ -4340,6 +4370,12 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   document.getElementById('wrManageEquipBtn').addEventListener('click', ()=> go('equipmentManage'));
   document.getElementById('eqAddBtn').addEventListener('click', addEquipment);
+  document.getElementById('wrEquipReportBtn').addEventListener('click', ()=> go('equipmentReport'));
+  document.getElementById('eqReportExportBtn').addEventListener('click', ()=>{
+    const headers = ['اسم المعدة/الأداة','العدد المتاح'];
+    const rows = currentEquipmentReport.map(e=>[e.name, e.qty]);
+    exportRowsToExcel('تقرير-الكميات-المتاحة.xlsx', 'الكميات', headers, rows);
+  });
   document.getElementById('wr_photo').addEventListener('change', async (e)=>{
     const file = e.target.files[0];
     if(!file) return;
