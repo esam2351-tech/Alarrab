@@ -755,7 +755,8 @@
     <div class="wrap" style="padding-top:0;">
       <button class="btn primary full" id="wrAddBtn" style="margin-bottom:10px;">+ تسجيل مشكلة هوالك</button>
       <button class="btn ghost full" id="wrManageEquipBtn" style="margin-bottom:10px;">🔧 إدارة المعدات والأدوات (الأعداد)</button>
-      <button class="btn ghost full" id="wrEquipReportBtn" style="margin-bottom:12px;">📊 تقرير الكميات المتاحة</button>
+      <button class="btn ghost full" id="wrEquipReportBtn" style="margin-bottom:10px;">📊 تقرير الكميات المتاحة</button>
+      <button class="btn ghost full" id="wrItemsReportBtn" style="margin-bottom:12px;">📦 تقرير كميات الأصناف الهالكة</button>
       <div style="display:flex;gap:8px;margin-bottom:6px;">
         <select id="wrMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
           <option value="">كل الشهور</option>
@@ -777,6 +778,23 @@
     <div id="eqReportBody"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
 
+  <!-- ============ WASTED ITEMS QUANTITIES REPORT (non-equipment, time-filtered) ============ -->
+  <div class="screen" id="wasteItemsReport">
+    <div class="head"><div class="back js-go" data-go="wasteReports">→</div><h2>تقرير كميات الأصناف الهالكة</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <select id="wiMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
+          <option value="">كل الشهور</option>
+        </select>
+        <select id="wiYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
+          <option value="">كل السنين</option>
+        </select>
+      </div>
+      <button class="btn ghost full" id="wiReportExportBtn" style="margin-bottom:12px;">📊 تصدير Excel</button>
+    </div>
+    <div id="wiReportBody"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
   <!-- ============ EQUIPMENT CATALOG (name + qty) ============ -->
   <div class="screen" id="equipmentManage">
     <div class="head"><div class="back js-go" data-go="wasteReports">→</div><h2>المعدات والأدوات</h2></div>
@@ -784,7 +802,7 @@
       <p class="sub" style="margin-bottom:10px;">الأعداد دي بتتحدث تلقائي كل ما تسجّل تقرير هوالك على معدة معينة</p>
       <div style="display:flex;gap:8px;margin-bottom:14px;">
         <input id="eqNewName" placeholder="اسم المعدة/الأداة" style="margin-bottom:0;">
-        <input id="eqNewQty" type="number" min="0" placeholder="العدد" style="margin-bottom:0;max-width:90px;">
+        <input id="eqNewQty" type="number" min="0" placeholder="الرصيد الأول" style="margin-bottom:0;max-width:90px;">
         <button class="btn primary" id="eqAddBtn" style="flex:0 0 auto;padding:11px 16px;">+ إضافة</button>
       </div>
     </div>
@@ -813,6 +831,8 @@
           </select>
         </div>
         <div class="field" id="wr_qtyField" style="display:none;"><label>الكمية التالفة</label><input id="wr_qty" type="number" min="1" value="1"></div>
+        <div class="field"><label>صنف تالف (غير المعدات — اختياري)</label><input id="wr_itemName" placeholder="مثال: أكواب 12، سكر، إلخ"></div>
+        <div class="field"><label>الكمية</label><input id="wr_itemQty" type="number" min="1" value="1"></div>
         <div class="field"><label>وصف المشكلة</label><textarea id="wr_description" placeholder="اكتب المشكلة بالتفصيل..."></textarea></div>
         <div class="field" style="margin-bottom:0;">
           <label>صورة (اختياري)</label>
@@ -1350,6 +1370,7 @@ function go(id){
   }
   if(id==='equipmentManage') renderEquipmentManage();
   if(id==='equipmentReport') renderEquipmentReport();
+  if(id==='wasteItemsReport') renderWasteItemsReport();
   if(id==='home'){
     const hideForViewer = ['tileNewFeedback','tileNewCustomer','tileNewComplaint'];
     hideForViewer.forEach(tid=>{
@@ -3150,7 +3171,7 @@ async function renderWholesaleReport(){
 
   const tableRows = rows.map(r=>
     '<tr style="border-top:1px solid var(--line);">'
-      + '<td style="padding:8px 6px;font-size:12px;font-weight:700;white-space:nowrap;">'+esc(r.name)+'</td>'
+      + '<td style="padding:8px 6px;font-size:12px;font-weight:700;white-space:nowrap;"><span class="wsReportNameLink" data-viewwscust="'+esc(r.phone)+'" style="color:var(--espresso-2);text-decoration:underline;cursor:pointer;">'+esc(r.name)+'</span></td>'
       + '<td style="padding:8px 6px;font-size:11px;color:var(--muted);white-space:nowrap;">'+esc(r.phone)+'</td>'
       + '<td style="padding:8px 6px;font-size:12px;text-align:center;white-space:nowrap;">📦 '+r.oCount+'</td>'
       + '<td style="padding:8px 6px;font-size:12px;text-align:center;white-space:nowrap;">📞 '+r.cCount+'</td>'
@@ -3235,6 +3256,10 @@ async function renderWholesaleReport(){
       + '<h4>📦 إجمالي الكميات حسب الصنف</h4>'
       + itemsTableHtml
     + '</div>';
+
+  document.querySelectorAll('[data-viewwscust]').forEach(el=>{
+    el.addEventListener('click', ()=> openWholesaleProfile(el.getAttribute('data-viewwscust')));
+  });
 
   document.getElementById('wsReportMonthSel').addEventListener('change', e=>{
     wsReportMonth = e.target.value ? parseInt(e.target.value,10) : null;
@@ -3625,6 +3650,7 @@ function paintWasteReportsList(){
       + '<div class="ctop"><div><h4>'+esc(r.department||'بدون قسم')+'</h4><small>'+dateLabel+' · '+esc(r.staff||'—')+'</small></div></div>'
       + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;border-radius:10px;margin-bottom:8px;">' : '')
       + (r.equipmentName ? '<div class="crow"><b>المعدة:</b> '+esc(r.equipmentName)+' · <b>الكمية التالفة:</b> '+r.damagedQty+'</div>' : '')
+      + (r.itemName ? '<div class="crow"><b>الصنف:</b> '+esc(r.itemName)+' · <b>الكمية:</b> '+r.itemQty+'</div>' : '')
       + '<div class="crow">'+esc(r.description||'—')+'</div>'
       + '<div class="cbtnrow" style="margin-top:8px;">'
         + '<button class="shareWaBtn" data-wrshare="'+esc(r.id)+'">📤 واتساب</button>'
@@ -3640,6 +3666,21 @@ function paintWasteReportsList(){
   });
 }
 
+// Computes رصيد أول / الهالك / الرصيد الحالي for every piece of equipment. "qty" on the stored
+// equipment record is the رصيد أول (opening balance, set once and only changed when someone
+// corrects it manually) — الهالك is summed live from every waste report linked to that equipment,
+// so الرصيد الحالي is always opening-minus-wasted rather than a separately mutated counter that
+// could drift out of sync.
+function computeEquipmentBalances(equipment, wasteReports){
+  return equipment.map(e=>{
+    const wasted = wasteReports
+      .filter(r=>r.equipmentName===e.name)
+      .reduce((s,r)=> s + (Number(r.damagedQty)||0), 0);
+    const opening = Number(e.qty)||0;
+    return { name:e.name, opening, wasted, current: Math.max(0, opening - wasted) };
+  });
+}
+
 async function resetWasteReportForm(){
   document.getElementById('wr_department').value = '';
   document.getElementById('wr_description').value = '';
@@ -3648,11 +3689,14 @@ async function resetWasteReportForm(){
   wrPhotoDataUrl = null;
   document.getElementById('wr_qty').value = '1';
   document.getElementById('wr_qtyField').style.display = 'none';
+  document.getElementById('wr_itemName').value = '';
+  document.getElementById('wr_itemQty').value = '1';
 
-  const equipment = await getEquipment();
+  const [equipment, wasteReports] = await Promise.all([getEquipment(), getWasteReports()]);
+  const balances = computeEquipmentBalances(equipment, wasteReports);
   const sel = document.getElementById('wr_equipment');
   sel.innerHTML = '<option value="">بدون معدة محددة</option>'
-    + equipment.map(e=>'<option value="'+esc(e.name)+'">'+esc(e.name)+' (متاح: '+e.qty+')</option>').join('');
+    + balances.map(b=>'<option value="'+esc(b.name)+'">'+esc(b.name)+' (متاح: '+b.current+')</option>').join('');
   sel.value = '';
 }
 
@@ -3660,6 +3704,8 @@ async function submitWasteReport(){
   const department = document.getElementById('wr_department').value;
   const equipmentName = document.getElementById('wr_equipment').value;
   const damagedQty = parseInt(document.getElementById('wr_qty').value,10) || 1;
+  const itemName = document.getElementById('wr_itemName').value.trim();
+  const itemQty = parseInt(document.getElementById('wr_itemQty').value,10) || 1;
   const description = document.getElementById('wr_description').value.trim();
   if(!description){
     alert('من فضلك اكتب وصف المشكلة على الأقل');
@@ -3668,23 +3714,14 @@ async function submitWasteReport(){
   const btn = document.getElementById('wrSaveBtn');
   btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
 
-  // if this report is against a specific piece of equipment, deduct the damaged quantity from its count
-  if(equipmentName){
-    const equipment = await getEquipment();
-    const idx = equipment.findIndex(e=>e.name===equipmentName);
-    if(idx!==-1){
-      equipment[idx].qty = Math.max(0, (Number(equipment[idx].qty)||0) - damagedQty);
-      await saveEquipment(equipment);
-    }
-  }
-
   const staffName = currentStaff ? currentStaff.name : 'غير معروف';
   const reports = await getWasteReports();
   reports.push({
     id: Date.now()+'_'+Math.random().toString(36).slice(2),
     date: new Date().toISOString(), department, description, staff: staffName,
     photoDataUrl: wrPhotoDataUrl,
-    equipmentName: equipmentName || null, damagedQty: equipmentName ? damagedQty : null
+    equipmentName: equipmentName || null, damagedQty: equipmentName ? damagedQty : null,
+    itemName: itemName || null, itemQty: itemName ? itemQty : null
   });
   await saveWasteReports(reports);
 
@@ -3709,6 +3746,7 @@ function buildWasteReportShareHTML(r){
       + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">التاريخ</div><div style="font-size:14px;font-weight:700;">'+dateLabel+'</div></div>'
       + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">اسم الموظف</div><div style="font-size:14px;font-weight:700;">'+esc(r.staff||'—')+'</div></div>'
       + (r.equipmentName ? '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">المعدة / الكمية التالفة</div><div style="font-size:14px;font-weight:700;">'+esc(r.equipmentName)+' — '+r.damagedQty+'</div></div>' : '')
+      + (r.itemName ? '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">الصنف التالف / الكمية</div><div style="font-size:14px;font-weight:700;">'+esc(r.itemName)+' — '+r.itemQty+'</div></div>' : '')
       + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">وصف المشكلة</div><div style="font-size:14px;font-weight:600;line-height:1.6;">'+esc(r.description||'—')+'</div></div>'
     + '</div>'
     + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;border-radius:12px;border:1px solid #EEE2D1;">' : '')
@@ -3757,20 +3795,11 @@ async function shareWasteReport(id){
 async function deleteWasteReport(id){
   const r = allWasteReportsCache.find(x=>x.id===id);
   if(!r) return;
-  const ok = confirm('متأكد إنك عايز تحذف تقرير الهوالك ده نهائيًا؟ مفيش رجوع بعد الحذف.'+(r.equipmentName ? ' هيترجع '+r.damagedQty+' لعدد "'+r.equipmentName+'".' : ''));
+  const ok = confirm('متأكد إنك عايز تحذف تقرير الهوالك ده نهائيًا؟ مفيش رجوع بعد الحذف.');
   if(!ok) return;
   const reports = await getWasteReports();
   const updated = reports.filter(x=>x.id!==id);
   await saveWasteReports(updated);
-  // put the deducted quantity back since this report is being undone
-  if(r.equipmentName && r.damagedQty){
-    const equipment = await getEquipment();
-    const idx = equipment.findIndex(e=>e.name===r.equipmentName);
-    if(idx!==-1){
-      equipment[idx].qty = (Number(equipment[idx].qty)||0) + r.damagedQty;
-      await saveEquipment(equipment);
-    }
-  }
   allWasteReportsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
   paintWasteReportsList();
 }
@@ -3788,9 +3817,9 @@ function paintEquipmentList(equipment){
   }
   box.innerHTML = equipment.map((e,idx)=>
     '<div class="staffrow" style="margin:0 18px 8px;">'
-      + '<div><b>'+esc(e.name)+'</b><br><span>العدد المتاح: '+e.qty+'</span></div>'
+      + '<div><b>'+esc(e.name)+'</b><br><span>الرصيد الأول: '+e.qty+'</span></div>'
       + '<div style="display:flex;gap:8px;align-items:center;">'
-        + '<button class="delStaff" data-eqedit="'+idx+'" style="color:var(--espresso-2);">تعديل العدد</button>'
+        + '<button class="delStaff" data-eqedit="'+idx+'" style="color:var(--espresso-2);">تعديل الرصيد الأول</button>'
         + '<button class="delStaff" data-eqdel="'+idx+'">حذف</button>'
       + '</div>'
     + '</div>'
@@ -3801,7 +3830,7 @@ function paintEquipmentList(equipment){
       const equipment = await getEquipment();
       const current = equipment[idx];
       if(!current) return;
-      const newQty = prompt('العدد الجديد لـ "'+current.name+'":', current.qty);
+      const newQty = prompt('الرصيد الأول الجديد لـ "'+current.name+'":', current.qty);
       if(newQty===null) return;
       const parsed = parseInt(newQty,10);
       if(isNaN(parsed) || parsed<0){ alert('اكتب رقم صحيح'); return; }
@@ -3843,16 +3872,77 @@ let currentEquipmentReport = [];
 async function renderEquipmentReport(){
   const body = document.getElementById('eqReportBody');
   body.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
-  const equipment = await getEquipment();
-  currentEquipmentReport = equipment.slice().sort((a,b)=> a.name.localeCompare(b.name,'ar'));
+  const [equipment, wasteReports] = await Promise.all([getEquipment(), getWasteReports()]);
+  currentEquipmentReport = computeEquipmentBalances(equipment, wasteReports).sort((a,b)=> a.name.localeCompare(b.name,'ar'));
   if(!currentEquipmentReport.length){
     body.innerHTML = '<div class="emptystate">لسه مفيش معدات مسجلة.</div>';
     return;
   }
+  body.innerHTML = '<div style="overflow-x:auto;margin:0 18px;"><table style="border-collapse:collapse;width:100%;min-width:420px;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;">'
+    + '<thead><tr style="background:#FBF3E6;">'
+      + '<th style="padding:10px 8px;font-size:11px;color:var(--muted);text-align:right;">اسم المعدة/الأداة</th>'
+      + '<th style="padding:10px 8px;font-size:11px;color:var(--muted);">رصيد أول</th>'
+      + '<th style="padding:10px 8px;font-size:11px;color:var(--muted);">الهالك</th>'
+      + '<th style="padding:10px 8px;font-size:11px;color:var(--muted);">الرصيد الحالي</th>'
+    + '</tr></thead>'
+    + '<tbody>'+currentEquipmentReport.map(b=>
+        '<tr style="border-top:1px solid var(--line);">'
+          + '<td style="padding:10px 8px;font-size:13px;font-weight:700;">'+esc(b.name)+'</td>'
+          + '<td style="padding:10px 8px;font-size:13px;text-align:center;">'+b.opening+'</td>'
+          + '<td style="padding:10px 8px;font-size:13px;text-align:center;color:'+(b.wasted>0 ? 'var(--bad)' : 'var(--muted)')+';">'+b.wasted+'</td>'
+          + '<td style="padding:10px 8px;font-size:13px;text-align:center;font-weight:800;color:'+(b.current<=0 ? 'var(--bad)' : 'var(--good)')+';">'+b.current+'</td>'
+        + '</tr>'
+      ).join('')
+    + '</tbody></table></div>';
+}
+
+/* ---- wasted item quantities report (non-equipment items, e.g. cups/sugar/etc.) — month/year filtered ---- */
+let wiMonth = null;
+let wiYear = null;
+let currentWasteItemsReport = [];
+async function renderWasteItemsReport(){
+  const body = document.getElementById('wiReportBody');
+  body.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const reports = await getWasteReports();
+
+  const monthSel = document.getElementById('wiMonthSel');
+  if(monthSel.options.length <= 1){
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i+1; opt.textContent = m;
+      monthSel.appendChild(opt);
+    });
+  }
+  const yearSel = document.getElementById('wiYearSel');
+  const yearsInData = new Set(reports.map(r=> new Date(r.date).getFullYear()));
+  yearsInData.add(new Date().getFullYear());
+  const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
+  const currentVal = yearSel.value;
+  yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  yearSel.value = currentVal;
+
+  paintWasteItemsReport(reports);
+}
+function paintWasteItemsReport(reports){
+  const body = document.getElementById('wiReportBody');
+  let filtered = reports.filter(r=>r.itemName);
+  if(wiMonth!=null){ filtered = filtered.filter(r => (new Date(r.date).getMonth()+1) === wiMonth); }
+  if(wiYear!=null){ filtered = filtered.filter(r => new Date(r.date).getFullYear() === wiYear); }
+
+  const totals = {};
+  filtered.forEach(r=>{
+    totals[r.itemName] = (totals[r.itemName]||0) + (Number(r.itemQty)||0);
+  });
+  currentWasteItemsReport = Object.entries(totals).map(([name,qty])=>({name,qty})).sort((a,b)=> b.qty-a.qty);
+
+  if(!currentWasteItemsReport.length){
+    body.innerHTML = '<div class="emptystate">لا توجد أصناف هالكة مسجلة في الفترة دي.</div>';
+    return;
+  }
   body.innerHTML = '<div style="overflow-x:auto;margin:0 18px;"><table style="border-collapse:collapse;width:100%;min-width:280px;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;">'
-    + '<thead><tr style="background:#FBF3E6;"><th style="padding:10px 8px;font-size:11px;color:var(--muted);text-align:right;">اسم المعدة/الأداة</th><th style="padding:10px 8px;font-size:11px;color:var(--muted);">العدد المتاح</th></tr></thead>'
-    + '<tbody>'+currentEquipmentReport.map(e=>
-        '<tr style="border-top:1px solid var(--line);"><td style="padding:10px 8px;font-size:13px;font-weight:700;">'+esc(e.name)+'</td><td style="padding:10px 8px;font-size:13px;text-align:center;font-weight:800;color:'+(e.qty<=0 ? 'var(--bad)' : 'var(--espresso-2)')+';">'+e.qty+'</td></tr>'
+    + '<thead><tr style="background:#FBF3E6;"><th style="padding:10px 8px;font-size:11px;color:var(--muted);text-align:right;">الصنف</th><th style="padding:10px 8px;font-size:11px;color:var(--muted);">إجمالي الكمية الهالكة</th></tr></thead>'
+    + '<tbody>'+currentWasteItemsReport.map(r=>
+        '<tr style="border-top:1px solid var(--line);"><td style="padding:10px 8px;font-size:13px;font-weight:700;">'+esc(r.name)+'</td><td style="padding:10px 8px;font-size:13px;text-align:center;font-weight:800;color:var(--bad);">'+r.qty+'</td></tr>'
       ).join('')
     + '</tbody></table></div>';
 }
@@ -4371,9 +4461,23 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('wrManageEquipBtn').addEventListener('click', ()=> go('equipmentManage'));
   document.getElementById('eqAddBtn').addEventListener('click', addEquipment);
   document.getElementById('wrEquipReportBtn').addEventListener('click', ()=> go('equipmentReport'));
+  document.getElementById('wrItemsReportBtn').addEventListener('click', ()=> go('wasteItemsReport'));
+  document.getElementById('wiMonthSel').addEventListener('change', async e=>{
+    wiMonth = e.target.value ? parseInt(e.target.value,10) : null;
+    paintWasteItemsReport(await getWasteReports());
+  });
+  document.getElementById('wiYearSel').addEventListener('change', async e=>{
+    wiYear = e.target.value ? parseInt(e.target.value,10) : null;
+    paintWasteItemsReport(await getWasteReports());
+  });
+  document.getElementById('wiReportExportBtn').addEventListener('click', ()=>{
+    const headers = ['الصنف','إجمالي الكمية الهالكة'];
+    const rows = currentWasteItemsReport.map(r=>[r.name, r.qty]);
+    exportRowsToExcel('تقرير-كميات-الأصناف-الهالكة.xlsx', 'الأصناف الهالكة', headers, rows);
+  });
   document.getElementById('eqReportExportBtn').addEventListener('click', ()=>{
-    const headers = ['اسم المعدة/الأداة','العدد المتاح'];
-    const rows = currentEquipmentReport.map(e=>[e.name, e.qty]);
+    const headers = ['اسم المعدة/الأداة','رصيد أول','الهالك','الرصيد الحالي'];
+    const rows = currentEquipmentReport.map(b=>[b.name, b.opening, b.wasted, b.current]);
     exportRowsToExcel('تقرير-الكميات-المتاحة.xlsx', 'الكميات', headers, rows);
   });
   document.getElementById('wr_photo').addEventListener('change', async (e)=>{
