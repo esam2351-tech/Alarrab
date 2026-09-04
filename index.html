@@ -427,6 +427,7 @@
       <div class="tile js-go" data-go="issueReports"><span class="ic">📝</span><span>تقارير المشاكل</span></div>
       <div class="tile js-go" data-go="dailyNotes"><span class="ic">🗒️</span><span>ملاحظات يومية</span></div>
       <div class="tile js-go" data-go="wasteReports"><span class="ic">🗑️</span><span>تقارير هوالك</span></div>
+      <div class="tile js-go" data-go="suggestions"><span class="ic">💡</span><span>المقترحات</span></div>
     </div>
   </div>
 
@@ -671,7 +672,15 @@
   <div class="screen" id="issueReports">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>تقارير المشاكل</h2></div>
     <div class="wrap" style="padding-top:0;">
-      <button class="btn primary full" id="irAddBtn" style="margin-bottom:14px;">+ تسجيل مشكلة جديدة</button>
+      <button class="btn primary full" id="irAddBtn" style="margin-bottom:12px;">+ تسجيل مشكلة جديدة</button>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <select id="irMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
+          <option value="">كل الشهور</option>
+        </select>
+        <select id="irYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
+          <option value="">كل السنين</option>
+        </select>
+      </div>
     </div>
     <div id="irList"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
@@ -847,6 +856,32 @@
     </div>
   </div>
 
+  <!-- ============ SUGGESTIONS LIST ============ -->
+  <div class="screen" id="suggestions">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>المقترحات</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <button class="btn primary full" id="sgAddBtn" style="margin-bottom:14px;">+ تسجيل مقترح جديد</button>
+    </div>
+    <div id="sgList"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ SUGGESTION ADD ============ -->
+  <div class="screen" id="suggestionAdd">
+    <div class="head"><div class="back js-go" data-go="suggestions">→</div><h2>تسجيل مقترح</h2></div>
+    <div class="wrap">
+      <div class="card">
+        <h3>تفاصيل المقترح</h3>
+        <p class="sub">التاريخ بيتسجل تلقائي وقت الحفظ</p>
+        <div class="field"><label>اسم مقدّم الاقتراح</label><input id="sg_submitter" placeholder="اسم الموظف أو الشخص صاحب الفكرة"></div>
+        <div class="field" style="margin-bottom:0;"><label>شرح المقترح</label><textarea id="sg_description" placeholder="اكتب المقترح بالتفصيل..."></textarea></div>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="btn ghost js-go" data-go="suggestions">إلغاء</button>
+      <button class="btn primary" id="sgSaveBtn">حفظ المقترح</button>
+    </div>
+  </div>
+
   <!-- ============ SETTINGS ============ -->
   <div class="screen" id="settings">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>الإعدادات</h2></div>
@@ -943,7 +978,7 @@ const DEFAULT_STAFF = [
 
 let currentStaff = null; // {user,name,role} - in-memory only, resets on reload
 function isViewer(){ return !!(currentStaff && currentStaff.role === 'viewer'); }
-let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [] };
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [], suggestions: [] };
 let backendReady = false;
 let currentScreen = 'login';
 let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
@@ -1080,6 +1115,10 @@ function attachLiveSync(){
     APP_STATE.equipment = list;
     if(currentScreen==='equipmentManage') renderEquipmentManage();
   });
+  subscribeShared('suggestions', list=>{
+    APP_STATE.suggestions = list;
+    if(currentScreen==='suggestions') renderSuggestionsList();
+  });
 }
 
 // Shows the number of feedback entries registered SINCE the bell was last opened —
@@ -1106,8 +1145,8 @@ async function loadAppState(){
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
     if(!(await ensureSignedIn())){ backendReady = false; return { ok:false, reason:'auth-failed' }; }
-    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), loadShared('issueReports', []), loadShared('dailyNotes', []), loadShared('wasteReports', []), loadShared('equipment', [])
+    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), loadShared('issueReports', []), loadShared('dailyNotes', []), loadShared('wasteReports', []), loadShared('equipment', []), loadShared('suggestions', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -1122,6 +1161,7 @@ async function loadAppState(){
     APP_STATE.dailyNotes = dailyNotes;
     APP_STATE.wasteReports = wasteReports;
     APP_STATE.equipment = equipment;
+    APP_STATE.suggestions = suggestions;
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -1168,6 +1208,8 @@ async function getWasteReports(){ return APP_STATE.wasteReports; }
 async function saveWasteReports(arr){ APP_STATE.wasteReports = arr; saveShared('wasteReports', arr); }
 async function getEquipment(){ return APP_STATE.equipment; }
 async function saveEquipment(arr){ APP_STATE.equipment = arr; saveShared('equipment', arr); }
+async function getSuggestions(){ return APP_STATE.suggestions; }
+async function saveSuggestions(arr){ APP_STATE.suggestions = arr; saveShared('suggestions', arr); }
 async function getChecklists(){ return APP_STATE.checklists; }
 async function saveChecklists(arr){ APP_STATE.checklists = arr; saveShared('checklists', arr); }
 async function getChecklistSections(){ return APP_STATE.checklistSections; }
@@ -1371,6 +1413,7 @@ function go(id){
   if(id==='equipmentManage') renderEquipmentManage();
   if(id==='equipmentReport') renderEquipmentReport();
   if(id==='wasteItemsReport') renderWasteItemsReport();
+  if(id==='suggestions'){ renderSuggestionsList(); document.getElementById('sgAddBtn').style.display = isViewer() ? 'none' : ''; }
   if(id==='home'){
     const hideForViewer = ['tileNewFeedback','tileNewCustomer','tileNewComplaint'];
     hideForViewer.forEach(tid=>{
@@ -3283,25 +3326,56 @@ async function renderWholesaleReport(){
 let allIssueReportsCache = [];
 let irPhotoDataUrl = null;
 
+let irMonth = null;
+let irYear = null;
 async function renderIssueReportsList(){
   const box = document.getElementById('irList');
   box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
   const reports = await getIssueReports();
   allIssueReportsCache = reports.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
-  if(!allIssueReportsCache.length){
-    box.innerHTML = '<div class="emptystate">لا توجد تقارير مسجلة بعد.</div>';
+
+  const monthSel = document.getElementById('irMonthSel');
+  if(monthSel.options.length <= 1){
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i+1; opt.textContent = m;
+      monthSel.appendChild(opt);
+    });
+  }
+  const yearSel = document.getElementById('irYearSel');
+  const yearsInData = new Set(allIssueReportsCache.map(r=> new Date(r.date).getFullYear()));
+  yearsInData.add(new Date().getFullYear());
+  const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
+  const currentVal = yearSel.value;
+  yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  yearSel.value = currentVal;
+
+  paintIssueReportsList();
+}
+function paintIssueReportsList(){
+  const box = document.getElementById('irList');
+  let list = allIssueReportsCache;
+  if(irMonth!=null){ list = list.filter(r => (new Date(r.date).getMonth()+1) === irMonth); }
+  if(irYear!=null){ list = list.filter(r => new Date(r.date).getFullYear() === irYear); }
+
+  if(!list.length){
+    box.innerHTML = '<div class="emptystate">لا توجد تقارير مطابقة.</div>';
     return;
   }
-  box.innerHTML = allIssueReportsCache.map(r=>{
+  box.innerHTML = list.map(r=>{
     const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
+    const status = r.status || 'pending';
+    const statusLabel = status==='resolved' ? 'تم الحل' : 'قيد المتابعة';
     return '<div class="complaintcard">'
-      + '<div class="ctop"><div><h4>'+esc(r.department||'بدون قسم')+'</h4><small>'+dateLabel+' · '+esc(r.staff||'—')+'</small></div></div>'
-      + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;border-radius:10px;margin-bottom:8px;">' : '')
+      + '<div class="ctop"><div><h4>'+esc(r.department||'بدون قسم')+'</h4><small>'+dateLabel+' · '+esc(r.staff||'—')+'</small></div>'
+      + '<span class="cstatus '+status+'">'+statusLabel+'</span></div>'
+      + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="max-width:150px;max-height:150px;border-radius:10px;margin-bottom:8px;display:block;">' : '')
       + '<div class="crow">'+esc(r.description||'—')+'</div>'
       + '<div class="cbtnrow" style="margin-top:8px;">'
+        + (isViewer() ? '' : '<button class="toggleStatusBtn '+status+'" data-irtoggle="'+esc(r.id)+'">'+(status==='resolved' ? '↩️ إعادة فتح' : '✓ تحديد كمحلولة')+'</button>')
         + '<button class="shareWaBtn" data-irshare="'+esc(r.id)+'">📤 واتساب</button>'
-        + (isViewer() ? '' : '<button class="delCpBtn" data-irdel="'+esc(r.id)+'" style="background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>')
       + '</div>'
+      + (isViewer() ? '' : '<div class="cbtnrow" style="margin-top:8px;"><button class="delCpBtn" data-irdel="'+esc(r.id)+'" style="background:#F7E3DC;color:var(--bad);">🗑️ حذف</button></div>')
       + '</div>';
   }).join('');
   box.querySelectorAll('[data-irshare]').forEach(btn=>{
@@ -3310,6 +3384,19 @@ async function renderIssueReportsList(){
   box.querySelectorAll('[data-irdel]').forEach(btn=>{
     btn.addEventListener('click', ()=> deleteIssueReport(btn.getAttribute('data-irdel')));
   });
+  box.querySelectorAll('[data-irtoggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=> toggleIssueReportStatus(btn.getAttribute('data-irtoggle')));
+  });
+}
+async function toggleIssueReportStatus(id){
+  const reports = await getIssueReports();
+  const updated = reports.map(r=>{
+    if(r.id !== id) return r;
+    return Object.assign({}, r, { status: (r.status==='resolved') ? 'pending' : 'resolved' });
+  });
+  await saveIssueReports(updated);
+  allIssueReportsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  paintIssueReportsList();
 }
 
 function resetIssueReportForm(){
@@ -3802,6 +3889,91 @@ async function deleteWasteReport(id){
   await saveWasteReports(updated);
   allWasteReportsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
   paintWasteReportsList();
+}
+
+/* ================= SUGGESTIONS (المقترحات) ================= */
+let allSuggestionsCache = [];
+
+async function renderSuggestionsList(){
+  const box = document.getElementById('sgList');
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const list = await getSuggestions();
+  allSuggestionsCache = list.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  if(!allSuggestionsCache.length){
+    box.innerHTML = '<div class="emptystate">لا توجد مقترحات مسجلة بعد.</div>';
+    return;
+  }
+  box.innerHTML = allSuggestionsCache.map(s=>{
+    const dateLabel = new Date(s.date).toLocaleDateString('ar-EG');
+    const status = s.status || 'review'; // review | implemented
+    const statusLabel = status==='implemented' ? 'تم التنفيذ' : 'تحت الدراسة';
+    const statusClass = status==='implemented' ? 'resolved' : 'pending';
+    return '<div class="complaintcard">'
+      + '<div class="ctop"><div><h4>'+esc(s.submitter||'—')+'</h4><small>'+dateLabel+' · سجّله: '+esc(s.staff||'—')+'</small></div>'
+      + '<span class="cstatus '+statusClass+'">'+statusLabel+'</span></div>'
+      + '<div class="crow">'+esc(s.description||'—')+'</div>'
+      + (isViewer() ? '' :
+        '<div class="cbtnrow" style="margin-top:8px;">'
+          + '<button class="toggleStatusBtn '+statusClass+'" data-sgtoggle="'+esc(s.id)+'">'+(status==='implemented' ? '↩️ رجوع لتحت الدراسة' : '✓ تحديد كمنفّذ')+'</button>'
+          + '<button class="delCpBtn" data-sgdel="'+esc(s.id)+'" style="background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>'
+        + '</div>')
+      + '</div>';
+  }).join('');
+  box.querySelectorAll('[data-sgtoggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=> toggleSuggestionStatus(btn.getAttribute('data-sgtoggle')));
+  });
+  box.querySelectorAll('[data-sgdel]').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteSuggestion(btn.getAttribute('data-sgdel')));
+  });
+}
+
+function resetSuggestionForm(){
+  document.getElementById('sg_submitter').value = '';
+  document.getElementById('sg_description').value = '';
+}
+
+async function submitSuggestion(){
+  const submitter = document.getElementById('sg_submitter').value.trim();
+  const description = document.getElementById('sg_description').value.trim();
+  if(!submitter || !description){
+    alert('من فضلك اكتب اسم مقدّم الاقتراح وشرح المقترح');
+    return;
+  }
+  const btn = document.getElementById('sgSaveBtn');
+  btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
+
+  const staffName = currentStaff ? currentStaff.name : 'غير معروف';
+  const list = await getSuggestions();
+  list.push({
+    id: Date.now()+'_'+Math.random().toString(36).slice(2),
+    date: new Date().toISOString(), submitter, description, staff: staffName, status:'review'
+  });
+  await saveSuggestions(list);
+
+  btn.disabled = false; btn.textContent = 'حفظ المقترح';
+  resetSuggestionForm();
+  go('suggestions');
+}
+
+async function toggleSuggestionStatus(id){
+  const list = await getSuggestions();
+  const updated = list.map(s=>{
+    if(s.id !== id) return s;
+    return Object.assign({}, s, { status: (s.status==='implemented') ? 'review' : 'implemented' });
+  });
+  await saveSuggestions(updated);
+  allSuggestionsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  renderSuggestionsList();
+}
+
+async function deleteSuggestion(id){
+  const ok = confirm('متأكد إنك عايز تحذف المقترح ده نهائيًا؟ مفيش رجوع بعد الحذف.');
+  if(!ok) return;
+  const list = await getSuggestions();
+  const updated = list.filter(x=>x.id!==id);
+  await saveSuggestions(updated);
+  allSuggestionsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  renderSuggestionsList();
 }
 
 /* ---- equipment catalog (tracked quantities, deducted automatically by waste reports) ---- */
@@ -4431,6 +4603,14 @@ document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('ir_photoPreviewBox').style.display = 'block';
   });
   document.getElementById('irSaveBtn').addEventListener('click', submitIssueReport);
+  document.getElementById('irMonthSel').addEventListener('change', e=>{
+    irMonth = e.target.value ? parseInt(e.target.value,10) : null;
+    paintIssueReportsList();
+  });
+  document.getElementById('irYearSel').addEventListener('change', e=>{
+    irYear = e.target.value ? parseInt(e.target.value,10) : null;
+    paintIssueReportsList();
+  });
 
   document.getElementById('dnAddBtn').addEventListener('click', ()=>{ resetDailyNoteForm(); go('dailyNoteAdd'); });
   document.getElementById('dnSaveBtn').addEventListener('click', submitDailyNote);
@@ -4462,6 +4642,8 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('eqAddBtn').addEventListener('click', addEquipment);
   document.getElementById('wrEquipReportBtn').addEventListener('click', ()=> go('equipmentReport'));
   document.getElementById('wrItemsReportBtn').addEventListener('click', ()=> go('wasteItemsReport'));
+  document.getElementById('sgAddBtn').addEventListener('click', ()=>{ resetSuggestionForm(); go('suggestionAdd'); });
+  document.getElementById('sgSaveBtn').addEventListener('click', submitSuggestion);
   document.getElementById('wiMonthSel').addEventListener('change', async e=>{
     wiMonth = e.target.value ? parseInt(e.target.value,10) : null;
     paintWasteItemsReport(await getWasteReports());
