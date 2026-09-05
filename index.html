@@ -896,6 +896,11 @@
       <p>حالة الاتصال بقاعدة البيانات: <b id="connStatus">—</b></p>
       <button class="logoutbtn" id="logoutBtn">تسجيل الخروج</button>
     </div>
+    <div class="settcard" id="backupCard" style="display:none;">
+      <h3>💾 نسخة احتياطية (للمدير فقط)</h3>
+      <p>نزّل نسخة كاملة من كل بيانات التطبيق (عملاء، فيدباك، شكاوى، جملة، مخزون، إلخ) في ملف واحد على جهازك. يُفضّل تعمل الخطوة دي بشكل دوري (أسبوعيًا مثلاً) للحماية من أي مشكلة غير متوقعة.</p>
+      <button class="btn primary full" id="downloadBackupBtn">تنزيل نسخة احتياطية كاملة</button>
+    </div>
     <div class="settcard" id="staffCard" style="display:none;">
       <h3>الموظفين (للمدير فقط)</h3>
       <p>أضف أو عدّل أو احذف حسابات الموظفين اللي بيدخلوا على التطبيق ويسجلوا فيدباك.</p>
@@ -1671,6 +1676,22 @@ async function submitFeedback(){
   feedbackList.push(entry);
   await saveFeedback(feedbackList);
 
+  // Any note the customer gave on a specific product also gets registered as a complaint,
+  // so it shows up in the complaints follow-up list and doesn't get lost inside the feedback record.
+  const noteEntries = Object.entries(cleanProductNotes);
+  if(noteEntries.length){
+    const complaints = await getComplaints();
+    noteEntries.forEach(([product, note])=>{
+      complaints.push({
+        id: phoneKey + '_' + now.getTime() + '_' + Math.random().toString(36).slice(2),
+        name: data.name, phone: phoneKey, product, productDetails: '', invoiceDate: '',
+        issue: note, department: product, actionTaken: '', status: 'pending',
+        staff: staffName, date: now.toISOString(), referredFromFeedback: true
+      });
+    });
+    await saveComplaints(complaints);
+  }
+
   document.getElementById('successTitle').textContent = 'تم إرسال الفيدباك بنجاح';
   document.getElementById('successMsg').textContent = 'شكراً لتسجيل بيانات وتقييم العميل، تم حفظ التفاصيل في ملف العميل باسم '+data.name+'.';
 }
@@ -1823,6 +1844,8 @@ function renderDeptReport(list){
   const counts = {};
   DEPARTMENTS.forEach(d=> counts[d.label] = {total:0, pending:0, resolved:0});
   let noDept = 0;
+  const referredCount = list.filter(c=>c.referredFromFeedback).length;
+  const staleCount = list.filter(c=> (c.status||'pending')==='pending' && Math.floor((Date.now() - new Date(c.date).getTime())/86400000) >= 7).length;
   list.forEach(c=>{
     const dep = c.department;
     if(!dep || !counts[dep]){ noDept++; return; }
@@ -1845,6 +1868,16 @@ function renderDeptReport(list){
       }).join('')
     + '</div>'
     + (noDept ? '<p style="font-size:11px;color:var(--muted);margin:10px 0 0;">'+noDept+' شكوى من غير قسم محدد</p>' : '')
+    + '<div style="display:flex;gap:10px;margin-top:12px;">'
+      + '<div style="flex:1;background:#FBF0DD;border:1px solid #E4B565;border-radius:10px;padding:10px;text-align:center;">'
+        + '<div style="font-weight:800;font-family:\'Cairo\';font-size:16px;color:#7A5A22;">'+referredCount+'</div>'
+        + '<div style="font-size:11px;color:#7A5A22;">💬 محالة من الفيدباك</div>'
+      + '</div>'
+      + '<div style="flex:1;background:#F7E3DC;border:1px solid var(--bad);border-radius:10px;padding:10px;text-align:center;">'
+        + '<div style="font-weight:800;font-family:\'Cairo\';font-size:16px;color:var(--bad);">'+staleCount+'</div>'
+        + '<div style="font-size:11px;color:var(--bad);">⏰ متأخرة (7 أيام+)</div>'
+      + '</div>'
+    + '</div>'
     + '</div>';
 }
 
@@ -1873,9 +1906,13 @@ function paintComplaintsList(){
     const statusLabel = status==='resolved' ? 'تم الحل' : 'قيد المتابعة';
     const dateLabel = new Date(c.date).toLocaleDateString('ar-EG');
     const invLabel = c.invoiceDate ? new Date(c.invoiceDate).toLocaleDateString('ar-EG') : '—';
-    return '<div class="complaintcard">'
+    const ageDays = Math.floor((Date.now() - new Date(c.date).getTime()) / 86400000);
+    const isStale = status==='pending' && ageDays >= 7;
+    return '<div class="complaintcard"'+(isStale ? ' style="border:1.5px solid var(--bad);"' : '')+'>'
       + '<div class="ctop"><div><h4>'+esc(c.name)+'</h4><small>📞 '+esc(c.phone)+' · '+dateLabel+'</small></div>'
       + '<span class="cstatus '+status+'">'+statusLabel+'</span></div>'
+      + (isStale ? '<div style="background:#F7E3DC;color:var(--bad);font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:8px;display:inline-block;margin-bottom:6px;">⏰ متأخرة منذ '+ageDays+' يوم</div>' : '')
+      + (c.referredFromFeedback ? '<div style="background:#FBF0DD;color:#7A5A22;font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:8px;display:inline-block;margin-bottom:6px;">💬 محالة من الفيدباك</div>' : '')
       + '<div class="crow"><b>الصنف:</b> '+esc(c.product||'—')+' · <b>تاريخ الفاتورة:</b> '+invLabel+'</div>'
       + (c.productDetails ? '<div class="crow"><b>تفاصيل الصنف:</b> '+esc(c.productDetails)+'</div>' : '')
       + '<div class="crow"><b>المشكلة:</b> '+esc(c.issue||'—')+'</div>'
@@ -1994,6 +2031,7 @@ function buildComplaintShareHTML(c){
       + '</div>'
       + '<div style="background:'+statusColor+';color:#fff;padding:7px 16px;border-radius:20px;font-size:12.5px;font-weight:800;">'+statusLabel+'</div>'
     + '</div>'
+    + (c.referredFromFeedback ? '<div style="background:#FBF0DD;border:1px solid #E4B565;border-radius:10px;padding:9px 14px;margin-bottom:12px;text-align:center;font-size:12.5px;font-weight:800;color:#7A5A22;">شكوى محالة من الفيدباك — '+esc(c.department||'—')+'</div>' : '')
     + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;">'
       + infoBox('👤','العميل', esc(c.name||'—'))
       + infoBox('📞','الموبايل', esc(c.phone||'—'))
@@ -2034,7 +2072,7 @@ async function shareComplaintOnWhatsApp(id){
     const fileName = 'شكوى-'+(c.name||'عميل')+'-'+dateStr+'.png';
     const file = new File([blob], fileName, {type:'image/png'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
-      try{ await navigator.share({files:[file], title:'شكوى - بن العراب', text:'شكوى - قسم '+(c.department||'غير محدد')}); return; }
+      try{ await navigator.share({files:[file], title:'شكوى - بن العراب', text:(c.referredFromFeedback ? 'شكوى محالة من الفيدباك - ' : 'شكوى - ')+'قسم '+(c.department||'غير محدد')}); return; }
       catch(e){ /* user cancelled - fall through to download */ }
     }
     const url = URL.createObjectURL(file);
@@ -4365,16 +4403,38 @@ async function renderSettings(){
   document.getElementById('connStatus').textContent = backendConfigured() ? (backendReady ? '✓ متصل' : '✗ غير متصل') : 'لم يتم إعداد Firebase بعد';
   const staffCard = document.getElementById('staffCard');
   const clmCard = document.getElementById('checklistManageCard');
+  const backupCard = document.getElementById('backupCard');
   if(currentStaff && currentStaff.role === 'admin'){
     staffCard.style.display = 'block';
     clmCard.style.display = 'block';
+    backupCard.style.display = 'block';
     await paintStaffList();
   } else {
     staffCard.style.display = 'none';
     clmCard.style.display = 'none';
+    backupCard.style.display = 'none';
   }
 }
 let editingStaffUser = null; // null = adding a new staff member; otherwise the original @username being edited
+
+// Downloads every collection in APP_STATE as one JSON file — a full snapshot the admin can keep
+// safely outside Firestore, to recover from if something ever goes badly wrong.
+function downloadFullBackup(){
+  const backup = {
+    exportedAt: new Date().toISOString(),
+    exportedBy: currentStaff ? currentStaff.name : 'غير معروف',
+    data: APP_STATE
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const dateStr = new Date().toISOString().slice(0,10);
+  const fileName = 'نسخة-احتياطية-بن-العراب-'+dateStr+'.json';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 async function paintStaffList(){
   const box = document.getElementById('staffListBox');
@@ -4569,6 +4629,7 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('loginBtn').addEventListener('click', doLogin);
   document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
   document.getElementById('logoutBtn').addEventListener('click', doLogout);
+  document.getElementById('downloadBackupBtn').addEventListener('click', downloadFullBackup);
   document.getElementById('installBtnLogin').addEventListener('click', installApp);
   document.getElementById('installBtnSettings').addEventListener('click', installApp);
   document.getElementById('addStaffBtn').addEventListener('click', addStaffMember);
