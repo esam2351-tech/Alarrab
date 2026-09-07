@@ -3521,13 +3521,16 @@ function compressPhotoToDataUrl(file, maxW){
   });
 }
 
+let isSubmittingIssueReport = false;
 async function submitIssueReport(){
+  if(isSubmittingIssueReport) return; // guards against a double-tap firing this twice while a slow save is still in flight
   const department = document.getElementById('ir_department').value;
   const description = document.getElementById('ir_description').value.trim();
   if(!description){
     alert('من فضلك اكتب وصف المشكلة على الأقل');
     return;
   }
+  isSubmittingIssueReport = true;
   const btn = document.getElementById('irSaveBtn');
   btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
 
@@ -3545,6 +3548,7 @@ async function submitIssueReport(){
   }
 
   btn.disabled = false; btn.textContent = 'حفظ التقرير';
+  isSubmittingIssueReport = false;
   if(!ok) return;
   resetIssueReportForm();
   go('issueReports');
@@ -3889,7 +3893,9 @@ async function resetWasteReportForm(){
   sel.value = '';
 }
 
+let isSubmittingWasteReport = false;
 async function submitWasteReport(){
+  if(isSubmittingWasteReport) return; // guards against a double-tap firing this twice while a slow save is still in flight
   const department = document.getElementById('wr_department').value;
   const equipmentName = document.getElementById('wr_equipment').value;
   const damagedQty = parseInt(document.getElementById('wr_qty').value,10) || 1;
@@ -3900,6 +3906,7 @@ async function submitWasteReport(){
     alert('من فضلك اكتب وصف المشكلة على الأقل');
     return;
   }
+  isSubmittingWasteReport = true;
   const btn = document.getElementById('wrSaveBtn');
   btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
 
@@ -3919,6 +3926,7 @@ async function submitWasteReport(){
   }
 
   btn.disabled = false; btn.textContent = 'حفظ التقرير';
+  isSubmittingWasteReport = false;
   if(!ok) return;
   resetWasteReportForm();
   go('wasteReports');
@@ -4730,9 +4738,19 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('ir_photo').addEventListener('change', async (e)=>{
     const file = e.target.files[0];
     if(!file) return;
-    irPhotoDataUrl = await compressPhotoToDataUrl(file, 900);
-    document.getElementById('ir_photoPreview').src = irPhotoDataUrl;
-    document.getElementById('ir_photoPreviewBox').style.display = 'block';
+    const saveBtn = document.getElementById('irSaveBtn');
+    const savedBtnText = saveBtn.textContent;
+    saveBtn.disabled = true; saveBtn.textContent = 'جارِ تجهيز الصورة...';
+    try{
+      irPhotoDataUrl = await compressPhotoToDataUrl(file, 900);
+      document.getElementById('ir_photoPreview').src = irPhotoDataUrl;
+      document.getElementById('ir_photoPreviewBox').style.display = 'block';
+    }catch(err){
+      irPhotoDataUrl = null;
+      alert('تعذّر تجهيز الصورة، جرّب تاختار الصورة تاني');
+      document.getElementById('ir_photo').value = '';
+    }
+    saveBtn.disabled = false; saveBtn.textContent = savedBtnText;
   });
   document.getElementById('irSaveBtn').addEventListener('click', submitIssueReport);
   document.getElementById('irMonthSel').addEventListener('change', e=>{
@@ -4797,9 +4815,19 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('wr_photo').addEventListener('change', async (e)=>{
     const file = e.target.files[0];
     if(!file) return;
-    wrPhotoDataUrl = await compressPhotoToDataUrl(file, 900);
-    document.getElementById('wr_photoPreview').src = wrPhotoDataUrl;
-    document.getElementById('wr_photoPreviewBox').style.display = 'block';
+    const saveBtn = document.getElementById('wrSaveBtn');
+    const savedBtnText = saveBtn.textContent;
+    saveBtn.disabled = true; saveBtn.textContent = 'جارِ تجهيز الصورة...';
+    try{
+      wrPhotoDataUrl = await compressPhotoToDataUrl(file, 900);
+      document.getElementById('wr_photoPreview').src = wrPhotoDataUrl;
+      document.getElementById('wr_photoPreviewBox').style.display = 'block';
+    }catch(err){
+      wrPhotoDataUrl = null;
+      alert('تعذّر تجهيز الصورة، جرّب تاختار الصورة تاني');
+      document.getElementById('wr_photo').value = '';
+    }
+    saveBtn.disabled = false; saveBtn.textContent = savedBtnText;
   });
   document.getElementById('wrSaveBtn').addEventListener('click', submitWasteReport);
   document.getElementById('wrMonthSel').addEventListener('change', e=>{
