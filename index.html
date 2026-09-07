@@ -1864,8 +1864,8 @@ async function submitComplaint(){
 let allComplaintsCache = [];
 let currentFilteredComplaints = [];
 let complaintsFilter = 'all'; // all | pending | resolved
-let cpMonth = null; // 1-12, null = كل الشهور
-let cpYear = null;  // e.g. 2026, null = كل السنين
+let cpMonth = new Date().getMonth()+1; // defaults to the current month so reports open already scoped to "this month"
+let cpYear = new Date().getFullYear();
 
 function populateComplaintsTimeFilters(){
   const monthSel = document.getElementById('cpMonthSel');
@@ -1880,9 +1880,9 @@ function populateComplaintsTimeFilters(){
   const yearsInData = new Set(allComplaintsCache.map(c=> new Date(c.date).getFullYear()));
   yearsInData.add(new Date().getFullYear());
   const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
-  const currentVal = yearSel.value;
   yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
-  yearSel.value = currentVal;
+  monthSel.value = cpMonth;
+  yearSel.value = cpYear;
 }
 
 async function renderComplaintsList(){
@@ -3270,8 +3270,8 @@ async function deleteWholesaleCustomer(phone){
 }
 
 /* ---- wholesale report: month/year filtered order & call counts per customer ---- */
-let wsReportMonth = null;
-let wsReportYear = null;
+let wsReportMonth = new Date().getMonth()+1;
+let wsReportYear = new Date().getFullYear();
 async function renderWholesaleReport(){
   const body = document.getElementById('wsReportBody');
   const customers = await getWholesaleCustomers();
@@ -3419,8 +3419,8 @@ async function renderWholesaleReport(){
 let allIssueReportsCache = [];
 let irPhotoDataUrl = null;
 
-let irMonth = null;
-let irYear = null;
+let irMonth = new Date().getMonth()+1;
+let irYear = new Date().getFullYear();
 async function renderIssueReportsList(){
   const box = document.getElementById('irList');
   box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
@@ -3439,9 +3439,9 @@ async function renderIssueReportsList(){
   const yearsInData = new Set(allIssueReportsCache.map(r=> new Date(r.date).getFullYear()));
   yearsInData.add(new Date().getFullYear());
   const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
-  const currentVal = yearSel.value;
   yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
-  yearSel.value = currentVal;
+  monthSel.value = irMonth;
+  yearSel.value = irYear;
 
   paintIssueReportsList();
 }
@@ -3630,8 +3630,8 @@ async function deleteIssueReport(id){
 
 /* ================= DAILY NOTES ================= */
 let allDailyNotesCache = [];
-let dnMonth = null;
-let dnYear = null;
+let dnMonth = new Date().getMonth()+1;
+let dnYear = new Date().getFullYear();
 
 async function renderDailyNotesList(){
   const box = document.getElementById('dnList');
@@ -3651,9 +3651,9 @@ async function renderDailyNotesList(){
   const yearsInData = new Set(allDailyNotesCache.map(n=> new Date(n.date).getFullYear()));
   yearsInData.add(new Date().getFullYear());
   const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
-  const currentVal = yearSel.value;
   yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
-  yearSel.value = currentVal;
+  monthSel.value = dnMonth;
+  yearSel.value = dnYear;
 
   paintDailyNotesList();
 }
@@ -3800,8 +3800,8 @@ async function deleteDailyNote(id){
 /* ================= WASTE (هوالك) REPORTS ================= */
 let allWasteReportsCache = [];
 let wrPhotoDataUrl = null;
-let wrMonth = null;
-let wrYear = null;
+let wrMonth = new Date().getMonth()+1;
+let wrYear = new Date().getFullYear();
 
 async function renderWasteReportsList(){
   const box = document.getElementById('wrList');
@@ -3821,9 +3821,9 @@ async function renderWasteReportsList(){
   const yearsInData = new Set(allWasteReportsCache.map(r=> new Date(r.date).getFullYear()));
   yearsInData.add(new Date().getFullYear());
   const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
-  const currentVal = yearSel.value;
   yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
-  yearSel.value = currentVal;
+  monthSel.value = wrMonth;
+  yearSel.value = wrYear;
 
   paintWasteReportsList();
 }
@@ -4186,8 +4186,8 @@ async function renderEquipmentReport(){
 }
 
 /* ---- wasted item quantities report (non-equipment items, e.g. cups/sugar/etc.) — month/year filtered ---- */
-let wiMonth = null;
-let wiYear = null;
+let wiMonth = new Date().getMonth()+1;
+let wiYear = new Date().getFullYear();
 let currentWasteItemsReport = [];
 async function renderWasteItemsReport(){
   const body = document.getElementById('wiReportBody');
@@ -4206,9 +4206,9 @@ async function renderWasteItemsReport(){
   const yearsInData = new Set(reports.map(r=> new Date(r.date).getFullYear()));
   yearsInData.add(new Date().getFullYear());
   const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
-  const currentVal = yearSel.value;
   yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
-  yearSel.value = currentVal;
+  monthSel.value = wiMonth;
+  yearSel.value = wiYear;
 
   paintWasteItemsReport(reports);
 }
@@ -4237,8 +4237,8 @@ function paintWasteItemsReport(reports){
 }
 
 /* ================= REPORTS ================= */
-let reportsMonth = null; // 1-12, null = كل الشهور
-let reportsYear = null;  // e.g. 2026, null = كل السنين
+let reportsMonth = new Date().getMonth()+1; // defaults to the current month so reports open already scoped to "this month"
+let reportsYear = new Date().getFullYear();
 const ARABIC_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 
 async function renderReports(){
