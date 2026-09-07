@@ -3518,22 +3518,53 @@ function resetIssueReportForm(){
 
 // Resizes + compresses the photo client-side before storing it (keeps each report well under
 // Firestore's per-document size limit, and keeps the shared database small and fast).
-function compressPhotoToDataUrl(file, maxW){
+// Draws whatever image source already decoded successfully onto a canvas at the target
+// width, returning a compressed JPEG data URL — shared by both decode paths below.
+function drawToCompressedDataUrl(source, srcW, srcH, maxW){
+  const scale = Math.min(maxW / srcW, 1);
+  const w = Math.round(srcW * scale);
+  const h = Math.round(srcH * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(source, 0, 0, w, h);
+  return canvas.toDataURL('image/jpeg', 0.7);
+}
+
+// Decodes via a plain <img> element — works for the vast majority of phones/photos.
+function compressViaImageElement(file, maxW){
   return new Promise((resolve, reject)=>{
     const img = new Image();
+    const url = URL.createObjectURL(file);
     img.onload = ()=>{
-      const scale = Math.min(maxW / img.width, 1);
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', 0.7));
+      URL.revokeObjectURL(url);
+      try{ resolve(drawToCompressedDataUrl(img, img.width, img.height, maxW)); }
+      catch(e){ reject(e); }
     };
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
+    img.onerror = (e)=>{ URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
   });
 }
+
+// Decodes via createImageBitmap — a separate, often more capable decoder that some
+// browsers use for formats (certain camera-app photo encodings) that fail through <img>.
+async function compressViaImageBitmap(file, maxW){
+  const bitmap = await createImageBitmap(file);
+  try{ return drawToCompressedDataUrl(bitmap, bitmap.width, bitmap.height, maxW); }
+  finally{ bitmap.close(); }
+}
+
+async function compressPhotoToDataUrl(file, maxW){
+  try{
+    return await compressViaImageElement(file, maxW);
+  }catch(firstError){
+    if(typeof createImageBitmap === 'function'){
+      try{ return await compressViaImageBitmap(file, maxW); }
+      catch(secondError){ throw secondError; }
+    }
+    throw firstError;
+  }
+}
+
 
 let isSubmittingIssueReport = false;
 async function submitIssueReport(){
