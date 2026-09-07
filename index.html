@@ -1050,6 +1050,60 @@ function subscribeShared(key, onChange){
   }, err=>console.error('subscribe', key, err));
 }
 
+/* ---- Per-document collections (one Firestore document PER ITEM, not one document for the whole
+   list). Used for anything that can carry an embedded photo (issue reports, waste reports): a
+   single shared array-in-one-document was silently hitting Firestore's ~1MB document size limit
+   as photos piled up, so the newest report would fail to save at all and vanish on next load —
+   with no error shown to the person using the app. Splitting into one small document per report
+   means each write's size only depends on that one report, never on how many others exist. ---- */
+async function loadItemCollection(collectionName){
+  const snap = await db.collection(collectionName).get();
+  const items = [];
+  snap.forEach(doc=> items.push(doc.data()));
+  return items;
+}
+async function saveItem(collectionName, item){
+  try{
+    await db.collection(collectionName).doc(String(item.id)).set(item);
+    return true;
+  }catch(e){
+    console.error('saveItem', collectionName, e);
+    alert('تعذّر حفظ العنصر — لو مرفق بيه صورة كبيرة جرّب تاني بصورة أصغر، أو تأكد من الإنترنت.');
+    return false;
+  }
+}
+async function deleteItemDoc(collectionName, id){
+  try{ await db.collection(collectionName).doc(String(id)).delete(); return true; }
+  catch(e){ console.error('deleteItemDoc', collectionName, e); alert('تعذّر الحذف، حاول تاني'); return false; }
+}
+function subscribeItemCollection(collectionName, onChange){
+  db.collection(collectionName).onSnapshot(snap=>{
+    const items = [];
+    snap.forEach(doc=> items.push(doc.data()));
+    onChange(items);
+  }, err=>console.error('subscribeItemCollection', collectionName, err));
+}
+
+// One-time migration: earlier versions stored every report of a kind as one big array inside a
+// single Firestore document (oldKey). That's what silently hit the 1MB document-size ceiling once
+// enough photos piled up. The first time this loads after the fix, if the new per-document
+// collection is still empty, every item from the old array is copied over into its own document;
+// after that the old array is left alone and this is a no-op on every future load.
+async function migrateArrayToItemCollection(oldKey, newCollectionName){
+  const existing = await loadItemCollection(newCollectionName);
+  if(existing.length) return existing;
+  const oldArray = await loadShared(oldKey, []);
+  if(oldArray.length){
+    for(const item of oldArray){
+      if(item && item.id!=null){
+        try{ await db.collection(newCollectionName).doc(String(item.id)).set(item); }
+        catch(e){ console.error('migrateArrayToItemCollection item', oldKey, e); }
+      }
+    }
+  }
+  return oldArray;
+}
+
 /* Keep every open device in sync in real time */
 function attachLiveSync(){
   subscribeShared('staff', list=>{
@@ -1106,7 +1160,7 @@ function attachLiveSync(){
     APP_STATE.wholesaleProducts = list;
     if(currentScreen==='wholesaleProducts') renderWholesaleProducts();
   });
-  subscribeShared('issueReports', list=>{
+  subscribeItemCollection('issueReportItems', list=>{
     APP_STATE.issueReports = list;
     if(currentScreen==='issueReports') renderIssueReportsList();
   });
@@ -1114,7 +1168,7 @@ function attachLiveSync(){
     APP_STATE.dailyNotes = list;
     if(currentScreen==='dailyNotes') renderDailyNotesList();
   });
-  subscribeShared('wasteReports', list=>{
+  subscribeItemCollection('wasteReportItems', list=>{
     APP_STATE.wasteReports = list;
     if(currentScreen==='wasteReports') renderWasteReportsList();
   });
@@ -1153,7 +1207,7 @@ async function loadAppState(){
   try{
     if(!(await ensureSignedIn())){ backendReady = false; return { ok:false, reason:'auth-failed' }; }
     const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), loadShared('issueReports', []), loadShared('dailyNotes', []), loadShared('wasteReports', []), loadShared('equipment', []), loadShared('suggestions', [])
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -1208,11 +1262,9 @@ async function saveWholesaleCalls(arr){ APP_STATE.wholesaleCalls = arr; saveShar
 async function getWholesaleProducts(){ return APP_STATE.wholesaleProducts; }
 async function saveWholesaleProducts(arr){ APP_STATE.wholesaleProducts = arr; saveShared('wholesaleProducts', arr); }
 async function getIssueReports(){ return APP_STATE.issueReports; }
-async function saveIssueReports(arr){ APP_STATE.issueReports = arr; saveShared('issueReports', arr); }
 async function getDailyNotes(){ return APP_STATE.dailyNotes; }
 async function saveDailyNotes(arr){ APP_STATE.dailyNotes = arr; saveShared('dailyNotes', arr); }
 async function getWasteReports(){ return APP_STATE.wasteReports; }
-async function saveWasteReports(arr){ APP_STATE.wasteReports = arr; saveShared('wasteReports', arr); }
 async function getEquipment(){ return APP_STATE.equipment; }
 async function saveEquipment(arr){ APP_STATE.equipment = arr; saveShared('equipment', arr); }
 async function getSuggestions(){ return APP_STATE.suggestions; }
@@ -3431,11 +3483,13 @@ function paintIssueReportsList(){
 }
 async function toggleIssueReportStatus(id){
   const reports = await getIssueReports();
-  const updated = reports.map(r=>{
-    if(r.id !== id) return r;
-    return Object.assign({}, r, { status: (r.status==='resolved') ? 'pending' : 'resolved' });
-  });
-  await saveIssueReports(updated);
+  const target = reports.find(r=>r.id===id);
+  if(!target) return;
+  const updatedItem = Object.assign({}, target, { status: (target.status==='resolved') ? 'pending' : 'resolved' });
+  const ok = await saveItem('issueReportItems', updatedItem);
+  if(!ok) return;
+  const updated = reports.map(r=> r.id===id ? updatedItem : r);
+  APP_STATE.issueReports = updated;
   allIssueReportsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
   paintIssueReportsList();
 }
@@ -3478,15 +3532,20 @@ async function submitIssueReport(){
   btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
 
   const staffName = currentStaff ? currentStaff.name : 'غير معروف';
-  const reports = await getIssueReports();
-  reports.push({
+  const newReport = {
     id: Date.now()+'_'+Math.random().toString(36).slice(2),
     date: new Date().toISOString(), department, description, staff: staffName,
-    photoDataUrl: irPhotoDataUrl
-  });
-  await saveIssueReports(reports);
+    photoDataUrl: irPhotoDataUrl, status: 'pending'
+  };
+  const ok = await saveItem('issueReportItems', newReport);
+  if(ok){
+    const reports = await getIssueReports();
+    reports.push(newReport);
+    APP_STATE.issueReports = reports;
+  }
 
   btn.disabled = false; btn.textContent = 'حفظ التقرير';
+  if(!ok) return;
   resetIssueReportForm();
   go('issueReports');
 }
@@ -3556,9 +3615,11 @@ async function deleteIssueReport(id){
   if(!r) return;
   const ok = confirm('متأكد إنك عايز تحذف تقرير المشكلة ده نهائيًا؟ مفيش رجوع بعد الحذف.');
   if(!ok) return;
+  const deleted = await deleteItemDoc('issueReportItems', id);
+  if(!deleted) return;
   const reports = await getIssueReports();
   const updated = reports.filter(x=>x.id!==id);
-  await saveIssueReports(updated);
+  APP_STATE.issueReports = updated;
   allIssueReportsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
   renderIssueReportsList();
 }
@@ -3843,17 +3904,22 @@ async function submitWasteReport(){
   btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
 
   const staffName = currentStaff ? currentStaff.name : 'غير معروف';
-  const reports = await getWasteReports();
-  reports.push({
+  const newReport = {
     id: Date.now()+'_'+Math.random().toString(36).slice(2),
     date: new Date().toISOString(), department, description, staff: staffName,
     photoDataUrl: wrPhotoDataUrl,
     equipmentName: equipmentName || null, damagedQty: equipmentName ? damagedQty : null,
     itemName: itemName || null, itemQty: itemName ? itemQty : null
-  });
-  await saveWasteReports(reports);
+  };
+  const ok = await saveItem('wasteReportItems', newReport);
+  if(ok){
+    const reports = await getWasteReports();
+    reports.push(newReport);
+    APP_STATE.wasteReports = reports;
+  }
 
   btn.disabled = false; btn.textContent = 'حفظ التقرير';
+  if(!ok) return;
   resetWasteReportForm();
   go('wasteReports');
 }
@@ -3925,9 +3991,11 @@ async function deleteWasteReport(id){
   if(!r) return;
   const ok = confirm('متأكد إنك عايز تحذف تقرير الهوالك ده نهائيًا؟ مفيش رجوع بعد الحذف.');
   if(!ok) return;
+  const deleted = await deleteItemDoc('wasteReportItems', id);
+  if(!deleted) return;
   const reports = await getWasteReports();
   const updated = reports.filter(x=>x.id!==id);
-  await saveWasteReports(updated);
+  APP_STATE.wasteReports = updated;
   allWasteReportsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
   paintWasteReportsList();
 }
