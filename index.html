@@ -481,6 +481,7 @@
             <option value="المشروبات">🥤 المشروبات</option>
             <option value="الصيانة">🔧 الصيانة</option>
             <option value="المخزن">📦 المخزن</option>
+            <option value="سيستم">💻 سيستم</option>
           </select>
         </div>
         <div class="field"><label>الإجراء اللي اتخذه الموظف لحل المشكلة</label><textarea id="cp_action" placeholder="اكتب الحل أو الإجراء اللي اتعمل..."></textarea></div>
@@ -512,6 +513,7 @@
         <option value="المشروبات">🥤 المشروبات</option>
         <option value="الصيانة">🔧 الصيانة</option>
         <option value="المخزن">📦 المخزن</option>
+        <option value="سيستم">💻 سيستم</option>
       </select>
       <div class="tabs" style="margin:0 0 14px;">
         <div class="t active" data-cpfilter="all">الكل</div>
@@ -1238,7 +1240,8 @@ const DEPARTMENTS = [
   {icon:'☕', label:'البن'},
   {icon:'🥤', label:'المشروبات'},
   {icon:'🔧', label:'الصيانة'},
-  {icon:'📦', label:'المخزن'}
+  {icon:'📦', label:'المخزن'},
+  {icon:'💻', label:'سيستم'}
 ];
 
 /* ================= DAILY BRANCH CHECKLIST (matches the paper form) ================= */
@@ -3505,7 +3508,7 @@ function buildIssueReportShareHTML(r){
       + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">اسم الموظف</div><div style="font-size:14px;font-weight:700;">'+esc(r.staff||'—')+'</div></div>'
       + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">وصف المشكلة</div><div style="font-size:14px;font-weight:600;line-height:1.6;">'+esc(r.description||'—')+'</div></div>'
     + '</div>'
-    + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;border-radius:12px;border:1px solid #EEE2D1;">' : '')
+    + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;max-height:420px;object-fit:cover;border-radius:12px;border:1px solid #EEE2D1;display:block;">' : '')
     + '<div style="text-align:center;margin-top:18px;padding:14px;background:#2A1810;color:#C08A34;border-radius:10px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;">بن العراب</div>'
     + '</div>';
 }
@@ -3773,7 +3776,7 @@ function paintWasteReportsList(){
     const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
     return '<div class="complaintcard">'
       + '<div class="ctop"><div><h4>'+esc(r.department||'بدون قسم')+'</h4><small>'+dateLabel+' · '+esc(r.staff||'—')+'</small></div></div>'
-      + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;border-radius:10px;margin-bottom:8px;">' : '')
+      + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="max-width:150px;max-height:150px;border-radius:10px;margin-bottom:8px;display:block;object-fit:cover;">' : '')
       + (r.equipmentName ? '<div class="crow"><b>المعدة:</b> '+esc(r.equipmentName)+' · <b>الكمية التالفة:</b> '+r.damagedQty+'</div>' : '')
       + (r.itemName ? '<div class="crow"><b>الصنف:</b> '+esc(r.itemName)+' · <b>الكمية:</b> '+r.itemQty+'</div>' : '')
       + '<div class="crow">'+esc(r.description||'—')+'</div>'
@@ -3874,7 +3877,7 @@ function buildWasteReportShareHTML(r){
       + (r.itemName ? '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">الصنف التالف / الكمية</div><div style="font-size:14px;font-weight:700;">'+esc(r.itemName)+' — '+r.itemQty+'</div></div>' : '')
       + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">وصف المشكلة</div><div style="font-size:14px;font-weight:600;line-height:1.6;">'+esc(r.description||'—')+'</div></div>'
     + '</div>'
-    + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;border-radius:12px;border:1px solid #EEE2D1;">' : '')
+    + (r.photoDataUrl ? '<img src="'+r.photoDataUrl+'" style="width:100%;max-height:420px;object-fit:cover;border-radius:12px;border:1px solid #EEE2D1;display:block;">' : '')
     + '<div style="text-align:center;margin-top:18px;padding:14px;background:#2A1810;color:#C08A34;border-radius:10px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;">بن العراب</div>'
     + '</div>';
 }
