@@ -1333,6 +1333,7 @@ const LIKES = [
 const PIE_COLORS = ['#C08A34','#6B4226','#E4B565','#8C7B6D','#D9D0C0','#A9724F'];
 
 const STEP_LABELS = ["البيانات","المشتريات","الأفضليات","التقييم","ملاحظات","الملخص"];
+const RATING_CATEGORIES = ["جودة البن","الأسعار","الخدمة","سرعة التحضير","النظافة","التغليف"];
 let step = 1;
 const data = {
   name:"", phone:"", birth:"", address:"",
@@ -1515,6 +1516,19 @@ function normalizePhone(p){
    complaint image exports — which guarantees correct Arabic rendering. */
 function exportRowsToExcel(filename, sheetName, headers, rows){
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  // Auto-size every column to its widest cell (Arabic text needs a bit of extra breathing
+  // room), so the sheet opens as a readable table instead of default squished columns.
+  ws['!cols'] = headers.map((h,colIdx)=>{
+    let maxLen = String(h==null?'':h).length;
+    rows.forEach(r=>{
+      const len = String(r[colIdx]==null?'':r[colIdx]).length;
+      if(len > maxLen) maxLen = len;
+    });
+    return { wch: Math.min(Math.max(maxLen + 4, 10), 45) };
+  });
+  // Keep the header row visible while scrolling through long reports.
+  ws['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomRight', state: 'frozen' };
+  ws['!rows'] = [{ hpx: 22 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
   XLSX.writeFile(wb, filename);
@@ -4364,15 +4378,14 @@ async function renderReports(){
   // full customer feedback table — every feedback entry in the filtered period, one row each
   const feedbackSorted = feedbackList.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
   const tableRows = feedbackSorted.map(f=>{
-    const ratingsVals = Object.values(f.ratings||{}).filter(v=>v>0);
-    const favg = ratingsVals.length ? (ratingsVals.reduce((a,b)=>a+b,0)/ratingsVals.length).toFixed(1) : '—';
+    const r = f.ratings||{};
     return '<tr style="border-top:1px solid var(--line);">'
       + '<td style="padding:8px 6px;font-size:11.5px;font-weight:700;white-space:nowrap;">'+esc(f.name||'—')+'</td>'
       + '<td style="padding:8px 6px;font-size:11px;color:var(--muted);white-space:nowrap;">'+esc(f.phone||'—')+'</td>'
       + '<td style="padding:8px 6px;font-size:11px;color:var(--muted);white-space:nowrap;">'+new Date(f.date).toLocaleDateString('ar-EG')+'</td>'
       + '<td style="padding:8px 6px;font-size:11px;white-space:nowrap;">'+esc((f.products||[]).join('، ')||'—')+'</td>'
       + '<td style="padding:8px 6px;font-size:11px;white-space:nowrap;">'+esc((f.likes||[]).join('، ')||'—')+'</td>'
-      + '<td style="padding:8px 6px;font-size:11px;text-align:center;white-space:nowrap;">⭐'+favg+'</td>'
+      + RATING_CATEGORIES.map(cat=> '<td style="padding:8px 6px;font-size:11px;text-align:center;white-space:nowrap;">'+(r[cat]>0 ? '⭐'+r[cat] : '—')+'</td>').join('')
       + '<td style="padding:8px 6px;font-size:11px;color:var(--muted);white-space:nowrap;">'+esc(f.staff||'—')+'</td>'
       + '</tr>';
   }).join('');
@@ -4385,7 +4398,7 @@ async function renderReports(){
           + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">التاريخ</th>'
           + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">المنتجات</th>'
           + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">أكتر حاجة عجبته</th>'
-          + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">التقييم</th>'
+          + RATING_CATEGORIES.map(cat=> '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">'+esc(cat)+'</th>').join('')
           + '<th style="position:sticky;top:0;z-index:1;padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;background:#FBF3E6;box-shadow:0 1px 0 var(--line);">الموظف</th>'
         + '</tr></thead>'
         + '<tbody>'+tableRows+'</tbody>'
@@ -4461,11 +4474,12 @@ async function renderReports(){
     chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
   });
 
-  const custExportHeaders = ['الاسم','الموبايل','التاريخ','المنتجات','أكتر حاجة عجبته','التقييم','الموظف'];
+  const custExportHeaders = ['الاسم','الموبايل','التاريخ','المنتجات','أكتر حاجة عجبته'].concat(RATING_CATEGORIES).concat(['الموظف']);
   const custExportRows = feedbackSorted.map(f=>{
-    const ratingsVals = Object.values(f.ratings||{}).filter(v=>v>0);
-    const favg = ratingsVals.length ? (ratingsVals.reduce((a,b)=>a+b,0)/ratingsVals.length).toFixed(1) : '—';
-    return [f.name||'—', f.phone||'—', new Date(f.date).toLocaleDateString('ar-EG'), (f.products||[]).join('، ')||'—', (f.likes||[]).join('، ')||'—', favg, f.staff||'—'];
+    const r = f.ratings||{};
+    return [f.name||'—', f.phone||'—', new Date(f.date).toLocaleDateString('ar-EG'), (f.products||[]).join('، ')||'—', (f.likes||[]).join('، ')||'—']
+      .concat(RATING_CATEGORIES.map(cat=> r[cat]>0 ? r[cat] : '—'))
+      .concat([f.staff||'—']);
   });
   document.getElementById('custExportExcelBtn').addEventListener('click', ()=>{
     exportRowsToExcel('تقرير-العملاء.xlsx', 'العملاء', custExportHeaders, custExportRows);
