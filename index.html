@@ -95,6 +95,13 @@
   .tile:active{transform:scale(.96);}
   .deptReportCard{transition:transform .12s ease;}
   .deptReportCard:active{transform:scale(.96);}
+  .chat-toast{
+    position:absolute;top:10px;left:12px;right:12px;z-index:500;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(42,24,16,.18);
+    padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;
+    transform:translateY(-140%);opacity:0;transition:transform .28s ease,opacity .28s ease;pointer-events:none;
+  }
+  .chat-toast.show{transform:translateY(0);opacity:1;pointer-events:auto;}
   .tile .ic{font-size:22px;display:block;margin-bottom:8px;}
   .tile span{font-size:12.5px;font-weight:700;color:var(--espresso-2);}
 
@@ -382,6 +389,15 @@
 </head>
 <body>
 <div class="phone">
+
+  <!-- ============ CHAT TOAST NOTIFICATION (shows on any screen) ============ -->
+  <div class="chat-toast" id="chatToast">
+    <span style="font-size:18px;flex-shrink:0;">💬</span>
+    <div style="flex:1;min-width:0;">
+      <div id="chatToastName" style="font-weight:800;font-size:12.5px;color:var(--espresso-2);"></div>
+      <div id="chatToastText" style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+    </div>
+  </div>
 
   <!-- ============ LOGIN ============ -->
   <div class="screen active noNav" id="login">
@@ -1240,7 +1256,19 @@ function attachLiveSync(){
     if(currentScreen==='suggestions') renderSuggestionsList();
   });
   subscribeItemCollection('internalChatMessages', list=>{
-    APP_STATE.chatMessages = list.slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
+    const sorted = list.slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
+    if(chatFirstLoadDone){
+      const newOnes = sorted.filter(m => !knownChatMessageIds.has(m.id));
+      newOnes.forEach(m=>{
+        if(currentStaff && m.staffUser !== currentStaff.user && currentScreen !== 'internalChat'){
+          showChatToast(m);
+        }
+      });
+    } else {
+      chatFirstLoadDone = true;
+    }
+    knownChatMessageIds = new Set(sorted.map(m=>m.id));
+    APP_STATE.chatMessages = sorted;
     if(currentScreen==='internalChat') renderChatMessages();
     updateChatNotifBadge();
   });
@@ -1269,6 +1297,23 @@ function markNotificationsSeen(){
 // just admin), and counts messages from OTHERS sent after this staff member last opened the
 // chat screen. Tracked per-user (in localStorage) since each person's "last read" point differs.
 let lastSeenChatTimestamp = 0;
+
+// Tracks which message IDs have already been seen so the live-sync callback can tell a
+// genuinely NEW message (worth a toast) apart from the initial historical load on open/refresh.
+let chatFirstLoadDone = false;
+let knownChatMessageIds = new Set();
+let chatToastTimeout = null;
+function showChatToast(msg){
+  const toast = document.getElementById('chatToast');
+  if(!toast) return;
+  document.getElementById('chatToastName').textContent = msg.staffName || 'موظف';
+  const preview = (msg.text||'').length > 60 ? msg.text.slice(0,60)+'…' : (msg.text||'');
+  document.getElementById('chatToastText').textContent = preview;
+  toast.classList.add('show');
+  clearTimeout(chatToastTimeout);
+  chatToastTimeout = setTimeout(()=>{ toast.classList.remove('show'); }, 4000);
+}
+
 function updateChatNotifBadge(){
   const badge = document.getElementById('chatTileBadge');
   if(!badge) return;
@@ -4994,6 +5039,10 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('sgAddBtn').addEventListener('click', ()=>{ resetSuggestionForm(); go('suggestionAdd'); });
   document.getElementById('sgSaveBtn').addEventListener('click', submitSuggestion);
   document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
+  document.getElementById('chatToast').addEventListener('click', ()=>{
+    document.getElementById('chatToast').classList.remove('show');
+    go('internalChat');
+  });
   document.getElementById('chatInput').addEventListener('keydown', e=>{
     if(e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); sendChatMessage(); }
   });
