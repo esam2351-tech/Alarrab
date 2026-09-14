@@ -4258,11 +4258,19 @@ function renderChatMessages(){
   box.scrollTop = box.scrollHeight;
 }
 
+let lastSentChatMessage = { text: '', at: 0 };
 async function sendChatMessage(){
   const input = document.getElementById('chatInput');
+  const sendBtn = document.getElementById('chatSendBtn');
   const text = input.value.trim();
-  if(!text || isSendingChatMessage) return;
+  if(!text || isSendingChatMessage || input.disabled) return;
+  // Extra safety net: if the exact same text was just sent in the last 2 seconds, treat this
+  // as a duplicate trigger (e.g. some mobile keyboards fire the Enter keydown event twice for
+  // a single tap) rather than a genuine second message.
+  if(text === lastSentChatMessage.text && (Date.now() - lastSentChatMessage.at) < 2000) return;
+
   isSendingChatMessage = true;
+  input.disabled = true; sendBtn.disabled = true;
   input.value = '';
   input.style.height = 'auto';
   const msg = {
@@ -4273,12 +4281,15 @@ async function sendChatMessage(){
   };
   const ok = await saveItem('internalChatMessages', msg);
   if(ok){
+    lastSentChatMessage = { text, at: Date.now() };
     APP_STATE.chatMessages.push(msg);
     renderChatMessages();
   } else {
     input.value = text; // give the message back so nothing typed is lost on a failed send
   }
   isSendingChatMessage = false;
+  input.disabled = false; sendBtn.disabled = false;
+  input.focus();
 }
 
 /* ---- equipment catalog (tracked quantities, deducted automatically by waste reports) ---- */
@@ -4984,7 +4995,7 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('sgSaveBtn').addEventListener('click', submitSuggestion);
   document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
   document.getElementById('chatInput').addEventListener('keydown', e=>{
-    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChatMessage(); }
+    if(e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); sendChatMessage(); }
   });
   document.getElementById('chatInput').addEventListener('input', function(){
     this.style.height = 'auto';
