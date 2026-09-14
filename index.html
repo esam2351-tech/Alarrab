@@ -93,6 +93,8 @@
     transition:transform .12s ease;
   }
   .tile:active{transform:scale(.96);}
+  .deptReportCard{transition:transform .12s ease;}
+  .deptReportCard:active{transform:scale(.96);}
   .tile .ic{font-size:22px;display:block;margin-bottom:8px;}
   .tile span{font-size:12.5px;font-weight:700;color:var(--espresso-2);}
 
@@ -428,6 +430,7 @@
       <div class="tile js-go" data-go="dailyNotes"><span class="ic">🗒️</span><span>ملاحظات يومية</span></div>
       <div class="tile js-go" data-go="wasteReports"><span class="ic">🗑️</span><span>تقارير هوالك</span></div>
       <div class="tile js-go" data-go="suggestions"><span class="ic">💡</span><span>المقترحات</span></div>
+      <div class="tile js-go" data-go="internalChat" style="position:relative;"><span class="ic">💬</span><span>الشات الداخلي</span><span class="badge" id="chatTileBadge" style="display:none;">0</span></div>
     </div>
   </div>
 
@@ -886,6 +889,16 @@
     </div>
   </div>
 
+  <!-- ============ INTERNAL CHAT ============ -->
+  <div class="screen" id="internalChat">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>الشات الداخلي</h2></div>
+    <div id="chatMessagesBox" style="flex:1;overflow-y:auto;padding:12px 18px;display:flex;flex-direction:column;gap:12px;"></div>
+    <div style="display:flex;gap:8px;align-items:flex-end;padding:10px 18px 14px;border-top:1px solid var(--line);background:var(--cream);">
+      <textarea id="chatInput" placeholder="اكتب رسالتك..." rows="1" style="flex:1;border:1.5px solid var(--line);border-radius:18px;padding:11px 16px;font-family:'Tajawal';font-size:13.5px;background:#FCF9F3;resize:none;max-height:90px;"></textarea>
+      <button id="chatSendBtn" style="background:var(--espresso);color:#F6EAD9;border:none;border-radius:50%;width:44px;height:44px;font-size:16px;cursor:pointer;flex-shrink:0;">➤</button>
+    </div>
+  </div>
+
   <!-- ============ SETTINGS ============ -->
   <div class="screen" id="settings">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>الإعدادات</h2></div>
@@ -949,6 +962,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -987,7 +1001,7 @@ const DEFAULT_STAFF = [
 
 let currentStaff = null; // {user,name,role} - in-memory only, resets on reload
 function isViewer(){ return !!(currentStaff && currentStaff.role === 'viewer'); }
-let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [], suggestions: [] };
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [], suggestions: [], chatMessages: [] };
 let backendReady = false;
 let currentScreen = 'login';
 let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
@@ -1027,6 +1041,49 @@ async function ensureSignedIn(){
   }catch(e){
     console.error('Anonymous sign-in failed', e);
     return false;
+  }
+}
+
+/* ================= PUSH NOTIFICATIONS (Firebase Cloud Messaging) =================
+   Generated from Firebase Console → Project settings → Cloud Messaging → Web Push certificates.
+   This is a PUBLIC key (safe to embed) — it lets the browser register for push, it does not let
+   anyone send messages; only server-side code holding the Firebase Admin SDK credentials can
+   actually send notifications (that's the Cloud Function piece, deployed separately). */
+const FCM_VAPID_KEY = 'BGKSqhoyuFuM6E3pY3PTE5YcpnAoB1_Yf-P9vr269_bxRXq90TRmzd1kr8DnmOtSgyHVijHhdOg-j0AQeubBwvU';
+let fcmMessaging = null;
+
+async function initPushNotifications(){
+  if(!currentStaff) return;
+  if(!('Notification' in window) || !('serviceWorker' in navigator)) return; // unsupported browser, fail quietly
+  try{
+    if(!(await firebase.messaging.isSupported())) return;
+    if(!fcmMessaging) fcmMessaging = firebase.messaging();
+
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted') return; // person declined — respect that silently, no nagging
+
+    const registration = await navigator.serviceWorker.ready;
+    const token = await fcmMessaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
+    if(!token) return;
+
+    // Save this device's token against the logged-in staff member so a Cloud Function can look
+    // up "who to notify" later. One person can have several devices, so tokens are keyed by the
+    // token itself (harmless to re-save the same token on every login).
+    await db.collection('staffPushTokens').doc(token).set({
+      token, staffUser: currentStaff.user, staffName: currentStaff.name, updatedAt: new Date().toISOString()
+    });
+
+    // Foreground messages (app already open) don't show a system notification automatically —
+    // FCM only does that for background/closed tabs — so we show one manually here to match.
+    fcmMessaging.onMessage(payload=>{
+      const title = (payload.notification && payload.notification.title) || 'بن العراب';
+      const body = (payload.notification && payload.notification.body) || '';
+      if(Notification.permission === 'granted'){
+        try{ new Notification(title, { body, icon: './icon-192.png' }); }catch(e){ /* ignore */ }
+      }
+    });
+  }catch(e){
+    console.warn('Push notification setup skipped:', e);
   }
 }
 
@@ -1182,6 +1239,11 @@ function attachLiveSync(){
     APP_STATE.suggestions = list;
     if(currentScreen==='suggestions') renderSuggestionsList();
   });
+  subscribeItemCollection('internalChatMessages', list=>{
+    APP_STATE.chatMessages = list.slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
+    if(currentScreen==='internalChat') renderChatMessages();
+    updateChatNotifBadge();
+  });
 }
 
 // Shows the number of feedback entries registered SINCE the bell was last opened —
@@ -1203,13 +1265,33 @@ function markNotificationsSeen(){
   updateNotifBadges();
 }
 
+// Chat unread badge — unlike the feedback bell, this is visible to every staff member (not
+// just admin), and counts messages from OTHERS sent after this staff member last opened the
+// chat screen. Tracked per-user (in localStorage) since each person's "last read" point differs.
+let lastSeenChatTimestamp = 0;
+function updateChatNotifBadge(){
+  const badge = document.getElementById('chatTileBadge');
+  if(!badge) return;
+  if(!currentStaff){ badge.style.display = 'none'; return; }
+  const messages = APP_STATE.chatMessages || [];
+  const count = messages.filter(m => m.staffUser !== currentStaff.user && new Date(m.date).getTime() > lastSeenChatTimestamp).length;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+function markChatSeen(){
+  if(!currentStaff) return;
+  lastSeenChatTimestamp = Date.now();
+  try{ localStorage.setItem('beitelbunn_lastSeenChat_'+currentStaff.user, String(lastSeenChatTimestamp)); }catch(e){}
+  updateChatNotifBadge();
+}
+
 async function loadAppState(){
   if(!backendConfigured()){ backendReady = false; return { ok:false, reason:'not-configured' }; }
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
     if(!(await ensureSignedIn())){ backendReady = false; return { ok:false, reason:'auth-failed' }; }
-    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', [])
+    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions, chatMessages] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages')
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -1225,6 +1307,7 @@ async function loadAppState(){
     APP_STATE.wasteReports = wasteReports;
     APP_STATE.equipment = equipment;
     APP_STATE.suggestions = suggestions;
+    APP_STATE.chatMessages = chatMessages.slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -1478,6 +1561,7 @@ function go(id){
   if(id==='equipmentReport') renderEquipmentReport();
   if(id==='wasteItemsReport') renderWasteItemsReport();
   if(id==='suggestions'){ renderSuggestionsList(); document.getElementById('sgAddBtn').style.display = isViewer() ? 'none' : ''; }
+  if(id==='internalChat'){ renderChatMessages(); markChatSeen(); }
   if(id==='home'){
     const hideForViewer = ['tileNewFeedback','tileNewCustomer','tileNewComplaint'];
     hideForViewer.forEach(tid=>{
@@ -1930,7 +2014,7 @@ function renderDeptReport(list){
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
     + DEPARTMENTS.map(d=>{
         const c = counts[d.label];
-        return '<div style="background:#FCF9F3;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;">'
+        return '<div class="deptReportCard" data-deptclick="'+esc(d.label)+'" style="background:#FCF9F3;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;cursor:pointer;">'
           + '<div style="font-size:18px;">'+d.icon+'</div>'
           + '<div style="font-weight:800;font-family:\'Cairo\';font-size:15px;color:var(--espresso-2);">'+c.total+'</div>'
           + '<div style="font-size:10.5px;color:var(--muted);margin-bottom:4px;">'+d.label+'</div>'
@@ -1951,6 +2035,16 @@ function renderDeptReport(list){
       + '</div>'
     + '</div>'
     + '</div>';
+  box.querySelectorAll('[data-deptclick]').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const dept = card.getAttribute('data-deptclick');
+      const deptSel = document.getElementById('cpDeptSel');
+      deptSel.value = dept;
+      paintComplaintsList();
+      const listBox = document.getElementById('complaintsListBox');
+      if(listBox) listBox.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
 }
 
 function paintComplaintsList(){
@@ -4141,6 +4235,52 @@ async function deleteSuggestion(id){
   renderSuggestionsList();
 }
 
+/* ================= INTERNAL CHAT (بين الموظفين والإدارة) ================= */
+let isSendingChatMessage = false;
+
+function renderChatMessages(){
+  const box = document.getElementById('chatMessagesBox');
+  const messages = APP_STATE.chatMessages || [];
+  if(!messages.length){
+    box.innerHTML = '<div class="emptystate">لسه مفيش رسائل، ابدأ المحادثة!</div>';
+    return;
+  }
+  const myUser = currentStaff ? currentStaff.user : null;
+  box.innerHTML = messages.map(msg=>{
+    const isOwn = myUser && msg.staffUser === myUser;
+    const timeLabel = new Date(msg.date).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+    return '<div style="display:flex;flex-direction:column;align-items:'+(isOwn?'flex-end':'flex-start')+';">'
+      + (!isOwn ? '<span style="font-size:10.5px;font-weight:700;color:var(--espresso-2);margin-bottom:3px;padding:0 4px;">'+esc(msg.staffName)+'</span>' : '')
+      + '<div style="max-width:78%;background:'+(isOwn?'var(--gold-light)':'#fff')+';border:1px solid var(--line);border-radius:14px;padding:9px 13px;font-size:13.5px;line-height:1.65;color:var(--ink);white-space:pre-wrap;word-break:break-word;">'+esc(msg.text)+'</div>'
+      + '<span style="font-size:9.5px;color:var(--muted);margin-top:3px;padding:0 4px;">'+timeLabel+'</span>'
+      + '</div>';
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+async function sendChatMessage(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text || isSendingChatMessage) return;
+  isSendingChatMessage = true;
+  input.value = '';
+  input.style.height = 'auto';
+  const msg = {
+    id: Date.now()+'_'+Math.random().toString(36).slice(2),
+    text, date: new Date().toISOString(),
+    staffUser: currentStaff ? currentStaff.user : '',
+    staffName: currentStaff ? currentStaff.name : 'غير معروف'
+  };
+  const ok = await saveItem('internalChatMessages', msg);
+  if(ok){
+    APP_STATE.chatMessages.push(msg);
+    renderChatMessages();
+  } else {
+    input.value = text; // give the message back so nothing typed is lost on a failed send
+  }
+  isSendingChatMessage = false;
+}
+
 /* ---- equipment catalog (tracked quantities, deducted automatically by waste reports) ---- */
 async function renderEquipmentManage(){
   const equipment = await getEquipment();
@@ -4727,8 +4867,14 @@ async function doLogin(){
     const saved = localStorage.getItem('beitelbunn_lastSeenCount');
     lastSeenFeedbackCount = saved!=null ? parseInt(saved,10) : APP_STATE.feedback.length;
   }catch(e){ lastSeenFeedbackCount = APP_STATE.feedback.length; }
+  try{
+    const savedChat = localStorage.getItem('beitelbunn_lastSeenChat_'+match.user);
+    lastSeenChatTimestamp = savedChat!=null ? parseInt(savedChat,10) : 0;
+  }catch(e){ lastSeenChatTimestamp = 0; }
   go('home');
   updateNotifBadges();
+  updateChatNotifBadge();
+  initPushNotifications();
 }
 function doLogout(){
   currentStaff = null;
@@ -4842,6 +4988,14 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('wrItemsReportBtn').addEventListener('click', ()=> go('wasteItemsReport'));
   document.getElementById('sgAddBtn').addEventListener('click', ()=>{ resetSuggestionForm(); go('suggestionAdd'); });
   document.getElementById('sgSaveBtn').addEventListener('click', submitSuggestion);
+  document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
+  document.getElementById('chatInput').addEventListener('keydown', e=>{
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChatMessage(); }
+  });
+  document.getElementById('chatInput').addEventListener('input', function(){
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 90) + 'px';
+  });
   document.getElementById('wiMonthSel').addEventListener('change', async e=>{
     wiMonth = e.target.value ? parseInt(e.target.value,10) : null;
     paintWasteItemsReport(await getWasteReports());
