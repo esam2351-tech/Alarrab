@@ -934,6 +934,11 @@
       <p>نزّل نسخة كاملة من كل بيانات التطبيق (عملاء، فيدباك، شكاوى، جملة، مخزون، إلخ) في ملف واحد على جهازك. يُفضّل تعمل الخطوة دي بشكل دوري (أسبوعيًا مثلاً) للحماية من أي مشكلة غير متوقعة.</p>
       <button class="btn primary full" id="downloadBackupBtn">تنزيل نسخة احتياطية كاملة</button>
     </div>
+    <div class="settcard" id="fixOldOrdersCard" style="display:none;">
+      <h3>🔄 تحديث طلبات الجملة القديمة (للمدير فقط)</h3>
+      <p>يمر على كل طلبات عملاء الجملة المسجلة قبل كده، ويحدد أي صنف من (علبه شيكو بن، علبه شيكو زبيب، علبه شيكو سوداني) تلقائيًا كـ"عيّنة/هدية" — بحيث ما يتحسبش في إجمالي كميات العميل ولا في تقارير الفواتير. خطوة لمرة واحدة بس.</p>
+      <button class="btn primary full" id="fixOldOrdersBtn">تحديث الطلبات القديمة الآن</button>
+    </div>
     <div class="settcard" id="staffCard" style="display:none;">
       <h3>الموظفين (للمدير فقط)</h3>
       <p>أضف أو عدّل أو احذف حسابات الموظفين اللي بيدخلوا على التطبيق ويسجلوا فيدباك.</p>
@@ -4808,15 +4813,18 @@ async function renderSettings(){
   const staffCard = document.getElementById('staffCard');
   const clmCard = document.getElementById('checklistManageCard');
   const backupCard = document.getElementById('backupCard');
+  const fixOldOrdersCard = document.getElementById('fixOldOrdersCard');
   if(currentStaff && currentStaff.role === 'admin'){
     staffCard.style.display = 'block';
     clmCard.style.display = 'block';
     backupCard.style.display = 'block';
+    fixOldOrdersCard.style.display = 'block';
     await paintStaffList();
   } else {
     staffCard.style.display = 'none';
     clmCard.style.display = 'none';
     backupCard.style.display = 'none';
+    fixOldOrdersCard.style.display = 'none';
   }
 }
 let editingStaffUser = null; // null = adding a new staff member; otherwise the original @username being edited
@@ -4838,6 +4846,35 @@ function downloadFullBackup(){
   a.href = url; a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// One-time fix: retroactively marks items matching WS_AUTO_EXCLUDED_ITEMS as sample/gift on
+// every EXISTING wholesale order, so old data follows the same rule as new orders going forward.
+async function fixOldWholesaleOrders(){
+  const ok = confirm('هيتم تحديث كل طلبات عملاء الجملة القديمة اللي فيها (علبه شيكو بن، علبه شيكو زبيب، علبه شيكو سوداني) وتحديدهم كـ"عيّنة/هدية" تلقائيًا. متأكد إنك عايز تكمل؟');
+  if(!ok) return;
+  const btn = document.getElementById('fixOldOrdersBtn');
+  btn.disabled = true; btn.textContent = 'جارِ التحديث...';
+
+  const orders = await getWholesaleOrders();
+  let changedOrders = 0, changedItems = 0;
+  const updated = orders.map(o=>{
+    if(!o.items || !o.items.length) return o;
+    let orderChanged = false;
+    const newItems = o.items.map(it=>{
+      if(WS_AUTO_EXCLUDED_ITEMS.includes(it.name) && !it.excluded){
+        orderChanged = true; changedItems++;
+        return Object.assign({}, it, { excluded: true });
+      }
+      return it;
+    });
+    if(orderChanged){ changedOrders++; return Object.assign({}, o, { items: newItems }); }
+    return o;
+  });
+  await saveWholesaleOrders(updated);
+
+  btn.disabled = false; btn.textContent = 'تحديث الطلبات القديمة الآن';
+  alert('تم التحديث ✅\nعدد الطلبات اللي اتعدلت: '+changedOrders+'\nعدد الأصناف اللي اتحددت كعيّنة/هدية: '+changedItems);
 }
 
 async function paintStaffList(){
@@ -5040,6 +5077,7 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
   document.getElementById('logoutBtn').addEventListener('click', doLogout);
   document.getElementById('downloadBackupBtn').addEventListener('click', downloadFullBackup);
+  document.getElementById('fixOldOrdersBtn').addEventListener('click', fixOldWholesaleOrders);
   document.getElementById('installBtnLogin').addEventListener('click', installApp);
   document.getElementById('installBtnSettings').addEventListener('click', installApp);
   document.getElementById('addStaffBtn').addEventListener('click', addStaffMember);
