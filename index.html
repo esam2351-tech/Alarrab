@@ -3216,7 +3216,7 @@ async function renderWholesaleProfile(){
   const custOrders = orders.filter(o=>o.phone===currentWholesalePhone).sort((a,b)=>new Date(b.date)-new Date(a.date));
   const custCalls = calls.filter(cl=>cl.phone===currentWholesalePhone).sort((a,b)=>new Date(b.date)-new Date(a.date));
   const initials = (cust.name||'؟').trim().split(' ').slice(0,2).map(w=>w[0]).join(' ');
-  const totalQty = custOrders.reduce((sum,o)=> sum + (o.items||[]).reduce((s,it)=>s+(Number(it.qty)||0),0), 0);
+  const totalQty = custOrders.reduce((sum,o)=> sum + (o.items||[]).reduce((s,it)=> it.excluded ? s : s+(Number(it.qty)||0),0), 0);
   const totalInvoiced = custOrders.reduce((sum,o)=> sum + (Number(o.invoiceTotal)||0), 0);
   const totalDiscount = custOrders.reduce((sum,o)=> sum + (Number(o.discount)||0), 0);
   const totalPaid = custOrders.reduce((sum,o)=> sum + (Number(o.finalTotal)||0), 0);
@@ -3224,7 +3224,7 @@ async function renderWholesaleProfile(){
   const ordersHtml = custOrders.length
     ? custOrders.map(o=>{
         const itemsSummary = (o.items && o.items.length)
-          ? o.items.map(it=> (it.qty||1)+'× '+esc(it.name)).join('، ')
+          ? o.items.map(it=> (it.qty||1)+'× '+esc(it.name)+(it.excluded ? ' 🎁' : '')).join('، ')
           : '—';
         return '<div class="frow" style="flex-direction:column;align-items:flex-start;gap:3px;">'
           + '<div style="display:flex;justify-content:space-between;width:100%;align-items:center;"><b>'+new Date(o.date).toLocaleDateString('ar-EG')+'</b><span style="display:flex;align-items:center;gap:8px;">'+esc(o.staff||'—')+(isViewer() ? '' : '<button class="delStaff" data-delorder="'+esc(o.id)+'" style="color:var(--bad);flex-shrink:0;">حذف</button>')+'</span></div>'
@@ -3298,6 +3298,10 @@ async function renderWholesaleProfile(){
 
 /* ---- log a wholesale order, with optional invoice-photo OCR to prefill items ---- */
 let wsWorkingItems = [];
+// These specific items are almost always given as free samples/gifts to wholesale customers,
+// so picking one auto-checks "sample/gift" — the employee can still untick it if this particular
+// case is a real paid sale.
+const WS_AUTO_EXCLUDED_ITEMS = ['علبه شيكو بن', 'علبه شيكو زبيب', 'علبه شيكو سوداني'];
 let wsProductCatalog = [];
 async function resetWsOrderForm(){
   wsProductCatalog = await getWholesaleProducts();
@@ -3311,7 +3315,7 @@ async function resetWsOrderForm(){
 }
 function wsItemTotal(it){ return (Number(it.qty)||0) * (Number(it.price)||0); }
 function updateWsInvoiceSummary(){
-  const suggested = wsWorkingItems.reduce((s,it)=> s + wsItemTotal(it), 0);
+  const suggested = wsWorkingItems.reduce((s,it)=> s + (it.excluded ? 0 : wsItemTotal(it)), 0);
   const totalInput = document.getElementById('ws_invoiceTotal');
   // only auto-fill if the person hasn't typed a custom total yet (so we don't overwrite their own number)
   if(!totalInput.dataset.userEdited && suggested>0){ totalInput.value = suggested.toFixed(2); }
@@ -3337,10 +3341,23 @@ function renderWsItemsBox(){
         + '<div class="numcol"><label>الإجمالي</label><div class="wsItemTotalDisplay" data-idx="'+idx+'">'+wsItemTotal(it).toFixed(2)+'</div></div>'
         + '<button type="button" class="wsDelItemBtn" data-idx="'+idx+'">✕</button>'
       + '</div>'
+      + '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-top:8px;">'
+        + '<input type="checkbox" class="wsItemExcluded" data-idx="'+idx+'" style="width:auto;margin:0;" '+(it.excluded?'checked':'')+'> '
+        + 'عيّنة/هدية — لا تُحسب في إجمالي كميات العميل ولا في فاتورته'
+      + '</label>'
     + '</div>'
   ).join('');
   box.querySelectorAll('.wsItemName').forEach(sel=>{
-    sel.addEventListener('change', ()=>{ wsWorkingItems[parseInt(sel.dataset.idx,10)].name = sel.value; });
+    sel.addEventListener('change', ()=>{
+      const idx = parseInt(sel.dataset.idx,10);
+      wsWorkingItems[idx].name = sel.value;
+      if(WS_AUTO_EXCLUDED_ITEMS.includes(sel.value)){
+        wsWorkingItems[idx].excluded = true;
+        const chk = box.querySelector('.wsItemExcluded[data-idx="'+idx+'"]');
+        if(chk) chk.checked = true;
+        updateWsInvoiceSummary();
+      }
+    });
   });
   box.querySelectorAll('.wsItemQty, .wsItemPrice').forEach(inp=>{
     inp.addEventListener('input', ()=>{
@@ -3350,6 +3367,13 @@ function renderWsItemsBox(){
       else it.price = parseFloat(inp.value) || 0;
       const totalEl = box.querySelector('.wsItemTotalDisplay[data-idx="'+idx+'"]');
       if(totalEl) totalEl.textContent = wsItemTotal(it).toFixed(2);
+      updateWsInvoiceSummary();
+    });
+  });
+  box.querySelectorAll('.wsItemExcluded').forEach(chk=>{
+    chk.addEventListener('change', ()=>{
+      const idx = parseInt(chk.dataset.idx,10);
+      wsWorkingItems[idx].excluded = chk.checked;
       updateWsInvoiceSummary();
     });
   });
@@ -3411,7 +3435,7 @@ async function submitWholesaleOrder(){
 
   const cleanItems = wsWorkingItems
     .filter(it=> it.name && it.name.trim())
-    .map(it=>({name:it.name.trim(), qty: it.qty||0, price: it.price||0, total: wsItemTotal(it)}));
+    .map(it=>({name:it.name.trim(), qty: it.qty||0, price: it.price||0, total: wsItemTotal(it), excluded: !!it.excluded}));
 
   const invoiceTotal = parseFloat(document.getElementById('ws_invoiceTotal').value) || 0;
   const discount = parseFloat(document.getElementById('ws_discount').value) || 0;
@@ -3508,7 +3532,7 @@ async function renderWholesaleReport(){
   const rows = customers.map(c=>{
     const custOrders = ordersFiltered.filter(o=>o.phone===c.phone);
     const cCount = callsFiltered.filter(cl=>cl.phone===c.phone).length;
-    const qty = custOrders.reduce((s,o)=> s + (o.items||[]).reduce((s2,it)=>s2+(Number(it.qty)||0),0), 0);
+    const qty = custOrders.reduce((s,o)=> s + (o.items||[]).reduce((s2,it)=> it.excluded ? s2 : s2+(Number(it.qty)||0),0), 0);
     const invoiced = custOrders.reduce((s,o)=> s + (Number(o.invoiceTotal)||0), 0);
     const discount = custOrders.reduce((s,o)=> s + (Number(o.discount)||0), 0);
     const paid = custOrders.reduce((s,o)=> s + (Number(o.finalTotal)||0), 0);
@@ -3538,6 +3562,7 @@ async function renderWholesaleReport(){
   const itemTotals = {};
   ordersFiltered.forEach(o=>{
     (o.items||[]).forEach(it=>{
+      if(it.excluded) return;
       const key = (it.name||'').trim();
       if(!key) return;
       itemTotals[key] = (itemTotals[key]||0) + (Number(it.qty)||0);
