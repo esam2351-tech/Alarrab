@@ -3479,6 +3479,7 @@ async function deleteWholesaleCustomer(phone){
 /* ---- wholesale report: month/year filtered order & call counts per customer ---- */
 let wsReportMonth = new Date().getMonth()+1;
 let wsReportYear = new Date().getFullYear();
+let wsReportDay = null; // 1-31, null = كل الأيام
 async function renderWholesaleReport(){
   const body = document.getElementById('wsReportBody');
   const customers = await getWholesaleCustomers();
@@ -3493,12 +3494,14 @@ async function renderWholesaleReport(){
     const d = new Date(o.date);
     if(wsReportMonth!=null && (d.getMonth()+1)!==wsReportMonth) return false;
     if(wsReportYear!=null && d.getFullYear()!==wsReportYear) return false;
+    if(wsReportDay!=null && d.getDate()!==wsReportDay) return false;
     return true;
   });
   const callsFiltered = calls.filter(cl=>{
     const d = new Date(cl.date);
     if(wsReportMonth!=null && (d.getMonth()+1)!==wsReportMonth) return false;
     if(wsReportYear!=null && d.getFullYear()!==wsReportYear) return false;
+    if(wsReportDay!=null && d.getDate()!==wsReportDay) return false;
     return true;
   });
 
@@ -3554,6 +3557,10 @@ async function renderWholesaleReport(){
     '<div class="repcard" style="margin:0 18px 14px;">'
       + '<h4>📅 اختر الفترة</h4>'
       + '<div style="display:flex;gap:8px;">'
+        + '<select id="wsReportDaySel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:\'Tajawal\';background:#FCF9F3;">'
+          + '<option value="">كل الأيام</option>'
+          + Array.from({length:31},(_, i)=>i+1).map(d=>'<option value="'+d+'" '+(wsReportDay===d?'selected':'')+'>'+d+'</option>').join('')
+        + '</select>'
         + '<select id="wsReportMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:\'Tajawal\';background:#FCF9F3;">'
           + '<option value="">كل الشهور</option>'
           + ARABIC_MONTHS.map((m,i)=>'<option value="'+(i+1)+'" '+(wsReportMonth===(i+1)?'selected':'')+'>'+m+'</option>').join('')
@@ -3604,6 +3611,10 @@ async function renderWholesaleReport(){
     el.addEventListener('click', ()=> openWholesaleProfile(el.getAttribute('data-viewwscust')));
   });
 
+  document.getElementById('wsReportDaySel').addEventListener('change', e=>{
+    wsReportDay = e.target.value ? parseInt(e.target.value,10) : null;
+    renderWholesaleReport();
+  });
   document.getElementById('wsReportMonthSel').addEventListener('change', e=>{
     wsReportMonth = e.target.value ? parseInt(e.target.value,10) : null;
     renderWholesaleReport();
