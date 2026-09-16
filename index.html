@@ -4309,6 +4309,9 @@ async function renderSuggestionsList(){
       + '<div class="ctop"><div><h4>'+esc(s.submitter||'—')+'</h4><small>'+dateLabel+' · سجّله: '+esc(s.staff||'—')+'</small></div>'
       + '<span class="cstatus '+statusClass+'">'+statusLabel+'</span></div>'
       + '<div class="crow">'+esc(s.description||'—')+'</div>'
+      + '<div class="cbtnrow" style="margin-top:8px;">'
+        + '<button class="shareWaBtn" data-sgshare="'+esc(s.id)+'">📤 واتساب</button>'
+      + '</div>'
       + (isViewer() ? '' :
         '<div class="cbtnrow" style="margin-top:8px;">'
           + '<button class="toggleStatusBtn '+statusClass+'" data-sgtoggle="'+esc(s.id)+'">'+(status==='implemented' ? '↩️ رجوع لتحت الدراسة' : '✓ تحديد كمنفّذ')+'</button>'
@@ -4316,6 +4319,9 @@ async function renderSuggestionsList(){
         + '</div>')
       + '</div>';
   }).join('');
+  box.querySelectorAll('[data-sgshare]').forEach(btn=>{
+    btn.addEventListener('click', ()=> shareSuggestion(btn.getAttribute('data-sgshare')));
+  });
   box.querySelectorAll('[data-sgtoggle]').forEach(btn=>{
     btn.addEventListener('click', ()=> toggleSuggestionStatus(btn.getAttribute('data-sgtoggle')));
   });
@@ -4371,6 +4377,69 @@ async function deleteSuggestion(id){
   await saveSuggestions(updated);
   allSuggestionsCache = updated.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
   renderSuggestionsList();
+}
+
+function buildSuggestionShareHTML(s){
+  const dateLabel = new Date(s.date).toLocaleDateString('ar-EG', {year:'numeric', month:'2-digit', day:'2-digit'});
+  const status = s.status || 'review';
+  const statusLabel = status==='implemented' ? 'تم التنفيذ ✅' : 'تحت الدراسة ⏳';
+  const statusColor = status==='implemented' ? '#4C8B5D' : '#C0392B';
+  return '<div style="font-family:Tajawal,sans-serif;direction:rtl;width:760px;background:#FBF3E6;padding:32px 36px;color:#2B211B;box-sizing:border-box;">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">'
+      + '<div style="display:flex;align-items:center;gap:10px;">'
+        + '<img src="'+LOGO_DATA_URI+'" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0;">'
+        + '<div><div style="font-family:Cairo,sans-serif;font-weight:900;font-size:22px;color:#2A1810;">بن العراب</div>'
+        + '<div style="font-size:10px;color:#8C7B6D;letter-spacing:2px;">BIN ALARAB</div></div>'
+      + '</div>'
+      + '<div style="text-align:center;"><div style="font-family:Cairo,sans-serif;font-weight:900;font-size:20px;color:#2A1810;">💡 مقترح</div></div>'
+      + '<div style="background:'+statusColor+';color:#fff;padding:7px 16px;border-radius:20px;font-size:12.5px;font-weight:800;">'+statusLabel+'</div>'
+    + '</div>'
+    + '<div style="background:#fff;border:1px solid #EEE2D1;border-radius:12px;padding:6px 18px;margin-bottom:16px;">'
+      + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">مقدّم الاقتراح</div><div style="font-size:14px;font-weight:700;">'+esc(s.submitter||'—')+'</div></div>'
+      + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">التاريخ</div><div style="font-size:14px;font-weight:700;">'+dateLabel+'</div></div>'
+      + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">سجّله</div><div style="font-size:14px;font-weight:700;">'+esc(s.staff||'—')+'</div></div>'
+      + '<div style="border-top:1px solid #F0E8DA;padding:11px 4px;"><div style="font-size:11px;color:#8C7B6D;margin-bottom:3px;">شرح المقترح</div><div style="font-size:14px;font-weight:600;line-height:1.6;">'+esc(s.description||'—')+'</div></div>'
+    + '</div>'
+    + '<div style="text-align:center;margin-top:18px;padding:14px;background:#2A1810;color:#C08A34;border-radius:10px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;">بن العراب</div>'
+    + '</div>';
+}
+
+async function shareSuggestion(id){
+  const s = allSuggestionsCache.find(x=>x.id===id);
+  if(!s) return;
+  const btn = document.querySelector('[data-sgshare="'+id+'"]');
+  if(btn){ btn.disabled = true; btn.textContent = 'جارِ تجهيز الصورة...'; }
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
+  container.style.opacity = '0'; container.style.pointerEvents = 'none'; container.style.zIndex = '-9999';
+  container.innerHTML = buildSuggestionShareHTML(s);
+  document.body.appendChild(container);
+
+  try{
+    if(document.fonts && document.fonts.ready){ await document.fonts.ready.catch(()=>{}); }
+    const canvas = await html2canvas(container.firstElementChild, {scale:3, backgroundColor:'#FBF3E6', useCORS:true, width:760, windowWidth:760});
+    container.remove();
+    const blob = await new Promise(res=> canvas.toBlob(res, 'image/png', 1.0));
+
+    if(btn){ btn.disabled = false; btn.textContent = '📤 واتساب'; }
+    if(!blob) throw new Error('toBlob failed');
+    const dateStr = new Date(s.date).toISOString().slice(0,10);
+    const fileName = 'مقترح-'+(s.submitter||'عام')+'-'+dateStr+'.png';
+    const file = new File([blob], fileName, {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file], title:'مقترح - بن العراب', text:'مقترح من '+(s.submitter||'—')}); return; }
+      catch(e){ /* user cancelled - fall through to download */ }
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a'); a.href = url; a.download = fileName; a.click();
+    URL.revokeObjectURL(url);
+    alert('المتصفح ده مش بيدعم فتح شاشة المشاركة مباشرة، فاتحفظت الصورة في الجهاز. افتح واتساب بنفسك وابعتها من هناك.');
+  }catch(e){
+    container.remove();
+    if(btn){ btn.disabled = false; btn.textContent = '📤 واتساب'; }
+    alert('تعذّرت مشاركة الصورة، حاول تاني');
+  }
 }
 
 /* ================= INTERNAL CHAT (بين الموظفين والإدارة) ================= */
