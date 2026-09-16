@@ -883,7 +883,8 @@
   <div class="screen" id="suggestions">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>المقترحات</h2></div>
     <div class="wrap" style="padding-top:0;">
-      <button class="btn primary full" id="sgAddBtn" style="margin-bottom:14px;">+ تسجيل مقترح جديد</button>
+      <button class="btn primary full" id="sgAddBtn" style="margin-bottom:10px;">+ تسجيل مقترح جديد</button>
+      <button class="btn ghost full" id="sgExportExcelBtn" style="margin-bottom:14px;">📊 تصدير Excel</button>
     </div>
     <div id="sgList"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
@@ -5162,6 +5163,14 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('wrEquipReportBtn').addEventListener('click', ()=> go('equipmentReport'));
   document.getElementById('wrItemsReportBtn').addEventListener('click', ()=> go('wasteItemsReport'));
   document.getElementById('sgAddBtn').addEventListener('click', ()=>{ resetSuggestionForm(); go('suggestionAdd'); });
+  document.getElementById('sgExportExcelBtn').addEventListener('click', ()=>{
+    const headers = ['التاريخ','مقدّم الاقتراح','سجّله','شرح المقترح','الحالة'];
+    const rows = allSuggestionsCache.map(s=>[
+      new Date(s.date).toLocaleDateString('ar-EG'), s.submitter||'—', s.staff||'—', s.description||'—',
+      (s.status==='implemented') ? 'تم التنفيذ' : 'تحت الدراسة'
+    ]);
+    exportRowsToExcel('تقرير-المقترحات.xlsx', 'المقترحات', headers, rows);
+  });
   document.getElementById('sgSaveBtn').addEventListener('click', submitSuggestion);
   document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
   document.getElementById('chatToast').addEventListener('click', ()=>{
