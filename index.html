@@ -4984,35 +4984,96 @@ async function exportPerformanceReviewsExcel(){
     let sheetsAdded = 0;
     const skipped = [];
     const usedSheetNames = {};
+    const summaryRows = []; // one row per employee: overall combined average across every department they worked this month
 
-    employees.forEach(s=>{
+    // pass 1: work out each employee's department breakdown + their overall combined average,
+    // without appending any sheet yet — so the summary sheet (built from this) can be placed
+    // FIRST in the workbook, ahead of the per-department sheets it summarizes
+    const employeeExports = employees.map(s=>{
       const monthEntries = reviews.filter(r=> r.user===s.user && (new Date(r.date).getMonth()+1)===month && new Date(r.date).getFullYear()===year);
-      // whichever job/template this employee was recorded under most this month decides the
-      // sheet's columns; with no entries yet this month, fall back to their assigned default
-      let templateId = null;
-      if(monthEntries.length){
-        const counts = {};
-        monthEntries.forEach(e=> counts[e.templateId] = (counts[e.templateId]||0)+1);
-        templateId = Object.keys(counts).sort((a,b)=> counts[b]-counts[a])[0];
-      } else {
-        templateId = s.reviewTemplateId;
+      // an employee can work more than one department in the same month (a few days on the
+      // till, a few days on car service), each with its own checklist — so group this month's
+      // work days by the exact checklist (criteria labels) they were recorded under, and build
+      // ONE SHEET PER DEPARTMENT, instead of picking only the most-common one and dropping every
+      // day recorded under a different department. Matched by criteria content, not templateId —
+      // a leave/no-checklist day, or a day saved under a renamed/deleted template, both store
+      // templateId as null, and JS silently turns that into the STRING "null" as an object key,
+      // which then never strict-equals the real null when looked back up; comparing by the
+      // criteria content instead sidesteps that entirely.
+      const workEntries = monthEntries.filter(e=> Array.isArray(e.criteria) && e.criteria.length);
+      const deptGroups = {}; // key: criteria-signature -> { criteria, jobTitle, entries: [only that dept's days] }
+      workEntries.forEach(e=>{
+        const key = e.criteria.map(c=>c.label).join('|');
+        if(!deptGroups[key]) deptGroups[key] = { criteria: e.criteria, jobTitle: e.jobTitle || '', entries: [] };
+        deptGroups[key].entries.push(e);
+      });
+      let deptKeys = Object.keys(deptGroups);
+      if(!deptKeys.length){
+        // no work days recorded this month (only leave days, or nothing at all) — fall back to
+        // the employee's assigned default template so at least one sheet still gets built
+        const tpl = templates.find(t=> t.id === s.reviewTemplateId);
+        if(tpl){ deptGroups['__default__'] = { criteria: tpl.criteria, jobTitle: tpl.jobTitle||'', entries: [] }; deptKeys = ['__default__']; }
       }
-      let criteria = null;
-      const matchingEntry = monthEntries.find(e=> e.templateId === templateId);
-      if(matchingEntry && Array.isArray(matchingEntry.criteria) && matchingEntry.criteria.length){
-        criteria = matchingEntry.criteria; // the exact snapshot actually used that month
-      } else {
-        const tpl = templates.find(t=> t.id === templateId);
-        if(tpl) criteria = tpl.criteria;
-      }
-      if(!criteria || !criteria.length){ skipped.push(s.name); return; }
+      if(!deptKeys.length){ skipped.push(s.name); return null; }
 
-      const sheet = buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth);
-      let sheetName = String(s.name).replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,31).trim() || s.user;
-      if(usedSheetNames[sheetName]){ usedSheetNames[sheetName]++; sheetName = sheetName.slice(0,28)+' '+usedSheetNames[sheetName]; }
-      else usedSheetNames[sheetName] = 1;
-      XLSX.utils.book_append_sheet(wb, sheet, sheetName);
-      sheetsAdded++;
+      // the OVERALL average for the employee — combining every department worked this month —
+      // is each work day's own score (own criteria/own weights that day) averaged together;
+      // this is the same number shown next to the employee in the app's performance-reviews list
+      const combinedAvg = workEntries.length ? prMonthlyAverage(workEntries) : null;
+      summaryRows.push({
+        name: s.name,
+        depts: deptKeys.map(k=> deptGroups[k].jobTitle).filter(Boolean).join(' + ') || '—',
+        avg: combinedAvg,
+        days: workEntries.length
+      });
+
+      return { s, deptGroups, deptKeys };
+    }).filter(Boolean);
+
+    // summary sheet — the combined/overall average per employee, across every department they
+    // worked this month, so it doesn't have to be worked out by hand from the per-department sheets
+    if(summaryRows.length){
+      const HEADER_FONT = { name:'Arial', sz:10, bold:true, italic:true };
+      const BODY_FONT = { name:'Arial', sz:10 };
+      const THIN = { style:'thin', color:{rgb:'000000'} };
+      const BORDER_ALL = { top:THIN, bottom:THIN, left:THIN, right:THIN };
+      const CENTER = { horizontal:'center', vertical:'center', wrapText:true };
+      const headerStyle = { font: HEADER_FONT, alignment: CENTER, border: BORDER_ALL, fill:{ fgColor:{ rgb:'F2E6D3' }, patternType:'solid' } };
+      const cellStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL };
+      const sumAoa = [ ['الموظف','القسم / الأقسام','متوسط تقييم الشهر','عدد أيام التقييم'] ];
+      summaryRows.forEach(row=> sumAoa.push([ row.name, row.depts, row.avg==null ? null : row.avg/100, row.days ]));
+      const sumWs = XLSX.utils.aoa_to_sheet(sumAoa);
+      sumWs['!cols'] = [ {wch:20}, {wch:28}, {wch:16}, {wch:14} ];
+      sumWs['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:sumAoa.length-1,c:3} });
+      for(let r=0; r<sumAoa.length; r++){
+        for(let c=0; c<4; c++){
+          const addr = XLSX.utils.encode_cell({r,c});
+          if(!sumWs[addr]) sumWs[addr] = { t:'z' };
+          sumWs[addr].s = (r===0) ? headerStyle : cellStyle;
+          if(r>0 && c===2) sumWs[addr].z = '0%';
+        }
+      }
+      XLSX.utils.book_append_sheet(wb, sumWs, 'ملخص الشهر');
+      usedSheetNames['ملخص الشهر'] = 1;
+    }
+
+    // pass 2: append every employee's per-department sheet(s), after the summary sheet
+    employeeExports.forEach(({s, deptGroups, deptKeys})=>{
+      const baseName = String(s.name).replace(/[\\\/\?\*\[\]:]/g,' ').trim() || s.user;
+      deptKeys.forEach(key=>{
+        const group = deptGroups[key];
+        const sheet = buildPrEmployeeSheet(group.criteria, group.entries, year, month, daysInMonth);
+        // more than one department this month → suffix the sheet name with the job title so
+        // each one is identifiable; only one department → keep the plain employee name as before
+        let sheetName = deptKeys.length > 1
+          ? (baseName+' - '+String(group.jobTitle||'').replace(/[\\\/\?\*\[\]:]/g,' ').trim()).trim().slice(0,31).trim()
+          : baseName.slice(0,31).trim();
+        if(!sheetName) sheetName = s.user;
+        if(usedSheetNames[sheetName]){ usedSheetNames[sheetName]++; sheetName = sheetName.slice(0,28)+' '+usedSheetNames[sheetName]; }
+        else usedSheetNames[sheetName] = 1;
+        XLSX.utils.book_append_sheet(wb, sheet, sheetName);
+        sheetsAdded++;
+      });
     });
 
     if(!sheetsAdded){
