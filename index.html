@@ -4694,16 +4694,66 @@ async function shareSuggestion(id){
    else's. */
 
 // ---- Templates (per job/position) ----
+// Every job shares the same first 4 criteria labels (نظافة شخصية / يونيفورم كامل / تعامل مع
+// العملاء / تعامل مع الزملاء أو فريق العمل) — on the branch's real paper form these sit under 2
+// shared category headers ("الإلتزام بالمظهر اللائق" and "التعامل بأسلوب لائق"); see
+// PR_GROUPED_HEADER_DEFS below, which the Excel export uses to redraw that same grouping.
+// Each job's own weights for these 4 + its own 4-5 job-specific criteria come straight from
+// the branch's real daily evaluation sheets (مسئول الخزينة، خدمة السيارات، عامل النظافة،
+// مساعد مدير الفرع، باريستا).
 const DEFAULT_REVIEW_TEMPLATES = [
   { id:'cashier', jobTitle:'مسئول الخزينة', criteria:[
     {id:'c1', label:'النظافة الشخصية', weight:5},
-    {id:'c2', label:'الالتزام بالمظهر اللائق', weight:10},
+    {id:'c2', label:'اليونيفورم كامل', weight:10},
     {id:'c3', label:'التعامل مع العملاء', weight:5},
     {id:'c4', label:'التعامل مع الزملاء', weight:10},
-    {id:'c5', label:'تفعيل الإيراد اليومي بشكل سليم', weight:25},
+    {id:'c5', label:'تقفيل الإيراد اليومي بشكل سليم', weight:25},
     {id:'c6', label:'الالتزام بأوقات الراحة', weight:10},
-    {id:'c7', label:'تسجيل بيانات العملاء بنظام الولاء', weight:15},
+    {id:'c7', label:'تسجيل بيانات العملاء بنظام الولائية', weight:15},
     {id:'c8', label:'الترويج للمنتجات والعروض بشكل دوري', weight:10},
+    {id:'c9', label:'تنفيذ تعليمات قائد الفريق', weight:10}
+  ]},
+  { id:'car_service', jobTitle:'مسئول خدمة السيارات', criteria:[
+    {id:'c1', label:'النظافة الشخصية', weight:5},
+    {id:'c2', label:'اليونيفورم كامل', weight:10},
+    {id:'c3', label:'التعامل مع العملاء', weight:10},
+    {id:'c4', label:'التعامل مع الزملاء', weight:10},
+    {id:'c5', label:'عدد طلبات خدمة السيارات فى اليوم', weight:20},
+    {id:'c6', label:'الالتزام بأوقات الراحة', weight:10},
+    {id:'c7', label:'سرعة تقديم الخدمة للعملاء', weight:15},
+    {id:'c8', label:'الترويج للمنتجات والعروض بشكل دوري', weight:10},
+    {id:'c9', label:'تنفيذ تعليمات قائد الفريق', weight:10}
+  ]},
+  { id:'cleaner', jobTitle:'عامل النظافة', criteria:[
+    {id:'c1', label:'النظافة الشخصية', weight:5},
+    {id:'c2', label:'اليونيفورم كامل', weight:10},
+    {id:'c3', label:'التعامل مع العملاء', weight:10},
+    {id:'c4', label:'التعامل مع الزملاء', weight:5},
+    {id:'c5', label:'الالتزام بجدول النظافة اليومي', weight:30},
+    {id:'c6', label:'الالتزام بأوقات الراحة', weight:10},
+    {id:'c7', label:'الحفاظ على أدوات ومهمات النظافة والإبلاغ عن التلفيات بها', weight:20},
+    {id:'c8', label:'تنفيذ تعليمات قائد الفريق', weight:10}
+  ]},
+  { id:'assistant_manager', jobTitle:'مساعد مدير الفرع', criteria:[
+    {id:'c1', label:'النظافة الشخصية', weight:5},
+    {id:'c2', label:'اليونيفورم كامل', weight:10},
+    {id:'c3', label:'التعامل مع العملاء', weight:10},
+    {id:'c4', label:'التعامل مع فريق العمل', weight:10},
+    {id:'c5', label:'تجهيز التقارير حسب دوريتها (قائمة التحقق - تقييم الموظفين - الطلبيات - ...)', weight:25},
+    {id:'c6', label:'توافر جميع مهمات التشغيل داخل البار ومخزن الفرع', weight:10},
+    {id:'c7', label:'سير التشغيل بشكل إنسيابي وحل المشكلات خلال الوردية', weight:10},
+    {id:'c8', label:'تحسين العمليات والإبلاغ عن شكاوى ومقترحات العملاء', weight:10},
+    {id:'c9', label:'الالتزام بتنفيذ تعليمات مدير الفرع', weight:10}
+  ]},
+  { id:'barista', jobTitle:'باريستا', criteria:[
+    {id:'c1', label:'النظافة الشخصية', weight:5},
+    {id:'c2', label:'اليونيفورم كامل', weight:10},
+    {id:'c3', label:'التعامل مع العملاء', weight:5},
+    {id:'c4', label:'التعامل مع الزملاء', weight:10},
+    {id:'c5', label:'الالتزام بمقادير العراب لجميع المشروبات والبن', weight:25},
+    {id:'c6', label:'الالتزام بأوقات الراحة', weight:10},
+    {id:'c7', label:'الحفاظ على معدات البار وادوات التشغيل', weight:15},
+    {id:'c8', label:'الحفاظ على نظافة القسم بشكل دوري', weight:10},
     {id:'c9', label:'تنفيذ تعليمات قائد الفريق', weight:10}
   ]}
 ];
@@ -4970,12 +5020,31 @@ async function exportPerformanceReviewsExcel(){
   }
 }
 
-// Builds one employee's sheet. Every criterion gets its own single header column spanning
-// both header rows — the real paper form groups its first two criteria pairs under a shared
-// category header ("الإلتزام بالمظهر اللائق" over "النظافة الشخصية"+"اليونيفورم كامل"), but
-// our stored templates don't carry that 2-level grouping metadata, so each criterion is shown
-// under its own name instead. Everything else — weight row, daily formula total, notes,
-// month-average row — matches the paper form exactly.
+// Detects the branch's 2 fixed category groupings ("الإلتزام بالمظهر اللائق" over نظافة
+// شخصية+يونيفورم كامل, and "التعامل بأسلوب لائق" over تعامل مع العملاء+تعامل مع الزملاء/فريق
+// العمل) whenever a template's first 4 criteria match, in order — true for every job on the
+// real paper forms (مسئول الخزينة، خدمة السيارات، عامل النظافة، مساعد مدير الفرع، باريستا).
+// A future/custom template that doesn't start with this exact 4-criteria pattern just falls
+// back to a flat single-column header per criterion, so the export never breaks on it.
+function prDetectGroupedHeaders(criteria){
+  if(criteria.length < 4) return null;
+  const [c0,c1,c2,c3] = criteria;
+  if(c0.label==='النظافة الشخصية' && c1.label==='اليونيفورم كامل' &&
+     c2.label==='التعامل مع العملاء' && (c3.label==='التعامل مع الزملاء' || c3.label==='التعامل مع فريق العمل')){
+    return [
+      { header:'الإلتزام بالمظهر اللائق', subIdx:[0,1] },
+      { header:'التعامل بأسلوب لائق', subIdx:[2,3] }
+    ];
+  }
+  return null;
+}
+
+// Builds one employee's sheet with the SAME 3-row header the real paper form uses: row1 =
+// each criterion's own label (or, for the 2 known category pairs, a shared group label
+// spanning its 2 criteria), row2 = that criterion's own label under a grouped pair (blank/
+// merged for a standalone criterion), row3 = every criterion's weight. Then one row per
+// calendar day (1/0 per criterion + a formula-computed total + notes), and a final
+// "المتوسط النهائي للشهر" row averaging the whole month.
 function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
   const HEADER_FONT = { name:'Arial', sz:10, bold:true, italic:true };
   const BODY_FONT = { name:'Arial', sz:10 };
@@ -4990,13 +5059,28 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
   const notesCol = totalCol + 1;       // 0-based column index of "ملاحظات"
   const colCount = notesCol + 1;
   const colLetter = (i)=> XLSX.utils.encode_col(i);
+  const groups = prDetectGroupedHeaders(criteria); // null, or the 2 known category-header defs
+  const groupedCriteriaIdx = new Set(); // criteria indexes that belong to a group (both members)
+  if(groups) groups.forEach(g=> g.subIdx.forEach(i=> groupedCriteriaIdx.add(i)));
+
+  const HEADER_ROWS = 3; // top label / sub-label / weight — matches the real paper form
+  const DAY_ROW_START = HEADER_ROWS; // 0-based; day 1 lands here
 
   const entryByDate = {};
   monthEntries.forEach(e=> entryByDate[new Date(e.date).getDate()] = e);
 
-  const aoa = [];
-  aoa.push(['اليوم','التاريخ', ...criteria.map(c=>c.label), 'إجمالي التقييم','ملاحظات']);
-  aoa.push(['وزن البند','', ...criteria.map(c=> (Number(c.weight)||0)/100), 0, '']);
+  const aoa = [ new Array(colCount).fill(''), new Array(colCount).fill(''), new Array(colCount).fill('') ];
+  aoa[0][0] = 'اليوم'; aoa[0][1] = 'التاريخ'; aoa[0][totalCol] = 'إجمالي التقييم'; aoa[0][notesCol] = 'ملاحظات';
+  aoa[2][0] = 'وزن البند';
+  for(let ci=0; ci<nCriteria; ci++){
+    const col = 2+ci;
+    if(!groupedCriteriaIdx.has(ci)){ aoa[0][col] = criteria[ci].label; } // standalone: label sits on row1, spans down to row2
+    aoa[2][col] = (Number(criteria[ci].weight)||0)/100;
+  }
+  if(groups) groups.forEach(g=>{
+    aoa[0][2+g.subIdx[0]] = g.header;              // shared category label, row1, merged across its 2 columns
+    g.subIdx.forEach(i=> aoa[1][2+i] = criteria[i].label); // each criterion's own label, row2
+  });
 
   const dayTotalRows = []; // 1-based Excel row numbers of every day row, for the AVERAGE formula
   const dayTotalValues = [];
@@ -5029,17 +5113,17 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
   avgRow[totalCol] = dayTotalValues.length ? (dayTotalValues.reduce((a,b)=>a+b,0)/dayTotalValues.length) : 0;
   aoa.push(avgRow);
   const avgRowNum1based = aoa.length;
+  const weightRowNum1based = HEADER_ROWS; // row3
 
   const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates:true });
 
   // formulas (kept alongside the already-computed value above, so every viewer shows the
   // right number immediately, even one that doesn't auto-recalculate on open)
   dayTotalRows.forEach(rowNum=>{
-    const sumTerms = criteria.map((c,ci)=> colLetter(2+ci)+rowNum+'*'+colLetter(2+ci)+'$2').join('+');
-    const addr = colLetter(totalCol)+rowNum;
-    ws[addr].f = 'SUM('+sumTerms+')';
+    const sumTerms = criteria.map((c,ci)=> colLetter(2+ci)+rowNum+'*'+colLetter(2+ci)+'$'+weightRowNum1based).join('+');
+    ws[colLetter(totalCol)+rowNum].f = 'SUM('+sumTerms+')';
   });
-  ws[colLetter(totalCol)+'2'].f = 'SUM('+colLetter(2)+'2:'+colLetter(1+nCriteria)+'2)';
+  ws[colLetter(totalCol)+weightRowNum1based].f = 'SUM('+colLetter(2)+weightRowNum1based+':'+colLetter(1+nCriteria)+weightRowNum1based+')';
   if(dayTotalRows.length){
     ws[colLetter(totalCol)+avgRowNum1based].f = 'AVERAGE('+colLetter(totalCol)+dayTotalRows[0]+':'+colLetter(totalCol)+dayTotalRows[dayTotalRows.length-1]+')';
   }
@@ -5048,13 +5132,14 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
     { s:{r:0,c:0}, e:{r:1,c:0} },              // اليوم
     { s:{r:0,c:1}, e:{r:1,c:1} },               // التاريخ
     { s:{r:0,c:totalCol}, e:{r:1,c:totalCol} }, // إجمالي التقييم
-    { s:{r:0,c:notesCol}, e:{r:1,c:notesCol} }, // ملاحظات
-    { s:{r:1,c:0}, e:{r:1,c:1} },               // "وزن البند" label
+    { s:{r:0,c:notesCol}, e:{r:2,c:notesCol} }, // ملاحظات (spans all 3 header rows — no weight of its own)
+    { s:{r:2,c:0}, e:{r:2,c:1} },               // "وزن البند" label
     { s:{r:aoa.length-1,c:0}, e:{r:aoa.length-1,c:totalCol-1} } // "المتوسط النهائي للشهر" label
   ];
   for(let ci=0; ci<nCriteria; ci++){
-    ws['!merges'].push({ s:{r:0,c:2+ci}, e:{r:1,c:2+ci} });
+    if(!groupedCriteriaIdx.has(ci)) ws['!merges'].push({ s:{r:0,c:2+ci}, e:{r:1,c:2+ci} }); // standalone criterion: label spans row1:row2
   }
+  if(groups) groups.forEach(g=> ws['!merges'].push({ s:{r:0,c:2+g.subIdx[0]}, e:{r:0,c:2+g.subIdx[1]} })); // shared category label, row1 only
 
   ws['!cols'] = [ {wch:12}, {wch:12}, ...criteria.map(()=>({wch:11})), {wch:9}, {wch:28} ];
   ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:aoa.length-1,c:colCount-1} });
@@ -5063,12 +5148,12 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
     for(let c=0; c<colCount; c++){
       const addr = XLSX.utils.encode_cell({r,c});
       if(!ws[addr]) ws[addr] = { t:'s', v:'' };
-      const isHeaderRow = (r===0 || r===1);
+      const isHeaderRow = (r < HEADER_ROWS);
       const isFinalRow = (r===aoa.length-1);
       ws[addr].s = (isHeaderRow || isFinalRow) ? headerStyle : cellStyle;
-      if(r===1 && c>=2 && c<=totalCol) ws[addr].z = '0%';       // weight row + its 100% check, as a percentage
-      if(r>1 && !isFinalRow && c===1) ws[addr].z = 'dd/mm/yyyy'; // date column
-      if(r>1 && c===totalCol) ws[addr].z = '0%';                 // daily total + month average, as a percentage
+      if(r===2 && c>=2 && c<=totalCol) ws[addr].z = '0%';         // weight row + its 100% check, as a percentage
+      if(r>=DAY_ROW_START && !isFinalRow && c===1) ws[addr].z = 'dd/mm/yyyy'; // date column
+      if(r>=DAY_ROW_START && c===totalCol) ws[addr].z = '0%';     // daily total + month average, as a percentage
     }
   }
 
