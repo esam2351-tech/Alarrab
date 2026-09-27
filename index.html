@@ -4914,6 +4914,26 @@ function prMonthlyAverage(entries){
   const vals = entries.map(prDayScore);
   return vals.reduce((a,b)=>a+b,0) / vals.length;
 }
+// The canonical "شهر كامل" average — matches the branch's real paper form and the exported
+// Excel sheet's own "المتوسط النهائي للشهر" row exactly: every calendar day in the month counts
+// (a day with no recorded review counts as 0%, same as a blank row on the paper form), except
+// إجازة/غياب days, which are excluded entirely (not counted as 0, not counted as a work day).
+// Every place in the app that shows a monthly average for an employee should use THIS, not
+// prMonthlyAverage(), so the same month always shows the same number everywhere — in the app,
+// in the "ملخص الشهر" Excel summary, and in each department's own sheet.
+function prMonthOverallAverage(monthEntries, daysInMonth){
+  const entryByDate = {};
+  (monthEntries||[]).forEach(e=> entryByDate[new Date(e.date).getDate()] = e);
+  let total = 0, count = 0;
+  for(let d=1; d<=daysInMonth; d++){
+    const entry = entryByDate[d];
+    const dayType = prEntryDayType(entry);
+    if(dayType==='leave' || dayType==='absence') continue; // not counted at all, either way
+    count++;
+    total += prDayScore(entry); // prDayScore(undefined) is 0 — an unrecorded day counts as 0%
+  }
+  return count ? total/count : 0;
+}
 function todayDateInputValue(){ return new Date().toISOString().slice(0,10); }
 
 async function renderPerformanceReviewsList(){
@@ -4953,10 +4973,13 @@ async function renderPerformanceReviewsList(){
     return;
   }
   const nowMonth = new Date().getMonth()+1, nowYear = new Date().getFullYear();
+  const nowDaysInMonth = new Date(nowYear, nowMonth, 0).getDate();
   box.innerHTML = employees.map(s=>{
     const allEntries = reviews.filter(r=> r.user===s.user).sort((a,b)=> new Date(b.date) - new Date(a.date));
     const thisMonthEntries = allEntries.filter(r=> (new Date(r.date).getMonth()+1)===nowMonth && new Date(r.date).getFullYear()===nowYear);
-    const avg = prMonthlyAverage(thisMonthEntries);
+    // same "whole month, blank day = 0%" convention as the Excel export, so this number never
+    // disagrees with what the exported sheet shows for the same month
+    const avg = prMonthOverallAverage(thisMonthEntries, nowDaysInMonth);
     // the job varies day to day, so show whatever was recorded most recently as a hint —
     // the actual job for each day lives on that day's entry, not on the staff record
     const lastJobEntry = allEntries.find(e=> e.jobTitle);
@@ -5035,10 +5058,11 @@ async function exportPerformanceReviewsExcel(){
       const leaveDays = leaveAbsenceEntries.filter(e=> prEntryDayType(e)==='leave').length;
       const absenceDays = leaveAbsenceEntries.filter(e=> prEntryDayType(e)==='absence').length;
 
-      // the OVERALL average for the employee — combining every department worked this month —
-      // is each work day's own score (own criteria/own weights that day) averaged together;
-      // this is the same number shown next to the employee in the app's performance-reviews list
-      const combinedAvg = workEntries.length ? prMonthlyAverage(workEntries) : null;
+      // the OVERALL average for the employee this month — combining every department they
+      // worked — matches the SAME "whole calendar month, blank day = 0%, إجازة/غياب excluded"
+      // convention as each department sheet's own "المتوسط النهائي للشهر" row, so this number
+      // is never a different figure from what the sheets right below it already show
+      const combinedAvg = monthEntries.length ? prMonthOverallAverage(monthEntries, daysInMonth) : null;
       summaryRows.push({
         name: s.name,
         depts: deptKeys.map(k=> deptGroups[k].jobTitle).filter(Boolean).join(' + ') || '—',
@@ -5077,7 +5101,12 @@ async function exportPerformanceReviewsExcel(){
           // من غير أي تلوين مختلف
           const isLeaveHit = r>0 && c===LEAVE_COL && (summaryRows[r-1].leaveDays||0) > 0;
           const isAbsenceHit = r>0 && c===ABSENCE_COL && (summaryRows[r-1].absenceDays||0) > 0;
-          sumWs[addr].s = (r===0) ? headerStyle : isLeaveHit ? leaveCellStyle : isAbsenceHit ? absenceCellStyle : cellStyle;
+          // a fresh copy per cell, not the shared style object itself — xlsx-js-style embeds the
+          // number format (.z) INTO the referenced style object when writing, so every other cell
+          // pointing at that same shared object would otherwise silently inherit the % format too
+          // (this was exactly why "عدد أيام التقييم" and the zero-count leave/absence cells were
+          // showing up as "100%"/"0%" instead of plain numbers)
+          sumWs[addr].s = Object.assign({}, (r===0) ? headerStyle : isLeaveHit ? leaveCellStyle : isAbsenceHit ? absenceCellStyle : cellStyle);
           if(r>0 && c===2) sumWs[addr].z = '0%';
         }
       }
@@ -5279,11 +5308,15 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
       const isHeaderRow = (r < HEADER_ROWS);
       const isFinalRow = (r===aoa.length-1);
       // إجازة day → whole row tinted green; غياب day → whole row tinted red, so it's obvious at a
-      // glance which days were off and why, without having to read the text label in each row
-      ws[addr].s = (isHeaderRow || isFinalRow) ? headerStyle
+      // glance which days were off and why, without having to read the text label in each row.
+      // A fresh object COPY per cell, not the shared style constant itself — xlsx-js-style embeds
+      // the number format (.z) INTO the referenced style object when writing, so every other cell
+      // pointing at that same shared object (e.g. every plain day-row cell sharing cellStyle)
+      // would otherwise silently inherit whichever .z format got attached to it last.
+      ws[addr].s = Object.assign({}, (isHeaderRow || isFinalRow) ? headerStyle
         : rowOffType==='leave' ? leaveStyle
         : rowOffType==='absence' ? absenceStyle
-        : cellStyle;
+        : cellStyle);
       if(r===2 && c>=CRIT_START && c<=totalCol) ws[addr].z = '0%'; // weight row + its 100% check, as a percentage
       if(r>=DAY_ROW_START && !isFinalRow && c===1) ws[addr].z = 'dd/mm/yyyy'; // date column
       if(r>=DAY_ROW_START && !isFinalRow && c===2) ws[addr].z = 'hh:mm';      // موعد الحضور column
@@ -5338,8 +5371,14 @@ function paintPerformanceReviewHistory(){
   if(prHistoryYear!=null){ list = list.filter(r => new Date(r.date).getFullYear() === prHistoryYear); }
 
   const avgEl = document.getElementById('prMonthAvg');
-  const monthAvg = prMonthlyAverage(list);
-  avgEl.textContent = list.length ? 'متوسط الفترة المختارة: '+monthAvg.toFixed(0)+'% ('+list.length+' يوم)' : '';
+  // a specific month+year is selected → use the canonical whole-month average (same convention
+  // as the Excel export, so this figure never disagrees with the exported sheet for that month);
+  // "كل الشهور"/"كل السنين" has no single days-in-month to anchor that convention to, so it falls
+  // back to a plain average of the recorded entries themselves
+  const monthAvg = (prHistoryMonth!=null && prHistoryYear!=null)
+    ? prMonthOverallAverage(list, new Date(prHistoryYear, prHistoryMonth, 0).getDate())
+    : prMonthlyAverage(list);
+  avgEl.textContent = list.length ? 'متوسط الفترة المختارة: '+monthAvg.toFixed(0)+'% ('+list.length+' يوم مسجّل)' : '';
 
   if(!list.length){
     box.innerHTML = '<div class="emptystate">لا توجد تقييمات مطابقة.</div>';
@@ -5614,11 +5653,15 @@ function paintMyPerformanceReview(){
     box.innerHTML = '<div class="emptystate">لسه مدير الشيفت معملش تقييم لأدائك في الفترة دي.</div>';
     return;
   }
-  const monthAvg = prMonthlyAverage(list);
+  // same canonical whole-month convention as the admin's screen and the Excel export, so this
+  // never shows a different number for the same month
+  const monthAvg = (myPrMonth!=null && myPrYear!=null)
+    ? prMonthOverallAverage(list, new Date(myPrYear, myPrMonth, 0).getDate())
+    : prMonthlyAverage(list);
   box.innerHTML = '<div class="card">'
     + '<h3>متوسط الفترة المختارة</h3>'
     + '<p class="sub" style="font-size:20px;font-weight:800;color:var(--espresso);margin:6px 0 4px;">'+monthAvg.toFixed(0)+'%</p>'
-    + '<p class="sub" style="margin:0;">عدد أيام التقييم: '+list.length+'</p>'
+    + '<p class="sub" style="margin:0;">عدد أيام التقييم المسجّلة: '+list.length+'</p>'
     + '</div>'
     + list.map(r=>{
       const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
