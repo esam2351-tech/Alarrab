@@ -975,9 +975,13 @@
         <div class="field"><label>تاريخ التقييم</label>
           <input type="date" id="pr_date">
         </div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--espresso-2);margin:2px 0 10px;">
-          <input type="checkbox" id="pr_isLeave" style="width:auto;margin:0;"> 📅 الموظف إجازة/غايب اليوم (من غير تقييم)
-        </label>
+        <div class="field" style="margin-bottom:10px;"><label>نوع اليوم</label>
+          <select id="pr_dayType">
+            <option value="">يوم عمل عادي (فيه تقييم)</option>
+            <option value="leave">📅 إجازة</option>
+            <option value="absence">🚫 غياب</option>
+          </select>
+        </div>
         <div class="field" id="pr_arrivalTimeField"><label>موعد الحضور</label>
           <input type="time" id="pr_arrivalTime">
         </div>
@@ -4897,6 +4901,14 @@ function prDayScore(entry){
   if(!entry || !entry.criteria) return 0;
   return entry.criteria.reduce((s,c)=> s + (c.checked ? (Number(c.weight)||0) : 0), 0);
 }
+// 'leave' | 'absence' | '' — entries saved before the leave/absence split only carry the old
+// combined isLeave flag with no criteria, so those default to 'leave' for display purposes.
+function prEntryDayType(entry){
+  if(!entry) return '';
+  if(entry.dayType) return entry.dayType;
+  if(entry.isLeave || !(entry.criteria && entry.criteria.length)) return 'leave';
+  return '';
+}
 function prMonthlyAverage(entries){
   if(!entries || !entries.length) return 0;
   const vals = entries.map(prDayScore);
@@ -5009,12 +5021,19 @@ async function exportPerformanceReviewsExcel(){
       });
       let deptKeys = Object.keys(deptGroups);
       if(!deptKeys.length){
-        // no work days recorded this month (only leave days, or nothing at all) — fall back to
-        // the employee's assigned default template so at least one sheet still gets built
+        // no work days recorded this month (only leave/absence days, or nothing at all) — fall
+        // back to the employee's assigned default template so at least one sheet still gets built
         const tpl = templates.find(t=> t.id === s.reviewTemplateId);
         if(tpl){ deptGroups['__default__'] = { criteria: tpl.criteria, jobTitle: tpl.jobTitle||'', entries: [] }; deptKeys = ['__default__']; }
       }
       if(!deptKeys.length){ skipped.push(s.name); return null; }
+
+      // إجازة/غياب days — kept separate from workEntries above and folded into EVERY one of this
+      // employee's department sheets below, so a day off shows up (green/red) no matter which
+      // department it's shown alongside, and gets counted in the summary sheet
+      const leaveAbsenceEntries = monthEntries.filter(e=> !(Array.isArray(e.criteria) && e.criteria.length));
+      const leaveDays = leaveAbsenceEntries.filter(e=> prEntryDayType(e)==='leave').length;
+      const absenceDays = leaveAbsenceEntries.filter(e=> prEntryDayType(e)==='absence').length;
 
       // the OVERALL average for the employee — combining every department worked this month —
       // is each work day's own score (own criteria/own weights that day) averaged together;
@@ -5024,10 +5043,11 @@ async function exportPerformanceReviewsExcel(){
         name: s.name,
         depts: deptKeys.map(k=> deptGroups[k].jobTitle).filter(Boolean).join(' + ') || '—',
         avg: combinedAvg,
-        days: workEntries.length
+        days: workEntries.length,
+        leaveDays, absenceDays
       });
 
-      return { s, deptGroups, deptKeys };
+      return { s, deptGroups, deptKeys, leaveAbsenceEntries };
     }).filter(Boolean);
 
     // summary sheet — the combined/overall average per employee, across every department they
@@ -5040,16 +5060,24 @@ async function exportPerformanceReviewsExcel(){
       const CENTER = { horizontal:'center', vertical:'center', wrapText:true };
       const headerStyle = { font: HEADER_FONT, alignment: CENTER, border: BORDER_ALL, fill:{ fgColor:{ rgb:'F2E6D3' }, patternType:'solid' } };
       const cellStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL };
-      const sumAoa = [ ['الموظف','القسم / الأقسام','متوسط تقييم الشهر','عدد أيام التقييم'] ];
-      summaryRows.forEach(row=> sumAoa.push([ row.name, row.depts, row.avg==null ? null : row.avg/100, row.days ]));
+      const leaveCellStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL, fill:{ fgColor:{ rgb:'D9F2E3' }, patternType:'solid' } };
+      const absenceCellStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL, fill:{ fgColor:{ rgb:'FBDCD5' }, patternType:'solid' } };
+      const LEAVE_COL = 4, ABSENCE_COL = 5; // 0-based
+      const sumAoa = [ ['الموظف','القسم / الأقسام','متوسط تقييم الشهر','عدد أيام التقييم','أيام إجازة','أيام غياب'] ];
+      summaryRows.forEach(row=> sumAoa.push([ row.name, row.depts, row.avg==null ? null : row.avg/100, row.days, row.leaveDays||0, row.absenceDays||0 ]));
       const sumWs = XLSX.utils.aoa_to_sheet(sumAoa);
-      sumWs['!cols'] = [ {wch:20}, {wch:28}, {wch:16}, {wch:14} ];
-      sumWs['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:sumAoa.length-1,c:3} });
+      sumWs['!cols'] = [ {wch:20}, {wch:28}, {wch:16}, {wch:14}, {wch:11}, {wch:11} ];
+      sumWs['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:sumAoa.length-1,c:5} });
       for(let r=0; r<sumAoa.length; r++){
-        for(let c=0; c<4; c++){
+        for(let c=0; c<6; c++){
           const addr = XLSX.utils.encode_cell({r,c});
           if(!sumWs[addr]) sumWs[addr] = { t:'z' };
-          sumWs[addr].s = (r===0) ? headerStyle : cellStyle;
+          // كل الشيت بنفس اللون العادي — فقط خلية "عدد أيام إجازة" لو فيها رقم أكبر من صفر بتلوّن
+          // أخضر، وخلية "عدد أيام غياب" لو فيها رقم أكبر من صفر بتلوّن أحمر؛ الهيدر وباقي الأعمدة
+          // من غير أي تلوين مختلف
+          const isLeaveHit = r>0 && c===LEAVE_COL && (summaryRows[r-1].leaveDays||0) > 0;
+          const isAbsenceHit = r>0 && c===ABSENCE_COL && (summaryRows[r-1].absenceDays||0) > 0;
+          sumWs[addr].s = (r===0) ? headerStyle : isLeaveHit ? leaveCellStyle : isAbsenceHit ? absenceCellStyle : cellStyle;
           if(r>0 && c===2) sumWs[addr].z = '0%';
         }
       }
@@ -5058,11 +5086,13 @@ async function exportPerformanceReviewsExcel(){
     }
 
     // pass 2: append every employee's per-department sheet(s), after the summary sheet
-    employeeExports.forEach(({s, deptGroups, deptKeys})=>{
+    employeeExports.forEach(({s, deptGroups, deptKeys, leaveAbsenceEntries})=>{
       const baseName = String(s.name).replace(/[\\\/\?\*\[\]:]/g,' ').trim() || s.user;
       deptKeys.forEach(key=>{
         const group = deptGroups[key];
-        const sheet = buildPrEmployeeSheet(group.criteria, group.entries, year, month, daysInMonth);
+        // fold this employee's إجازة/غياب days into EVERY department sheet, so a day off shows
+        // up correctly (colored, labeled) no matter which department sheet you're looking at
+        const sheet = buildPrEmployeeSheet(group.criteria, group.entries.concat(leaveAbsenceEntries), year, month, daysInMonth);
         // more than one department this month → suffix the sheet name with the job title so
         // each one is identifiable; only one department → keep the plain employee name as before
         let sheetName = deptKeys.length > 1
@@ -5122,6 +5152,8 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
   const CENTER = { horizontal:'center', vertical:'center', wrapText:true };
   const headerStyle = { font: HEADER_FONT, alignment: CENTER, border: BORDER_ALL, fill:{ fgColor:{ rgb:'F2E6D3' }, patternType:'solid' } };
   const cellStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL };
+  const leaveStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL, fill:{ fgColor:{ rgb:'D9F2E3' }, patternType:'solid' } };   // إجازة → أخضر
+  const absenceStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL, fill:{ fgColor:{ rgb:'FBDCD5' }, patternType:'solid' } }; // غياب → أحمر
 
   const nCriteria = criteria.length;
   const CRIT_START = 3;                 // col0=اليوم col1=التاريخ col2=موعد الحضور، والبنود تبدأ من هنا
@@ -5155,36 +5187,49 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
     g.subIdx.forEach(i=> aoa[1][CRIT_START+i] = criteria[i].label); // each criterion's own label, row2
   });
 
-  const dayTotalRows = []; // 1-based Excel row numbers of every day row, for the AVERAGE formula
-  const dayTotalValues = [];
+  const dayRows = [];      // 1-based Excel row numbers of every calendar day row, in order
+  const workDayRows = [];  // subset of dayRows that get the SUM formula (excludes recorded إجازة/غياب days)
+  const workDayValues = [];
+  const offDayType = {};   // 1-based row number -> 'leave' | 'absence', for the green/red fill below
   for(let d=1; d<=daysInMonth; d++){
     const dateObj = new Date(year, month-1, d);
     const dayName = ARABIC_WEEKDAYS[dateObj.getDay()];
     const entry = entryByDate[d];
-    const row = [dayName, dateObj, entry && entry.arrivalTime ? entry.arrivalTime : null];
+    const dayType = prEntryDayType(entry); // '' when no entry, or a real work day
+    const isOffDay = dayType === 'leave' || dayType === 'absence';
+    const row = [dayName, dateObj, (!isOffDay && entry && entry.arrivalTime) ? entry.arrivalTime : null];
     let dayTotal = 0;
-    for(let ci=0; ci<nCriteria; ci++){
-      const w = (Number(criteria[ci].weight)||0)/100;
-      if(entry){
-        const match = (entry.criteria||[]).find(c=> c.label === criteria[ci].label);
-        const checked = match ? !!match.checked : false;
-        row.push(match ? (checked?1:0) : null); // null → a true blank cell, not text, so it reads as 0 in the SUM formula below (an empty STRING cell would throw #VALUE!); displayed as ✓/✗ via a number format below, not as a raw digit
-        if(checked) dayTotal += w;
-      } else {
-        row.push(null);
+    if(isOffDay){
+      for(let ci=0; ci<nCriteria; ci++) row.push(null); // no checklist on an إجازة/غياب day
+    } else {
+      for(let ci=0; ci<nCriteria; ci++){
+        const w = (Number(criteria[ci].weight)||0)/100;
+        if(entry){
+          const match = (entry.criteria||[]).find(c=> c.label === criteria[ci].label);
+          const checked = match ? !!match.checked : false;
+          row.push(match ? (checked?1:0) : null); // null → a true blank cell, not text, so it reads as 0 in the SUM formula below (an empty STRING cell would throw #VALUE!); displayed as ✓/✗ via a number format below, not as a raw digit
+          if(checked) dayTotal += w;
+        } else {
+          row.push(null);
+        }
       }
     }
-    row.push(dayTotal); // placeholder value; the real formula is attached to this cell below
+    // an إجازة/غياب day shows its own text label in "إجمالي التقييم" instead of a 0% score, and is
+    // excluded from the SUM formula + monthly average below — it isn't a work day scored 0%, it's
+    // simply not a work day at all
+    row.push(isOffDay ? (dayType==='leave' ? 'إجازة' : 'غياب') : dayTotal);
     row.push(entry && entry.notes ? entry.notes : null);
     row.push(entry && entry.updatedBy ? entry.updatedBy : null);
     aoa.push(row);
-    dayTotalRows.push(aoa.length); // 1-based row number this line just landed on
-    dayTotalValues.push(dayTotal);
+    const rowNum = aoa.length; // 1-based row number this line just landed on
+    dayRows.push(rowNum);
+    if(isOffDay){ offDayType[rowNum] = dayType; }
+    else { workDayRows.push(rowNum); workDayValues.push(dayTotal); }
   }
 
   const avgRow = new Array(colCount).fill(null);
   avgRow[0] = 'المتوسط النهائي للشهر';
-  avgRow[totalCol] = dayTotalValues.length ? (dayTotalValues.reduce((a,b)=>a+b,0)/dayTotalValues.length) : 0;
+  avgRow[totalCol] = workDayValues.length ? (workDayValues.reduce((a,b)=>a+b,0)/workDayValues.length) : 0;
   aoa.push(avgRow);
   const avgRowNum1based = aoa.length;
   const weightRowNum1based = HEADER_ROWS; // row3
@@ -5193,13 +5238,16 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
 
   // formulas (kept alongside the already-computed value above, so every viewer shows the
   // right number immediately, even one that doesn't auto-recalculate on open)
-  dayTotalRows.forEach(rowNum=>{
+  workDayRows.forEach(rowNum=>{
     const sumTerms = criteria.map((c,ci)=> colLetter(CRIT_START+ci)+rowNum+'*'+colLetter(CRIT_START+ci)+'$'+weightRowNum1based).join('+');
     ws[colLetter(totalCol)+rowNum].f = 'SUM('+sumTerms+')';
   });
   ws[colLetter(totalCol)+weightRowNum1based].f = 'SUM('+colLetter(CRIT_START)+weightRowNum1based+':'+colLetter(CRIT_START-1+nCriteria)+weightRowNum1based+')';
-  if(dayTotalRows.length){
-    ws[colLetter(totalCol)+avgRowNum1based].f = 'AVERAGE('+colLetter(totalCol)+dayTotalRows[0]+':'+colLetter(totalCol)+dayTotalRows[dayTotalRows.length-1]+')';
+  if(workDayRows.length){
+    // the range spans every calendar day (dayRows[0]:dayRows[last]), not just workDayRows — it's
+    // contiguous either way, and Excel's AVERAGE() already ignores the text-labeled إجازة/غياب
+    // rows inside that range automatically, so the cached value above and the live formula agree
+    ws[colLetter(totalCol)+avgRowNum1based].f = 'AVERAGE('+colLetter(totalCol)+dayRows[0]+':'+colLetter(totalCol)+dayRows[dayRows.length-1]+')';
   }
 
   ws['!merges'] = [
@@ -5221,6 +5269,8 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
   ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:aoa.length-1,c:colCount-1} });
 
   for(let r=0; r<aoa.length; r++){
+    const rowNum = r+1; // 1-based, matches offDayType's keys
+    const rowOffType = offDayType[rowNum]; // undefined, 'leave', or 'absence'
     for(let c=0; c<colCount; c++){
       const addr = XLSX.utils.encode_cell({r,c});
       // a blank cell here must stay a true blank ('z' = styled stub, no value) rather than an
@@ -5228,12 +5278,17 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
       if(!ws[addr]) ws[addr] = { t:'z' };
       const isHeaderRow = (r < HEADER_ROWS);
       const isFinalRow = (r===aoa.length-1);
-      ws[addr].s = (isHeaderRow || isFinalRow) ? headerStyle : cellStyle;
+      // إجازة day → whole row tinted green; غياب day → whole row tinted red, so it's obvious at a
+      // glance which days were off and why, without having to read the text label in each row
+      ws[addr].s = (isHeaderRow || isFinalRow) ? headerStyle
+        : rowOffType==='leave' ? leaveStyle
+        : rowOffType==='absence' ? absenceStyle
+        : cellStyle;
       if(r===2 && c>=CRIT_START && c<=totalCol) ws[addr].z = '0%'; // weight row + its 100% check, as a percentage
       if(r>=DAY_ROW_START && !isFinalRow && c===1) ws[addr].z = 'dd/mm/yyyy'; // date column
       if(r>=DAY_ROW_START && !isFinalRow && c===2) ws[addr].z = 'hh:mm';      // موعد الحضور column
-      if(r>=DAY_ROW_START && !isFinalRow && c>=CRIT_START && c<totalCol) ws[addr].z = '[=1]"✓";[=0]"✗"'; // show ✓/✗ instead of a raw 1/0, no change to the underlying value the formula multiplies
-      if(r>=DAY_ROW_START && c===totalCol) ws[addr].z = '0%';     // daily total + month average, as a percentage
+      if(r>=DAY_ROW_START && !isFinalRow && !rowOffType && c>=CRIT_START && c<totalCol) ws[addr].z = '[=1]"✓";[=0]"✗"'; // show ✓/✗ instead of a raw 1/0, no change to the underlying value the formula multiplies
+      if(r>=DAY_ROW_START && !rowOffType && c===totalCol) ws[addr].z = '0%'; // daily total + month average, as a percentage (off-day rows hold a plain "إجازة"/"غياب" text label instead)
     }
   }
 
@@ -5293,11 +5348,15 @@ function paintPerformanceReviewHistory(){
   box.innerHTML = list.map(r=>{
     const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
     const score = prDayScore(r);
-    const isLeave = r.isLeave || !(r.criteria && r.criteria.length);
-    const jobLabel = isLeave ? '📅 إجازة/غايب' : (r.jobTitle||'—');
+    const dayType = prEntryDayType(r);
+    const isLeave = !!dayType;
+    const jobLabel = dayType==='leave' ? '📅 إجازة' : dayType==='absence' ? '🚫 غياب' : (r.jobTitle||'—');
+    const statusBadge = dayType==='leave' ? '<span class="cstatus resolved">📅 إجازة</span>'
+      : dayType==='absence' ? '<span class="cstatus pending">🚫 غياب</span>'
+      : '<span class="cstatus resolved">'+score.toFixed(0)+'%</span>';
     return '<div class="complaintcard">'
       + '<div class="ctop"><div><h4>'+dateLabel+'</h4><small>'+esc(jobLabel)+' · سجّله: '+esc(r.updatedBy||'—')+'</small></div>'
-      + (isLeave ? '' : '<span class="cstatus resolved">'+score.toFixed(0)+'%</span>') + '</div>'
+      + statusBadge + '</div>'
       + (r.notes ? '<div class="crow">'+esc(r.notes)+'</div>' : '')
       + '<div class="cbtnrow" style="margin-top:8px;">'
         + '<button class="delCpBtn" data-predit="'+esc(r.id)+'" style="background:#F1E7D6;color:var(--espresso-2);">✏️ تعديل</button>'
@@ -5373,12 +5432,14 @@ async function onPrJobTemplateChange(){
   paintPrCriteriaBox();
 }
 
-// Toggled by the "📅 الموظف إجازة/غايب اليوم" checkbox — a leave day skips the job/checklist
-// entirely (nothing was worked, so nothing to check off) and is just a dated note, same as an
-// "أجازة"/"إذن انصراف" row on the branch's paper form: blank criteria, 0% for the day, whatever
-// reason the manager types in the notes field below.
+// Toggled by the "نوع اليوم" select — a leave (إجازة) or absence (غياب) day skips the job/
+// checklist entirely (nothing was worked, so nothing to check off) and is just a dated note,
+// same as an "أجازة"/"غياب" row on the branch's paper form: blank criteria, whatever reason the
+// manager types in the notes field below. The two are tracked separately (not just one combined
+// leave/absent flag) so they can be counted and color-coded apart in the Excel export.
 function togglePrLeaveMode(){
-  const isLeave = document.getElementById('pr_isLeave').checked;
+  const dayType = document.getElementById('pr_dayType').value; // '', 'leave', 'absence'
+  const isLeave = !!dayType;
   document.getElementById('pr_jobTemplateField').style.display = isLeave ? 'none' : '';
   document.getElementById('pr_arrivalTimeField').style.display = isLeave ? 'none' : '';
   document.getElementById('prCriteriaCard').style.display = isLeave ? 'none' : (prWorkingCriteria.length ? 'block' : 'none');
@@ -5406,6 +5467,9 @@ async function openPerformanceReviewEdit(entryId){
   sel.innerHTML = '<option value="">اختار الوظيفة</option>' + templates.map(t=> '<option value="'+esc(t.id)+'">'+esc(t.jobTitle)+'</option>').join('');
 
   const isLeaveEntry = !!(entry && (entry.isLeave || !(entry.criteria && entry.criteria.length)));
+  // entries saved before the leave/absence split only have the old combined isLeave flag —
+  // default those to "leave" so nothing already recorded looks unset
+  const entryDayType = isLeaveEntry ? (entry.dayType || 'leave') : '';
   if(entry && !isLeaveEntry){
     // editing an existing day — reuse the checklist exactly as it was recorded that day, and
     // show the job it was recorded under (even if that template was renamed/deleted since)
@@ -5432,7 +5496,7 @@ async function openPerformanceReviewEdit(entryId){
   document.getElementById('pr_date').value = entry ? new Date(entry.date).toISOString().slice(0,10) : todayDateInputValue();
   document.getElementById('pr_notes').value = entry ? (entry.notes||'') : '';
   document.getElementById('pr_arrivalTime').value = entry ? (entry.arrivalTime||'') : '';
-  document.getElementById('pr_isLeave').checked = isLeaveEntry;
+  document.getElementById('pr_dayType').value = entryDayType;
   paintPrCriteriaBox();
   togglePrLeaveMode();
   const lastUpdatedEl = document.getElementById('prLastUpdated');
@@ -5446,10 +5510,11 @@ async function savePerformanceReview(){
   if(!editingReviewUser) return;
   const dateVal = document.getElementById('pr_date').value;
   if(!dateVal){ alert('من فضلك اختار تاريخ التقييم'); return; }
-  const isLeave = document.getElementById('pr_isLeave').checked;
+  const dayType = document.getElementById('pr_dayType').value; // '', 'leave', 'absence'
+  const isLeave = !!dayType;
   const sel = document.getElementById('pr_jobTemplate');
-  if(!isLeave && (!sel.value || !prWorkingCriteria.length)){ alert('من فضلك اختار الوظيفة اللي اشتغلها الموظف اليوم — أو علّم "الموظف إجازة/غايب اليوم" لو معملش شغل خالص'); return; }
-  if(isLeave && !document.getElementById('pr_notes').value.trim()){ alert('من فضلك اكتب السبب (إجازة، إذن انصراف، أجازة مرضي...) في الملاحظات'); return; }
+  if(!isLeave && (!sel.value || !prWorkingCriteria.length)){ alert('من فضلك اختار الوظيفة اللي اشتغلها الموظف اليوم — أو اختار "إجازة"/"غياب" من نوع اليوم لو معملش شغل خالص'); return; }
+  if(isLeave && !document.getElementById('pr_notes').value.trim()){ alert('من فضلك اكتب السبب في الملاحظات'); return; }
   if(!isLeave){
     const missingReason = prWorkingCriteria.find(c=> !c.checked && !(c.reason && c.reason.trim()));
     if(missingReason){ alert('من فضلك اكتب سبب عدم تحقيق بند "'+missingReason.label+'"'); return; }
@@ -5485,6 +5550,7 @@ async function savePerformanceReview(){
     templateId: isLeave ? null : (sel.value === '__snapshot__' ? null : sel.value),
     jobTitle: jobTitle,
     isLeave: isLeave,
+    dayType: dayType || null, // 'leave' | 'absence' | null
     criteria: isLeave ? [] : JSON.parse(JSON.stringify(prWorkingCriteria)),
     arrivalTime: isLeave ? '' : (document.getElementById('pr_arrivalTime').value || ''),
     notes: document.getElementById('pr_notes').value.trim(),
@@ -5557,7 +5623,8 @@ function paintMyPerformanceReview(){
     + list.map(r=>{
       const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
       const score = prDayScore(r);
-      const isLeave = r.isLeave || !(r.criteria && r.criteria.length);
+      const dayType = prEntryDayType(r);
+      const isLeave = !!dayType;
       const hasReasons = (r.criteria||[]).some(c=> !c.checked && c.reason);
       const table = (r.criteria||[]).length
         ? '<div style="overflow-x:auto;"><table style="border-collapse:collapse;width:100%;min-width:280px;">'
@@ -5577,9 +5644,12 @@ function paintMyPerformanceReview(){
             ).join('')
           + '</tbody></table></div>'
         : '';
+      const dayTypeLabel = dayType==='leave' ? '<span style="color:var(--good);font-weight:800;">📅 إجازة</span>'
+        : dayType==='absence' ? '<span style="color:var(--bad);font-weight:800;">🚫 غياب</span>'
+        : 'الوظيفة: '+esc(r.jobTitle||'—');
       return '<div class="card">'
         + '<h3>'+dateLabel+(isLeave?'':' — '+score.toFixed(0)+'%')+'</h3>'
-        + '<p class="sub" style="margin:-4px 0 10px;">'+(isLeave ? '📅 إجازة/غايب' : 'الوظيفة: '+esc(r.jobTitle||'—'))+'</p>'
+        + '<p class="sub" style="margin:-4px 0 10px;">'+dayTypeLabel+'</p>'
         + table
         + (r.notes ? '<div class="crow" style="margin-top:10px;">'+esc(r.notes)+'</div>' : '')
         + '</div>';
@@ -6434,7 +6504,7 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('prSaveBtn').addEventListener('click', savePerformanceReview);
   document.getElementById('prAddTodayBtn').addEventListener('click', ()=> openPerformanceReviewEdit(null));
   document.getElementById('pr_jobTemplate').addEventListener('change', onPrJobTemplateChange);
-  document.getElementById('pr_isLeave').addEventListener('change', togglePrLeaveMode);
+  document.getElementById('pr_dayType').addEventListener('change', togglePrLeaveMode);
   document.getElementById('prMonthSel').addEventListener('change', e=>{
     prHistoryMonth = e.target.value ? parseInt(e.target.value,10) : null;
     paintPerformanceReviewHistory();
