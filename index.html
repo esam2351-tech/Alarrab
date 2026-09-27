@@ -434,19 +434,21 @@
       <p class="tagline">خدمة عملاء ترتقي بتجربتهم</p>
     </div>
     <div class="grid">
-      <div class="tile js-start-wizard" id="tileNewFeedback"><span class="ic">📝</span><span>تسجيل فيدباك</span></div>
-      <div class="tile js-go" data-go="quickadd" id="tileNewCustomer"><span class="ic">👤</span><span>تسجيل عميل جديد</span></div>
-      <div class="tile js-new-complaint" id="tileNewComplaint"><span class="ic">⚠️</span><span>تسجيل شكوى</span></div>
-      <div class="tile js-go" data-go="complaintsList"><span class="ic">🗂️</span><span>متابعة الشكاوى</span></div>
-      <div class="tile js-go" data-go="customers"><span class="ic">👥</span><span>متابعة العملاء</span></div>
-      <div class="tile js-go" data-go="reports"><span class="ic">📊</span><span>التقارير والإحصائيات</span></div>
-      <div class="tile js-go" data-go="checklist"><span class="ic">📋</span><span>تشيك ليست الفرع</span></div>
-      <div class="tile js-go" data-go="wholesaleCustomers"><span class="ic">🏢</span><span>متابعة عملاء الجملة</span></div>
-      <div class="tile js-go" data-go="issueReports"><span class="ic">📝</span><span>تقارير المشاكل</span></div>
-      <div class="tile js-go" data-go="dailyNotes"><span class="ic">🗒️</span><span>ملاحظات يومية</span></div>
-      <div class="tile js-go" data-go="wasteReports"><span class="ic">🗑️</span><span>تقارير هوالك</span></div>
-      <div class="tile js-go" data-go="suggestions"><span class="ic">💡</span><span>المقترحات</span></div>
-      <div class="tile js-go" data-go="internalChat" style="position:relative;"><span class="ic">💬</span><span>الشات الداخلي</span><span class="badge" id="chatTileBadge" style="display:none;">0</span></div>
+      <div class="tile js-start-wizard" id="tileNewFeedback" data-tileid="tileNewFeedback"><span class="ic">📝</span><span>تسجيل فيدباك</span></div>
+      <div class="tile js-go" data-go="quickadd" id="tileNewCustomer" data-tileid="tileNewCustomer"><span class="ic">👤</span><span>تسجيل عميل جديد</span></div>
+      <div class="tile js-new-complaint" id="tileNewComplaint" data-tileid="tileNewComplaint"><span class="ic">⚠️</span><span>تسجيل شكوى</span></div>
+      <div class="tile js-go" data-go="complaintsList" data-tileid="tileComplaintsList"><span class="ic">🗂️</span><span>متابعة الشكاوى</span></div>
+      <div class="tile js-go" data-go="customers" data-tileid="tileCustomers"><span class="ic">👥</span><span>متابعة العملاء</span></div>
+      <div class="tile js-go" data-go="reports" data-tileid="tileReports"><span class="ic">📊</span><span>التقارير والإحصائيات</span></div>
+      <div class="tile js-go" data-go="checklist" data-tileid="tileChecklist"><span class="ic">📋</span><span>تشيك ليست الفرع</span></div>
+      <div class="tile js-go" data-go="wholesaleCustomers" data-tileid="tileWholesale"><span class="ic">🏢</span><span>متابعة عملاء الجملة</span></div>
+      <div class="tile js-go" data-go="issueReports" data-tileid="tileIssueReports"><span class="ic">📝</span><span>تقارير المشاكل</span></div>
+      <div class="tile js-go" data-go="dailyNotes" data-tileid="tileDailyNotes"><span class="ic">🗒️</span><span>ملاحظات يومية</span></div>
+      <div class="tile js-go" data-go="wasteReports" data-tileid="tileWasteReports"><span class="ic">🗑️</span><span>تقارير هوالك</span></div>
+      <div class="tile js-go" data-go="suggestions" data-tileid="tileSuggestions"><span class="ic">💡</span><span>المقترحات</span></div>
+      <div class="tile js-go" data-go="internalChat" data-tileid="tileInternalChat" style="position:relative;"><span class="ic">💬</span><span>الشات الداخلي</span><span class="badge" id="chatTileBadge" style="display:none;">0</span></div>
+      <div class="tile js-go" data-go="performanceReviews" id="tileManagePerformance" data-tileid="tileManagePerformance" style="display:none;"><span class="ic">📈</span><span>تقييم أداء الموظفين</span></div>
+      <div class="tile js-go" data-go="myPerformanceReview" id="tileMyPerformance" data-tileid="tileMyPerformance" style="display:none;"><span class="ic">⭐</span><span>تقييمي</span></div>
     </div>
   </div>
 
@@ -472,6 +474,19 @@
     <div class="btnrow">
       <button class="btn ghost" id="clmAddSectionBtn">+ إضافة قسم جديد</button>
       <button class="btn primary" id="clmSaveBtn">💾 حفظ كل التعديلات</button>
+    </div>
+  </div>
+
+  <!-- ============ PERFORMANCE REVIEW TEMPLATES MANAGEMENT (admin only) ============ -->
+  <div class="screen" id="reviewTemplatesManage">
+    <div class="head"><div class="back js-go" data-go="settings">→</div><h2>نماذج تقييم الأداء حسب الوظيفة</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <p class="sub" style="margin-bottom:12px;">لكل وظيفة نموذج تقييم مستقل ببنوده ونسبه. مجموع نسب بنود كل نموذج لازم يساوي 100%. بعد الحفظ، حدد نموذج كل موظف من صفحة "الموظفين".</p>
+    </div>
+    <div id="rtmBody"></div>
+    <div class="btnrow">
+      <button class="btn ghost" id="rtmAddTemplateBtn">+ إضافة نموذج/وظيفة جديدة</button>
+      <button class="btn primary" id="rtmSaveBtn">💾 حفظ كل التعديلات</button>
     </div>
   </div>
 
@@ -916,6 +931,91 @@
     </div>
   </div>
 
+  <!-- ============ PERFORMANCE REVIEWS — STAFF LIST (MANAGER) ============ -->
+  <div class="screen" id="performanceReviews">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>تقييم أداء الموظفين</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <p class="sub" style="margin-bottom:12px;">اختار الموظف عشان تسجّل تقييم يومي أو تشوف سجل تقييماته.</p>
+      <div class="card" style="margin-bottom:14px;">
+        <h3 style="margin-top:0;">📊 تصدير كشف التقييم الشهري (Excel)</h3>
+        <p class="sub" style="margin-bottom:10px;">بيطلع ملف Excel فيه شيت لكل موظف، بنفس شكل الكشوفات الورقية (الأيام، البنود ووزن كل بند، الإجمالي اليومي، والمتوسط النهائي للشهر).</p>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <select id="prExportMonth" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;"></select>
+          <select id="prExportYear" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;"></select>
+        </div>
+        <button class="btn primary full" id="prExportBtn">تصدير Excel</button>
+      </div>
+    </div>
+    <div id="prStaffList"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ PERFORMANCE REVIEW — EMPLOYEE HISTORY (MANAGER) ============ -->
+  <div class="screen" id="performanceReviewHistory">
+    <div class="head"><div class="back js-go" data-go="performanceReviews">→</div><h2 id="prhTitle">سجل التقييم</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <button class="btn primary full" id="prAddTodayBtn" style="margin-bottom:12px;">+ تسجيل تقييم اليوم</button>
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <select id="prMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
+          <option value="">كل الشهور</option>
+        </select>
+        <select id="prYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
+          <option value="">كل السنين</option>
+        </select>
+      </div>
+      <p class="sub" id="prMonthAvg" style="margin:0 0 10px;"></p>
+    </div>
+    <div id="prHistoryList"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ PERFORMANCE REVIEW — EDIT (MANAGER) ============ -->
+  <div class="screen" id="performanceReviewEdit">
+    <div class="head"><div class="back js-go" data-go="performanceReviewHistory">→</div><h2 id="prEditTitle">تقييم أداء</h2></div>
+    <div class="wrap">
+      <div class="card">
+        <div class="field"><label>تاريخ التقييم</label>
+          <input type="date" id="pr_date">
+        </div>
+        <div class="field" style="margin-bottom:0;"><label>الوظيفة اللي اشتغلها الموظف اليوم</label>
+          <select id="pr_jobTemplate"><option value="">اختار الوظيفة</option></select>
+        </div>
+      </div>
+      <div class="card" id="prCriteriaCard">
+        <h3>بنود التقييم</h3>
+        <p class="sub">علّم البند لو الموظف حققه — كل بند ليه نسبة من إجمالي تقييم اليوم</p>
+        <div id="prCriteriaBox"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:12px;margin-top:4px;">
+          <b style="font-family:'Cairo';font-size:13.5px;">إجمالي تقييم اليوم</b>
+          <b id="prTotalScore" style="font-family:'Cairo';font-size:18px;color:var(--gold);">0%</b>
+        </div>
+      </div>
+      <div class="card">
+        <h3>ملاحظات مدير الشيفت</h3>
+        <div class="field" style="margin-bottom:0;"><textarea id="pr_notes" placeholder="نقاط القوة، نقاط تحتاج تحسين، أي ملاحظات إضافية..."></textarea></div>
+      </div>
+      <p class="sub" id="prLastUpdated" style="margin:-6px 4px 0;"></p>
+    </div>
+    <div class="btnrow">
+      <button class="btn ghost js-go" data-go="performanceReviewHistory">إلغاء</button>
+      <button class="btn primary" id="prSaveBtn">حفظ التقييم</button>
+    </div>
+  </div>
+
+  <!-- ============ PERFORMANCE REVIEW — MY REVIEW (EMPLOYEE, READ-ONLY) ============ -->
+  <div class="screen" id="myPerformanceReview">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>تقييمي</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <select id="myPrMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
+          <option value="">كل الشهور</option>
+        </select>
+        <select id="myPrYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;">
+          <option value="">كل السنين</option>
+        </select>
+      </div>
+    </div>
+    <div id="myPrBox" class="wrap" style="padding-top:0;"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
   <!-- ============ SETTINGS ============ -->
   <div class="screen" id="settings">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>الإعدادات</h2></div>
@@ -958,6 +1058,17 @@
       <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-top:8px;">
         <input type="checkbox" id="newStaffIsViewer" style="width:auto;margin:0;"> حساب اطّلاع فقط (يشوف التقارير ويصدّرها، بدون إضافة/تعديل/حذف أي بيانات)
       </label>
+      <div id="newStaffTilesSection" style="margin-top:10px;">
+        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--espresso-2);margin-bottom:6px;">الصفحات المتاحة للموظف ده (حدد اللي هو يقدر يدخلها بس)</label>
+        <p style="font-size:10.5px;color:var(--muted);margin:0 0 8px;">التحكم في تقييمات الأداء (تسجيلها/تعديلها لأي موظف) صلاحية المدير بس، ومش بتدخل هنا. تحديد "⭐ تقييمي" هنا بيسمح للموظف يشوف تقييم نفسه بس.</p>
+        <div id="newStaffTilesBox" style="display:flex;flex-direction:column;gap:5px;"></div>
+      </div>
+      <div style="margin-top:10px;">
+        <label style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:6px;">الوظيفة الافتراضية (تظهر مبدئيًا عند تسجيل تقييم يومي، وتقدر تغيّرها كل يوم لو الموظف اشتغل في وظيفة تانية)</label>
+        <select id="newStaffReviewTemplate" style="margin-bottom:0;">
+          <option value="">بدون نموذج تقييم</option>
+        </select>
+      </div>
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="btn primary full" id="addStaffBtn">إضافة موظف</button>
         <button class="btn ghost" id="cancelEditStaffBtn" style="display:none;flex:0 0 auto;">إلغاء</button>
@@ -968,6 +1079,11 @@
       <h3>📋 بنود التشيك ليست (للمدير فقط)</h3>
       <p>عدّل أسماء الأقسام والبنود، أو ضيف/احذف بنود.</p>
       <button class="btn primary full" id="openChecklistManageBtn">فتح إدارة البنود</button>
+    </div>
+    <div class="settcard" id="reviewTemplatesCard" style="display:none;">
+      <h3>⭐ نماذج تقييم الأداء حسب الوظيفة (للمدير فقط)</h3>
+      <p>حدد بنود ونسب تقييم مختلفة لكل وظيفة (مسئول خزينة، باريستا، إلخ).</p>
+      <button class="btn primary full" id="openReviewTemplatesBtn">فتح إدارة النماذج</button>
     </div>
   </div>
 
@@ -987,7 +1103,11 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- xlsx-js-style: a drop-in superset of SheetJS that can also WRITE cell styles (bold,
+     fills, borders, RTL) — needed so the performance-review Excel export can match the
+     manager's real paper-form layout, not just its data. Same global (XLSX) and API as
+     plain SheetJS, so every existing exportRowsToExcel() call keeps working unchanged. -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
 <script>
 /* =====================================================================
    DATA BACKEND — Firebase Firestore (real shared cloud database)
@@ -1021,9 +1141,60 @@ const DEFAULT_STAFF = [
   {user:'admin', pass:'1234', name:'الإدارة', role:'admin'}
 ];
 
-let currentStaff = null; // {user,name,role} - in-memory only, resets on reload
+let currentStaff = null; // {user,name,role,allowedTiles} - in-memory only, resets on reload
 function isViewer(){ return !!(currentStaff && currentStaff.role === 'viewer'); }
-let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [], suggestions: [], chatMessages: [] };
+
+// ---- Per-employee home-screen permissions ----
+// The admin picks, per employee (staff form), exactly which home tiles that account can see.
+// Only role==='employee' accounts are restricted this way — admin always sees everything
+// (and is the only one who can manage performance-review templates and other staff' reviews),
+// and 'viewer' keeps its own separate, unrelated rule set.
+const ALL_TILE_IDS = ['tileNewFeedback','tileNewCustomer','tileNewComplaint','tileComplaintsList','tileCustomers','tileReports','tileChecklist','tileWholesale','tileIssueReports','tileDailyNotes','tileWasteReports','tileSuggestions','tileInternalChat','tileMyPerformance'];
+const TILE_LABELS = {
+  tileNewFeedback:'تسجيل فيدباك', tileNewCustomer:'تسجيل عميل جديد', tileNewComplaint:'تسجيل شكوى',
+  tileComplaintsList:'متابعة الشكاوى', tileCustomers:'متابعة العملاء', tileReports:'التقارير والإحصائيات',
+  tileChecklist:'تشيك ليست الفرع', tileWholesale:'متابعة عملاء الجملة', tileIssueReports:'تقارير المشاكل',
+  tileDailyNotes:'ملاحظات يومية', tileWasteReports:'تقارير هوالك', tileSuggestions:'المقترحات',
+  tileInternalChat:'الشات الداخلي', tileMyPerformance:'⭐ تقييمي (تقييم الأداء الخاص بيه)'
+};
+// Default for a brand-new employee account: everything except the performance-review tile,
+// which is opt-in — matches how the app behaved before this per-tile picker existed.
+function defaultAllowedTiles(){ return ALL_TILE_IDS.filter(t=> t!=='tileMyPerformance'); }
+function staffAllowedTiles(s){
+  if(!s) return [];
+  if(Array.isArray(s.allowedTiles)) return s.allowedTiles;
+  // legacy accounts saved before this picker existed: same default, plus their old canViewOwnReview flag
+  const legacy = defaultAllowedTiles();
+  if(s.canViewOwnReview) legacy.push('tileMyPerformance');
+  return legacy;
+}
+// Maps every non-home screen to the tile that unlocks it, so direct navigation (not just the
+// tile click itself) is blocked too for an employee account that wasn't given that tile.
+const SCREEN_TO_TILE = {
+  wizard:'tileNewFeedback',
+  quickadd:'tileNewCustomer',
+  complaint:'tileNewComplaint',
+  complaintsList:'tileComplaintsList',
+  customers:'tileCustomers', profile:'tileCustomers',
+  reports:'tileReports',
+  checklist:'tileChecklist',
+  wholesaleCustomers:'tileWholesale', wholesaleAdd:'tileWholesale', wholesaleOrder:'tileWholesale', wholesaleProfile:'tileWholesale', wholesaleReport:'tileWholesale', wholesaleProducts:'tileWholesale',
+  issueReports:'tileIssueReports', issueReportAdd:'tileIssueReports',
+  dailyNotes:'tileDailyNotes', dailyNoteAdd:'tileDailyNotes',
+  wasteReports:'tileWasteReports', wasteReportAdd:'tileWasteReports', equipmentManage:'tileWasteReports', equipmentReport:'tileWasteReports', wasteItemsReport:'tileWasteReports',
+  suggestions:'tileSuggestions', suggestionAdd:'tileSuggestions',
+  internalChat:'tileInternalChat',
+  myPerformanceReview:'tileMyPerformance'
+};
+// true only for a plain employee account (never admin/viewer, who have their own rules) that
+// lacks the tile a screen requires.
+function isTileBlockedForCurrentStaff(screenId){
+  if(!currentStaff || currentStaff.role==='admin' || currentStaff.role==='viewer') return false;
+  const neededTile = SCREEN_TO_TILE[screenId];
+  if(!neededTile) return false; // screen isn't gated by any tile (home, settings, admin-only screens already self-guard)
+  return staffAllowedTiles(currentStaff).indexOf(neededTile) === -1;
+}
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [], suggestions: [], chatMessages: [], performanceReviews: [], performanceReviewTemplates: [] };
 let backendReady = false;
 let currentScreen = 'login';
 let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
@@ -1268,6 +1439,18 @@ function attachLiveSync(){
     if(currentScreen==='suggestions') renderSuggestionsList();
     watchNewSuggestions(list).forEach(s=> notifyOthersOnly(s, 'suggestions', '💡', 'مقترح جديد', (s.submitter||'')+' — '+(s.description||'')));
   });
+  subscribeShared('performanceReviews', list=>{
+    APP_STATE.performanceReviews = list;
+    if(currentScreen==='performanceReviews') renderPerformanceReviewsList();
+    if(currentScreen==='performanceReviewHistory') renderPerformanceReviewHistory();
+    if(currentScreen==='myPerformanceReview') renderMyPerformanceReview();
+  });
+  subscribeShared('performanceReviewTemplates', list=>{
+    APP_STATE.performanceReviewTemplates = list;
+    if(currentScreen==='performanceReviews') renderPerformanceReviewsList();
+    if(currentScreen==='reviewTemplatesManage') renderReviewTemplatesManage();
+    if(document.getElementById('settings') && document.getElementById('settings').classList.contains('active')) populateStaffReviewTemplateSelect();
+  });
   subscribeItemCollection('internalChatMessages', list=>{
     const sorted = list.slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
     if(chatFirstLoadDone){
@@ -1392,8 +1575,8 @@ async function loadAppState(){
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
     if(!(await ensureSignedIn())){ backendReady = false; return { ok:false, reason:'auth-failed' }; }
-    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions, chatMessages] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages')
+    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions, chatMessages, performanceReviews, performanceReviewTemplates] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages'), loadShared('performanceReviews', []), loadShared('performanceReviewTemplates', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -1410,6 +1593,8 @@ async function loadAppState(){
     APP_STATE.equipment = equipment;
     APP_STATE.suggestions = suggestions;
     APP_STATE.chatMessages = chatMessages.slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
+    APP_STATE.performanceReviews = performanceReviews;
+    APP_STATE.performanceReviewTemplates = performanceReviewTemplates;
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -1456,6 +1641,8 @@ async function getEquipment(){ return APP_STATE.equipment; }
 async function saveEquipment(arr){ APP_STATE.equipment = arr; saveShared('equipment', arr); }
 async function getSuggestions(){ return APP_STATE.suggestions; }
 async function saveSuggestions(arr){ APP_STATE.suggestions = arr; saveShared('suggestions', arr); }
+async function getPerformanceReviews(){ return APP_STATE.performanceReviews; }
+async function savePerformanceReviews(arr){ APP_STATE.performanceReviews = arr; saveShared('performanceReviews', arr); }
 async function getChecklists(){ return APP_STATE.checklists; }
 async function saveChecklists(arr){ APP_STATE.checklists = arr; saveShared('checklists', arr); }
 async function getChecklistSections(){ return APP_STATE.checklistSections; }
@@ -1630,6 +1817,12 @@ function openInstallGuide(){
 
 /* ================= NAV ================= */
 function go(id){
+  // A plain employee account can only reach the screens whose tile the admin gave them — block
+  // any other screen, even if reached by a direct data-go click or a stale link, and send them
+  // back home instead (home itself always shows only the tiles they're allowed).
+  if(isTileBlockedForCurrentStaff(id)){
+    id = 'home';
+  }
   currentScreen = id;
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -1664,12 +1857,52 @@ function go(id){
   if(id==='wasteItemsReport') renderWasteItemsReport();
   if(id==='suggestions'){ renderSuggestionsList(); document.getElementById('sgAddBtn').style.display = isViewer() ? 'none' : ''; }
   if(id==='internalChat'){ renderChatMessages(); markChatSeen(); }
+  if(id==='performanceReviews') renderPerformanceReviewsList();
+  if(id==='performanceReviewHistory') renderPerformanceReviewHistory();
+  if(id==='myPerformanceReview') renderMyPerformanceReview();
+  if(id==='reviewTemplatesManage') renderReviewTemplatesManage();
   if(id==='home'){
-    const hideForViewer = ['tileNewFeedback','tileNewCustomer','tileNewComplaint'];
-    hideForViewer.forEach(tid=>{
-      const el = document.getElementById(tid);
-      if(el) el.style.display = isViewer() ? 'none' : '';
-    });
+    const isAdminNow = currentStaff && currentStaff.role === 'admin';
+    const isPlainEmployee = currentStaff && !isAdminNow && !isViewer();
+    if(isPlainEmployee){
+      // show only the tiles the admin picked for this employee (data-tileid, not just tiles
+      // that already had an id) — general per-tile allowlist, no longer a binary "review-only" case
+      const allowed = staffAllowedTiles(currentStaff);
+      document.querySelectorAll('#home .grid .tile[data-tileid]').forEach(el=>{
+        el.style.display = (allowed.indexOf(el.dataset.tileid) !== -1) ? '' : 'none';
+      });
+      const manageTile = document.getElementById('tileManagePerformance');
+      if(manageTile) manageTile.style.display = 'none'; // managing everyone's reviews stays admin-only, never delegable
+    } else {
+      const hideForViewer = ['tileNewFeedback','tileNewCustomer','tileNewComplaint'];
+      hideForViewer.forEach(tid=>{
+        const el = document.getElementById(tid);
+        if(el) el.style.display = isViewer() ? 'none' : '';
+      });
+      // admin/viewer accounts have no tile restrictions — make sure every tile is visible in
+      // case this account was previously a restricted employee re-logging in on the same page
+      ALL_TILE_IDS.forEach(tid=>{
+        if(tid==='tileMyPerformance') return; // handled just below
+        const el = document.getElementById(tid) || document.querySelector('#home .grid .tile[data-tileid="'+tid+'"]');
+        if(el && el.style.display==='none' && !hideForViewer.includes(tid)) el.style.display = '';
+      });
+      const manageTile = document.getElementById('tileManagePerformance');
+      if(manageTile) manageTile.style.display = isAdminNow ? '' : 'none';
+      const myTile = document.getElementById('tileMyPerformance');
+      if(myTile) myTile.style.display = 'none'; // admin manages reviews via tileManagePerformance, not this tile; viewer never sees it
+    }
+  }
+  // a plain employee only sees the customers/reports bottom-nav tabs if the admin gave them
+  // the matching tile — admin and viewer keep seeing both, as before
+  const custNav = document.querySelector('.navitem[data-tab="customers"]');
+  const reportsNav = document.querySelector('.navitem[data-tab="reports"]');
+  if(currentStaff && currentStaff.role==='employee'){
+    const allowed = staffAllowedTiles(currentStaff);
+    if(custNav) custNav.style.display = (allowed.indexOf('tileCustomers')!==-1) ? '' : 'none';
+    if(reportsNav) reportsNav.style.display = (allowed.indexOf('tileReports')!==-1) ? '' : 'none';
+  } else {
+    if(custNav) custNav.style.display = '';
+    if(reportsNav) reportsNav.style.display = '';
   }
   if(id==='wholesaleProducts') renderWholesaleProducts();
   if(id==='settings'){ if(typeof resetStaffForm==='function') resetStaffForm(); renderSettings(); }
@@ -4442,6 +4675,672 @@ async function shareSuggestion(id){
   }
 }
 
+/* ================= PERFORMANCE REVIEWS (تقييم أداء الموظفين) =================
+   Each job/position has its own review TEMPLATE (performanceReviewTemplates):
+   a set of weighted criteria that sum to 100% (e.g. "مسئول الخزينة": نظافة
+   شخصية 5%، مظهر لائق 10%، تفعيل الإيراد اليومي 25%...). Every staff member
+   is assigned a template (reviewTemplateId on their staff record, set from
+   the staff form). Recorded and edited only by an admin ("مدير الشيفت"),
+   ONE ENTRY PER EMPLOYEE PER DAY: the manager ticks off which criteria were
+   met that day, and the day's score = sum of the weights of the ticked
+   criteria. Each entry snapshots the template's criteria+weights at the time
+   it was recorded, so editing a template later never rewrites old scores.
+   Entries are grouped by month everywhere they're shown (staff list =
+   current month's average, history screen = month/year filter, employee's
+   own screen = same filter), so each month stands on its own. A staff
+   member can be granted, via the per-tile permission picker on their own
+   staff-account record ("⭐ تقييمي" tile in allowedTiles), the ability to
+   open a read-only screen showing ONLY their own entries — never anyone
+   else's. */
+
+// ---- Templates (per job/position) ----
+const DEFAULT_REVIEW_TEMPLATES = [
+  { id:'cashier', jobTitle:'مسئول الخزينة', criteria:[
+    {id:'c1', label:'النظافة الشخصية', weight:5},
+    {id:'c2', label:'الالتزام بالمظهر اللائق', weight:10},
+    {id:'c3', label:'التعامل مع العملاء', weight:5},
+    {id:'c4', label:'التعامل مع الزملاء', weight:10},
+    {id:'c5', label:'تفعيل الإيراد اليومي بشكل سليم', weight:25},
+    {id:'c6', label:'الالتزام بأوقات الراحة', weight:10},
+    {id:'c7', label:'تسجيل بيانات العملاء بنظام الولاء', weight:15},
+    {id:'c8', label:'الترويج للمنتجات والعروض بشكل دوري', weight:10},
+    {id:'c9', label:'تنفيذ تعليمات قائد الفريق', weight:10}
+  ]}
+];
+async function getReviewTemplates(){
+  if(!APP_STATE.performanceReviewTemplates || !APP_STATE.performanceReviewTemplates.length){
+    return DEFAULT_REVIEW_TEMPLATES;
+  }
+  return APP_STATE.performanceReviewTemplates;
+}
+async function saveReviewTemplates(arr){ APP_STATE.performanceReviewTemplates = arr; saveShared('performanceReviewTemplates', arr); }
+
+function templateWeightSum(tpl){ return (tpl.criteria||[]).reduce((s,c)=> s+(Number(c.weight)||0), 0); }
+
+async function populateStaffReviewTemplateSelect(){
+  const sel = document.getElementById('newStaffReviewTemplate');
+  const templates = await getReviewTemplates();
+  const current = sel.value;
+  sel.innerHTML = '<option value="">بدون نموذج تقييم</option>' + templates.map(t=> '<option value="'+esc(t.id)+'">'+esc(t.jobTitle)+'</option>').join('');
+  sel.value = current;
+}
+
+let workingReviewTemplates = [];
+async function renderReviewTemplatesManage(){
+  const box = document.getElementById('rtmBody');
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const templates = await getReviewTemplates();
+  workingReviewTemplates = JSON.parse(JSON.stringify(templates));
+  paintReviewTemplatesManage();
+}
+function syncReviewTemplatesFromDOM(){
+  document.querySelectorAll('.rtmTitleInput').forEach(inp=>{
+    const ti = parseInt(inp.getAttribute('data-tplidx'),10);
+    if(workingReviewTemplates[ti]) workingReviewTemplates[ti].jobTitle = inp.value;
+  });
+  document.querySelectorAll('.rtmCritLabel').forEach(inp=>{
+    const ti = parseInt(inp.getAttribute('data-tplidx'),10);
+    const ci = parseInt(inp.getAttribute('data-critidx'),10);
+    if(workingReviewTemplates[ti] && workingReviewTemplates[ti].criteria[ci]) workingReviewTemplates[ti].criteria[ci].label = inp.value;
+  });
+  document.querySelectorAll('.rtmCritWeight').forEach(inp=>{
+    const ti = parseInt(inp.getAttribute('data-tplidx'),10);
+    const ci = parseInt(inp.getAttribute('data-critidx'),10);
+    if(workingReviewTemplates[ti] && workingReviewTemplates[ti].criteria[ci]) workingReviewTemplates[ti].criteria[ci].weight = inp.value;
+  });
+}
+function paintReviewTemplatesManage(){
+  const box = document.getElementById('rtmBody');
+  box.innerHTML = workingReviewTemplates.map((tpl, ti)=>{
+    const sum = templateWeightSum(tpl);
+    const sumColor = sum===100 ? 'var(--good)' : 'var(--bad)';
+    const critHtml = tpl.criteria.map((c, ci)=>
+      '<div class="clmItemRow">'
+        + '<input class="rtmCritLabel" data-tplidx="'+ti+'" data-critidx="'+ci+'" value="'+esc(c.label)+'" style="flex:3;">'
+        + '<input class="rtmCritWeight" data-tplidx="'+ti+'" data-critidx="'+ci+'" type="number" min="0" max="100" value="'+esc(c.weight)+'" style="flex:1;text-align:center;border:1.5px solid var(--line);border-radius:8px;padding:7px 4px;font-size:12px;font-family:Tajawal;background:#FCF9F3;">'
+        + '<span style="font-size:11px;color:var(--muted);">%</span>'
+        + '<button class="clmDelItemBtn" data-tplidx="'+ti+'" data-delcritidx="'+ci+'">✕</button>'
+      + '</div>'
+    ).join('');
+    return '<div class="clmSection">'
+      + '<div class="clmSecTop">'
+        + '<input class="rtmTitleInput" data-tplidx="'+ti+'" value="'+esc(tpl.jobTitle)+'">'
+        + '<button class="clmDelSecBtn" data-deltplidx="'+ti+'">🗑️ حذف النموذج</button>'
+      + '</div>'
+      + critHtml
+      + '<button type="button" class="clmAddItemBtn" data-addtplidx="'+ti+'">+ إضافة بند</button>'
+      + '<p class="sub" style="margin:8px 2px 0;color:'+sumColor+';font-weight:700;">إجمالي النسب: '+sum+'% '+(sum===100?'✓':'(لازم يساوي 100%)')+'</p>'
+    + '</div>';
+  }).join('');
+
+  box.querySelectorAll('[data-addtplidx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      syncReviewTemplatesFromDOM();
+      const ti = parseInt(btn.getAttribute('data-addtplidx'),10);
+      workingReviewTemplates[ti].criteria.push({id:'c_'+Date.now(), label:'', weight:0});
+      paintReviewTemplatesManage();
+    });
+  });
+  box.querySelectorAll('[data-delcritidx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      syncReviewTemplatesFromDOM();
+      const ti = parseInt(btn.getAttribute('data-tplidx'),10);
+      const ci = parseInt(btn.getAttribute('data-delcritidx'),10);
+      workingReviewTemplates[ti].criteria.splice(ci,1);
+      paintReviewTemplatesManage();
+    });
+  });
+  box.querySelectorAll('[data-deltplidx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const ti = parseInt(btn.getAttribute('data-deltplidx'),10);
+      if(!confirm('متأكد إنك عايز تحذف نموذج "'+workingReviewTemplates[ti].jobTitle+'"؟ الموظفين المرتبطين بيه هيبقوا بدون نموذج.')) return;
+      syncReviewTemplatesFromDOM();
+      workingReviewTemplates.splice(ti,1);
+      paintReviewTemplatesManage();
+    });
+  });
+}
+function addReviewTemplate(){
+  syncReviewTemplatesFromDOM();
+  workingReviewTemplates.push({ id:'tpl_'+Date.now(), jobTitle:'وظيفة جديدة', criteria:[{id:'c_'+Date.now(), label:'', weight:0}] });
+  paintReviewTemplatesManage();
+}
+async function saveReviewTemplatesChanges(){
+  syncReviewTemplatesFromDOM();
+  const cleaned = workingReviewTemplates
+    .filter(t=> t.jobTitle && t.jobTitle.trim())
+    .map(t=> ({ id:t.id, jobTitle:t.jobTitle.trim(), criteria:(t.criteria||[]).map(c=>({id:c.id, label:(c.label||'').trim(), weight:Number(c.weight)||0})).filter(c=>c.label) }))
+    .filter(t=> t.criteria.length);
+  if(!cleaned.length){ alert('لازم يفضل نموذج واحد على الأقل فيه بند واحد على الأقل'); return; }
+  const badOnes = cleaned.filter(t=> templateWeightSum(t) !== 100);
+  if(badOnes.length){
+    const ok = confirm('النماذج دي مجموع نسبها مش 100%: '+badOnes.map(t=>t.jobTitle).join('، ')+'\nعايز تحفظ برضه؟');
+    if(!ok) return;
+  }
+  const btn = document.getElementById('rtmSaveBtn');
+  btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
+  await saveReviewTemplates(cleaned);
+  btn.disabled = false; btn.textContent = '💾 حفظ كل التعديلات';
+  await populateStaffReviewTemplateSelect();
+  alert('تم حفظ النماذج بنجاح ✅');
+}
+
+// ---- Daily entries ----
+let editingReviewUser = null;   // the @username whose history/edit screen is open
+let editingReviewId = null;     // null = adding a new day's entry; otherwise the entry being edited
+let prWorkingCriteria = [];     // the checklist currently shown in the edit form (snapshot being edited)
+let prHistoryMonth = new Date().getMonth()+1;
+let prHistoryYear = new Date().getFullYear();
+let myPrMonth = new Date().getMonth()+1;
+let myPrYear = new Date().getFullYear();
+let allPrHistoryCache = [];
+let allMyPrCache = [];
+
+// day score = sum of weights of the checked criteria in that entry's snapshot
+function prDayScore(entry){
+  if(!entry || !entry.criteria) return 0;
+  return entry.criteria.reduce((s,c)=> s + (c.checked ? (Number(c.weight)||0) : 0), 0);
+}
+function prMonthlyAverage(entries){
+  if(!entries || !entries.length) return 0;
+  const vals = entries.map(prDayScore);
+  return vals.reduce((a,b)=>a+b,0) / vals.length;
+}
+function todayDateInputValue(){ return new Date().toISOString().slice(0,10); }
+
+async function renderPerformanceReviewsList(){
+  const box = document.getElementById('prStaffList');
+  if(!currentStaff || currentStaff.role !== 'admin'){
+    box.innerHTML = '<div class="emptystate">الشاشة دي لمدير الشيفت فقط.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const [staffList, reviews, templates] = await Promise.all([getStaff(), getPerformanceReviews(), getReviewTemplates()]);
+
+  // export month/year pickers — built once, defaulting to the current month
+  const expMonthSel = document.getElementById('prExportMonth');
+  if(expMonthSel && expMonthSel.options.length === 0){
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i+1; opt.textContent = m;
+      expMonthSel.appendChild(opt);
+    });
+  }
+  const expYearSel = document.getElementById('prExportYear');
+  if(expYearSel && expYearSel.options.length === 0){
+    const yearsInData = new Set(reviews.map(r=> new Date(r.date).getFullYear()));
+    yearsInData.add(new Date().getFullYear());
+    Array.from(yearsInData).sort((a,b)=>b-a).forEach(y=>{
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      expYearSel.appendChild(opt);
+    });
+  }
+  if(expMonthSel) expMonthSel.value = new Date().getMonth()+1;
+  if(expYearSel) expYearSel.value = new Date().getFullYear();
+
+  const employees = staffList.filter(s=> s.role !== 'admin');
+  if(!employees.length){
+    box.innerHTML = '<div class="emptystate">لا يوجد موظفين لتقييمهم بعد.</div>';
+    return;
+  }
+  const nowMonth = new Date().getMonth()+1, nowYear = new Date().getFullYear();
+  box.innerHTML = employees.map(s=>{
+    const allEntries = reviews.filter(r=> r.user===s.user).sort((a,b)=> new Date(b.date) - new Date(a.date));
+    const thisMonthEntries = allEntries.filter(r=> (new Date(r.date).getMonth()+1)===nowMonth && new Date(r.date).getFullYear()===nowYear);
+    const avg = prMonthlyAverage(thisMonthEntries);
+    // the job varies day to day, so show whatever was recorded most recently as a hint —
+    // the actual job for each day lives on that day's entry, not on the staff record
+    const lastJob = allEntries.length ? allEntries[0].jobTitle : (templates.find(t=>t.id===s.reviewTemplateId)||{}).jobTitle;
+    const jobLabel = lastJob ? 'آخر وظيفة: '+lastJob : 'لسه معملوش تقييم';
+    const avgLabel = thisMonthEntries.length ? (avg.toFixed(0)+'% · الشهر الحالي ('+thisMonthEntries.length+' يوم)') : 'لا يوجد تقييم الشهر ده';
+    return '<div class="staffrow" data-prstaff="'+esc(s.user)+'" style="cursor:pointer;">'
+      + '<div><b>'+esc(s.name)+'</b><br><span>'+esc(jobLabel)+' · '+avgLabel+'</span></div>'
+      + '<div style="display:flex;gap:10px;align-items:center;"><span style="color:var(--muted);font-size:16px;">›</span></div>'
+      + '</div>';
+  }).join('');
+  box.querySelectorAll('[data-prstaff]').forEach(row=>{
+    row.addEventListener('click', ()=> openPerformanceReviewHistory(row.getAttribute('data-prstaff')));
+  });
+}
+
+/* ================= PERFORMANCE REVIEW — EXCEL EXPORT (MANAGER) =================
+   Produces one workbook, one sheet per employee, in the same shape as the branch's real
+   paper daily-evaluation sheets: two header rows (item labels + each item's weight), one
+   row per calendar day with a 1/0 per criterion and a formula-computed daily total, a
+   notes column, and a final "المتوسط النهائي للشهر" row averaging the whole month (a day
+   with no recorded entry counts as 0%, same as a blank day on the paper sheet). */
+async function exportPerformanceReviewsExcel(){
+  const btn = document.getElementById('prExportBtn');
+  const month = parseInt(document.getElementById('prExportMonth').value, 10);
+  const year = parseInt(document.getElementById('prExportYear').value, 10);
+  if(!month || !year){ alert('اختار الشهر والسنة الأول'); return; }
+  btn.disabled = true; btn.textContent = 'جارِ التصدير...';
+  try{
+    const [staffList, reviews, templates] = await Promise.all([getStaff(), getPerformanceReviews(), getReviewTemplates()]);
+    const employees = staffList.filter(s=> s.role !== 'admin');
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const wb = XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] }; // every sheet here is Arabic, right-to-left, like the original sheets
+    let sheetsAdded = 0;
+    const skipped = [];
+    const usedSheetNames = {};
+
+    employees.forEach(s=>{
+      const monthEntries = reviews.filter(r=> r.user===s.user && (new Date(r.date).getMonth()+1)===month && new Date(r.date).getFullYear()===year);
+      // whichever job/template this employee was recorded under most this month decides the
+      // sheet's columns; with no entries yet this month, fall back to their assigned default
+      let templateId = null;
+      if(monthEntries.length){
+        const counts = {};
+        monthEntries.forEach(e=> counts[e.templateId] = (counts[e.templateId]||0)+1);
+        templateId = Object.keys(counts).sort((a,b)=> counts[b]-counts[a])[0];
+      } else {
+        templateId = s.reviewTemplateId;
+      }
+      let criteria = null;
+      const matchingEntry = monthEntries.find(e=> e.templateId === templateId);
+      if(matchingEntry && Array.isArray(matchingEntry.criteria) && matchingEntry.criteria.length){
+        criteria = matchingEntry.criteria; // the exact snapshot actually used that month
+      } else {
+        const tpl = templates.find(t=> t.id === templateId);
+        if(tpl) criteria = tpl.criteria;
+      }
+      if(!criteria || !criteria.length){ skipped.push(s.name); return; }
+
+      const sheet = buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth);
+      let sheetName = String(s.name).replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,31).trim() || s.user;
+      if(usedSheetNames[sheetName]){ usedSheetNames[sheetName]++; sheetName = sheetName.slice(0,28)+' '+usedSheetNames[sheetName]; }
+      else usedSheetNames[sheetName] = 1;
+      XLSX.utils.book_append_sheet(wb, sheet, sheetName);
+      sheetsAdded++;
+    });
+
+    if(!sheetsAdded){
+      alert('مفيش أي موظف عنده نموذج تقييم محدد عشان نصدّره — حدد نموذج تقييم افتراضي للموظفين الأول من شاشة الموظفين في الإعدادات.');
+      return;
+    }
+    XLSX.writeFile(wb, 'تقييم-الأداء-'+ARABIC_MONTHS[month-1]+'-'+year+'.xlsx');
+    if(skipped.length){
+      alert('تم التصدير ✅\nملحوظة: الموظفين دول متصدّروش لأنهم بلا نموذج تقييم محدد: '+skipped.join('، '));
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = 'تصدير Excel';
+  }
+}
+
+// Builds one employee's sheet. Every criterion gets its own single header column spanning
+// both header rows — the real paper form groups its first two criteria pairs under a shared
+// category header ("الإلتزام بالمظهر اللائق" over "النظافة الشخصية"+"اليونيفورم كامل"), but
+// our stored templates don't carry that 2-level grouping metadata, so each criterion is shown
+// under its own name instead. Everything else — weight row, daily formula total, notes,
+// month-average row — matches the paper form exactly.
+function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
+  const HEADER_FONT = { name:'Arial', sz:10, bold:true, italic:true };
+  const BODY_FONT = { name:'Arial', sz:10 };
+  const THIN = { style:'thin', color:{rgb:'000000'} };
+  const BORDER_ALL = { top:THIN, bottom:THIN, left:THIN, right:THIN };
+  const CENTER = { horizontal:'center', vertical:'center', wrapText:true };
+  const headerStyle = { font: HEADER_FONT, alignment: CENTER, border: BORDER_ALL, fill:{ fgColor:{ rgb:'F2E6D3' }, patternType:'solid' } };
+  const cellStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL };
+
+  const nCriteria = criteria.length;
+  const totalCol = 2 + nCriteria;      // 0-based column index of "إجمالي التقييم"
+  const notesCol = totalCol + 1;       // 0-based column index of "ملاحظات"
+  const colCount = notesCol + 1;
+  const colLetter = (i)=> XLSX.utils.encode_col(i);
+
+  const entryByDate = {};
+  monthEntries.forEach(e=> entryByDate[new Date(e.date).getDate()] = e);
+
+  const aoa = [];
+  aoa.push(['اليوم','التاريخ', ...criteria.map(c=>c.label), 'إجمالي التقييم','ملاحظات']);
+  aoa.push(['وزن البند','', ...criteria.map(c=> (Number(c.weight)||0)/100), 0, '']);
+
+  const dayTotalRows = []; // 1-based Excel row numbers of every day row, for the AVERAGE formula
+  const dayTotalValues = [];
+  for(let d=1; d<=daysInMonth; d++){
+    const dateObj = new Date(year, month-1, d);
+    const dayName = ARABIC_WEEKDAYS[dateObj.getDay()];
+    const entry = entryByDate[d];
+    const row = [dayName, dateObj];
+    let dayTotal = 0;
+    for(let ci=0; ci<nCriteria; ci++){
+      const w = (Number(criteria[ci].weight)||0)/100;
+      if(entry){
+        const match = (entry.criteria||[]).find(c=> c.label === criteria[ci].label);
+        const checked = match ? !!match.checked : false;
+        row.push(match ? (checked?1:0) : '');
+        if(checked) dayTotal += w;
+      } else {
+        row.push('');
+      }
+    }
+    row.push(dayTotal); // placeholder value; the real formula is attached to this cell below
+    row.push(entry ? (entry.notes||'') : '');
+    aoa.push(row);
+    dayTotalRows.push(aoa.length); // 1-based row number this line just landed on
+    dayTotalValues.push(dayTotal);
+  }
+
+  const avgRow = new Array(colCount).fill('');
+  avgRow[0] = 'المتوسط النهائي للشهر';
+  avgRow[totalCol] = dayTotalValues.length ? (dayTotalValues.reduce((a,b)=>a+b,0)/dayTotalValues.length) : 0;
+  aoa.push(avgRow);
+  const avgRowNum1based = aoa.length;
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates:true });
+
+  // formulas (kept alongside the already-computed value above, so every viewer shows the
+  // right number immediately, even one that doesn't auto-recalculate on open)
+  dayTotalRows.forEach(rowNum=>{
+    const sumTerms = criteria.map((c,ci)=> colLetter(2+ci)+rowNum+'*'+colLetter(2+ci)+'$2').join('+');
+    const addr = colLetter(totalCol)+rowNum;
+    ws[addr].f = 'SUM('+sumTerms+')';
+  });
+  ws[colLetter(totalCol)+'2'].f = 'SUM('+colLetter(2)+'2:'+colLetter(1+nCriteria)+'2)';
+  if(dayTotalRows.length){
+    ws[colLetter(totalCol)+avgRowNum1based].f = 'AVERAGE('+colLetter(totalCol)+dayTotalRows[0]+':'+colLetter(totalCol)+dayTotalRows[dayTotalRows.length-1]+')';
+  }
+
+  ws['!merges'] = [
+    { s:{r:0,c:0}, e:{r:1,c:0} },              // اليوم
+    { s:{r:0,c:1}, e:{r:1,c:1} },               // التاريخ
+    { s:{r:0,c:totalCol}, e:{r:1,c:totalCol} }, // إجمالي التقييم
+    { s:{r:0,c:notesCol}, e:{r:1,c:notesCol} }, // ملاحظات
+    { s:{r:1,c:0}, e:{r:1,c:1} },               // "وزن البند" label
+    { s:{r:aoa.length-1,c:0}, e:{r:aoa.length-1,c:totalCol-1} } // "المتوسط النهائي للشهر" label
+  ];
+  for(let ci=0; ci<nCriteria; ci++){
+    ws['!merges'].push({ s:{r:0,c:2+ci}, e:{r:1,c:2+ci} });
+  }
+
+  ws['!cols'] = [ {wch:12}, {wch:12}, ...criteria.map(()=>({wch:11})), {wch:9}, {wch:28} ];
+  ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:aoa.length-1,c:colCount-1} });
+
+  for(let r=0; r<aoa.length; r++){
+    for(let c=0; c<colCount; c++){
+      const addr = XLSX.utils.encode_cell({r,c});
+      if(!ws[addr]) ws[addr] = { t:'s', v:'' };
+      const isHeaderRow = (r===0 || r===1);
+      const isFinalRow = (r===aoa.length-1);
+      ws[addr].s = (isHeaderRow || isFinalRow) ? headerStyle : cellStyle;
+      if(r===1 && c>=2 && c<=totalCol) ws[addr].z = '0%';       // weight row + its 100% check, as a percentage
+      if(r>1 && !isFinalRow && c===1) ws[addr].z = 'dd/mm/yyyy'; // date column
+      if(r>1 && c===totalCol) ws[addr].z = '0%';                 // daily total + month average, as a percentage
+    }
+  }
+
+  return ws;
+}
+
+// Per-employee screen: a day-by-day log filtered by month/year, exactly like the other
+// report screens in the app (issue reports, daily notes, etc.).
+async function openPerformanceReviewHistory(user){
+  const staffList = await getStaff();
+  const s = staffList.find(x=> x.user === user);
+  if(!s){ alert('تعذر إيجاد الموظف ده'); return; }
+  editingReviewUser = user;
+  document.getElementById('prhTitle').textContent = 'سجل تقييم: '+s.name;
+  go('performanceReviewHistory');
+}
+
+async function renderPerformanceReviewHistory(){
+  const box = document.getElementById('prHistoryList');
+  if(!editingReviewUser){ go('performanceReviews'); return; }
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const reviews = await getPerformanceReviews();
+  allPrHistoryCache = reviews.filter(r=> r.user===editingReviewUser).slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+
+  const monthSel = document.getElementById('prMonthSel');
+  if(monthSel.options.length <= 1){
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i+1; opt.textContent = m;
+      monthSel.appendChild(opt);
+    });
+  }
+  const yearSel = document.getElementById('prYearSel');
+  const yearsInData = new Set(allPrHistoryCache.map(r=> new Date(r.date).getFullYear()));
+  yearsInData.add(new Date().getFullYear());
+  const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
+  yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  monthSel.value = prHistoryMonth;
+  yearSel.value = prHistoryYear;
+
+  paintPerformanceReviewHistory();
+}
+function paintPerformanceReviewHistory(){
+  const box = document.getElementById('prHistoryList');
+  let list = allPrHistoryCache;
+  if(prHistoryMonth!=null){ list = list.filter(r => (new Date(r.date).getMonth()+1) === prHistoryMonth); }
+  if(prHistoryYear!=null){ list = list.filter(r => new Date(r.date).getFullYear() === prHistoryYear); }
+
+  const avgEl = document.getElementById('prMonthAvg');
+  const monthAvg = prMonthlyAverage(list);
+  avgEl.textContent = list.length ? 'متوسط الفترة المختارة: '+monthAvg.toFixed(0)+'% ('+list.length+' يوم)' : '';
+
+  if(!list.length){
+    box.innerHTML = '<div class="emptystate">لا توجد تقييمات مطابقة.</div>';
+    return;
+  }
+  box.innerHTML = list.map(r=>{
+    const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
+    const score = prDayScore(r);
+    return '<div class="complaintcard">'
+      + '<div class="ctop"><div><h4>'+dateLabel+'</h4><small>'+esc(r.jobTitle||'—')+' · سجّله: '+esc(r.updatedBy||'—')+'</small></div>'
+      + '<span class="cstatus resolved">'+score.toFixed(0)+'%</span></div>'
+      + (r.notes ? '<div class="crow">'+esc(r.notes)+'</div>' : '')
+      + '<div class="cbtnrow" style="margin-top:8px;">'
+        + '<button class="delCpBtn" data-predit="'+esc(r.id)+'" style="background:#F1E7D6;color:var(--espresso-2);">✏️ تعديل</button>'
+        + '<button class="delCpBtn" data-prdel="'+esc(r.id)+'" style="background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+  box.querySelectorAll('[data-predit]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openPerformanceReviewEdit(btn.getAttribute('data-predit')));
+  });
+  box.querySelectorAll('[data-prdel]').forEach(btn=>{
+    btn.addEventListener('click', ()=> deletePerformanceReviewEntry(btn.getAttribute('data-prdel')));
+  });
+}
+
+async function deletePerformanceReviewEntry(id){
+  const ok = confirm('متأكد إنك عايز تحذف تقييم اليوم ده؟');
+  if(!ok) return;
+  const reviews = await getPerformanceReviews();
+  await savePerformanceReviews(reviews.filter(r=> r.id !== id));
+  await renderPerformanceReviewHistory();
+}
+
+function paintPrCriteriaBox(){
+  const box = document.getElementById('prCriteriaBox');
+  const card = document.getElementById('prCriteriaCard');
+  if(!prWorkingCriteria.length){
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  box.innerHTML = prWorkingCriteria.map((c, ci)=>
+    '<label style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;">'
+      + '<span style="display:flex;align-items:center;gap:10px;"><input type="checkbox" data-critidx="'+ci+'" '+(c.checked?'checked':'')+' style="width:19px;height:19px;margin:0;accent-color:var(--gold);"><span style="font-size:12.5px;">'+esc(c.label)+'</span></span>'
+      + '<b style="color:var(--muted);font-size:11.5px;flex-shrink:0;">'+c.weight+'%</b>'
+    + '</label>'
+  ).join('');
+  box.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const ci = parseInt(cb.getAttribute('data-critidx'),10);
+      prWorkingCriteria[ci].checked = cb.checked;
+      updatePrTotalScore();
+    });
+  });
+  updatePrTotalScore();
+}
+function updatePrTotalScore(){
+  const total = prWorkingCriteria.reduce((s,c)=> s + (c.checked ? (Number(c.weight)||0) : 0), 0);
+  document.getElementById('prTotalScore').textContent = total.toFixed(0)+'%';
+}
+
+// Called when the manager picks/changes which job the employee worked that day — since the
+// job can differ day to day (a cashier one day, a barista the next), this is chosen per entry,
+// not fixed on the staff record (that only supplies the pre-filled default).
+async function onPrJobTemplateChange(){
+  const sel = document.getElementById('pr_jobTemplate');
+  const templates = await getReviewTemplates();
+  const tpl = templates.find(t=> t.id === sel.value);
+  if(!tpl){ prWorkingCriteria = []; paintPrCriteriaBox(); return; }
+  prWorkingCriteria = tpl.criteria.map(c=> ({id:c.id, label:c.label, weight:c.weight, checked:true}));
+  paintPrCriteriaBox();
+}
+
+// entryId === null → a brand-new entry for today; otherwise opens that existing day for editing.
+async function openPerformanceReviewEdit(entryId){
+  const [staffList, templates] = await Promise.all([getStaff(), getReviewTemplates()]);
+  const s = staffList.find(x=> x.user === editingReviewUser);
+  if(!s){ alert('تعذر إيجاد الموظف ده'); return; }
+  editingReviewId = entryId || null;
+
+  let entry = null;
+  if(editingReviewId){
+    const reviews = await getPerformanceReviews();
+    entry = reviews.find(r=> r.id === editingReviewId) || null;
+  }
+
+  const sel = document.getElementById('pr_jobTemplate');
+  sel.innerHTML = '<option value="">اختار الوظيفة</option>' + templates.map(t=> '<option value="'+esc(t.id)+'">'+esc(t.jobTitle)+'</option>').join('');
+
+  if(entry && entry.criteria && entry.criteria.length){
+    // editing an existing day — reuse the checklist exactly as it was recorded that day, and
+    // show the job it was recorded under (even if that template was renamed/deleted since)
+    prWorkingCriteria = JSON.parse(JSON.stringify(entry.criteria));
+    sel.value = entry.templateId && templates.some(t=>t.id===entry.templateId) ? entry.templateId : '';
+    if(!sel.value && entry.jobTitle){
+      const opt = document.createElement('option');
+      opt.value = '__snapshot__'; opt.textContent = entry.jobTitle + ' (نموذج قديم)';
+      sel.appendChild(opt);
+      sel.value = '__snapshot__';
+    }
+  } else {
+    // new entry — pre-fill with the employee's default job, if set, but the manager can change it
+    const defaultTpl = templates.find(t=> t.id === s.reviewTemplateId);
+    sel.value = defaultTpl ? defaultTpl.id : '';
+    prWorkingCriteria = defaultTpl ? defaultTpl.criteria.map(c=> ({id:c.id, label:c.label, weight:c.weight, checked:true})) : [];
+  }
+
+  document.getElementById('prEditTitle').textContent = 'تقييم أداء: '+s.name;
+  document.getElementById('pr_date').value = entry ? new Date(entry.date).toISOString().slice(0,10) : todayDateInputValue();
+  document.getElementById('pr_notes').value = entry ? (entry.notes||'') : '';
+  paintPrCriteriaBox();
+  const lastUpdatedEl = document.getElementById('prLastUpdated');
+  lastUpdatedEl.textContent = entry && entry.updatedAt
+    ? 'آخر تحديث: '+new Date(entry.updatedAt).toLocaleDateString('ar-EG')+' — بواسطة: '+esc(entry.updatedBy||'—')
+    : '';
+  go('performanceReviewEdit');
+}
+
+async function savePerformanceReview(){
+  if(!editingReviewUser) return;
+  const dateVal = document.getElementById('pr_date').value;
+  if(!dateVal){ alert('من فضلك اختار تاريخ التقييم'); return; }
+  const sel = document.getElementById('pr_jobTemplate');
+  if(!sel.value || !prWorkingCriteria.length){ alert('من فضلك اختار الوظيفة اللي اشتغلها الموظف اليوم'); return; }
+  const btn = document.getElementById('prSaveBtn');
+  btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
+
+  const reviews = await getPerformanceReviews();
+  const staffList = await getStaff();
+  const s = staffList.find(x=> x.user === editingReviewUser);
+  const templates = await getReviewTemplates();
+  const chosenTpl = templates.find(t=> t.id === sel.value);
+  const jobTitle = chosenTpl ? chosenTpl.jobTitle : sel.options[sel.selectedIndex].textContent;
+
+  const data = {
+    user: editingReviewUser, staffName: s ? s.name : editingReviewUser,
+    date: new Date(dateVal+'T12:00:00').toISOString(),
+    templateId: sel.value === '__snapshot__' ? null : sel.value,
+    jobTitle: jobTitle,
+    criteria: JSON.parse(JSON.stringify(prWorkingCriteria)),
+    notes: document.getElementById('pr_notes').value.trim(),
+    updatedAt: new Date().toISOString(),
+    updatedBy: currentStaff ? currentStaff.name : 'غير معروف'
+  };
+
+  if(editingReviewId){
+    const idx = reviews.findIndex(r=> r.id === editingReviewId);
+    if(idx !== -1) reviews[idx] = Object.assign({}, reviews[idx], data);
+    else { data.id = editingReviewId; reviews.push(data); }
+  } else {
+    data.id = Date.now()+'_'+Math.random().toString(36).slice(2);
+    reviews.push(data);
+  }
+  await savePerformanceReviews(reviews);
+
+  btn.disabled = false; btn.textContent = 'حفظ التقييم';
+  go('performanceReviewHistory');
+}
+
+// Shown ONLY to the currently logged-in employee, and ONLY their own entries — never a list of
+// other staff, never another employee's data, regardless of what's stored elsewhere in APP_STATE.
+// Filtered by month/year just like the manager's history screen.
+async function renderMyPerformanceReview(){
+  const box = document.getElementById('myPrBox');
+  if(!currentStaff){ box.innerHTML = '<div class="emptystate">من فضلك سجّل الدخول.</div>'; return; }
+  if(currentStaff.role !== 'admin' && staffAllowedTiles(currentStaff).indexOf('tileMyPerformance') === -1){
+    box.innerHTML = '<div class="emptystate">مالكش صلاحية لعرض التقييم. كلّم مدير الشيفت لو محتاج الصلاحية دي.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const reviews = await getPerformanceReviews();
+  allMyPrCache = reviews.filter(r=> r.user===currentStaff.user).slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+
+  const monthSel = document.getElementById('myPrMonthSel');
+  if(monthSel.options.length <= 1){
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i+1; opt.textContent = m;
+      monthSel.appendChild(opt);
+    });
+  }
+  const yearSel = document.getElementById('myPrYearSel');
+  const yearsInData = new Set(allMyPrCache.map(r=> new Date(r.date).getFullYear()));
+  yearsInData.add(new Date().getFullYear());
+  const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
+  yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  monthSel.value = myPrMonth;
+  yearSel.value = myPrYear;
+
+  paintMyPerformanceReview();
+}
+function paintMyPerformanceReview(){
+  const box = document.getElementById('myPrBox');
+  let list = allMyPrCache;
+  if(myPrMonth!=null){ list = list.filter(r => (new Date(r.date).getMonth()+1) === myPrMonth); }
+  if(myPrYear!=null){ list = list.filter(r => new Date(r.date).getFullYear() === myPrYear); }
+
+  if(!list.length){
+    box.innerHTML = '<div class="emptystate">لسه مدير الشيفت معملش تقييم لأدائك في الفترة دي.</div>';
+    return;
+  }
+  const monthAvg = prMonthlyAverage(list);
+  box.innerHTML = '<div class="card">'
+    + '<h3>متوسط الفترة المختارة</h3>'
+    + '<p class="sub" style="font-size:20px;font-weight:800;color:var(--espresso);margin:6px 0 4px;">'+monthAvg.toFixed(0)+'%</p>'
+    + '<p class="sub" style="margin:0;">عدد أيام التقييم: '+list.length+'</p>'
+    + '</div>'
+    + list.map(r=>{
+      const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
+      const score = prDayScore(r);
+      const rows = (r.criteria||[]).map(c=> '<div class="frow"><span>'+(c.checked?'✅':'⬜')+' '+esc(c.label)+'</span><b>'+c.weight+'%</b></div>').join('');
+      return '<div class="card">'
+        + '<h3>'+dateLabel+' — '+score.toFixed(0)+'%</h3>'
+        + '<p class="sub" style="margin:-4px 0 10px;">الوظيفة: '+esc(r.jobTitle||'—')+'</p>'
+        + rows
+        + (r.notes ? '<div class="crow" style="margin-top:10px;">'+esc(r.notes)+'</div>' : '')
+        + '</div>';
+    }).join('');
+}
+
 /* ================= INTERNAL CHAT (بين الموظفين والإدارة) ================= */
 let isSendingChatMessage = false;
 
@@ -4646,6 +5545,7 @@ function paintWasteItemsReport(reports){
 let reportsMonth = new Date().getMonth()+1; // defaults to the current month so reports open already scoped to "this month"
 let reportsYear = new Date().getFullYear();
 const ARABIC_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const ARABIC_WEEKDAYS = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"]; // indexed by Date.getDay()
 
 async function renderReports(){
   const body = document.getElementById('reportsBody');
@@ -4884,17 +5784,21 @@ async function renderSettings(){
   const clmCard = document.getElementById('checklistManageCard');
   const backupCard = document.getElementById('backupCard');
   const fixOldOrdersCard = document.getElementById('fixOldOrdersCard');
+  const rtmCard = document.getElementById('reviewTemplatesCard');
   if(currentStaff && currentStaff.role === 'admin'){
     staffCard.style.display = 'block';
     clmCard.style.display = 'block';
     backupCard.style.display = 'block';
     fixOldOrdersCard.style.display = 'block';
+    rtmCard.style.display = 'block';
+    await populateStaffReviewTemplateSelect();
     await paintStaffList();
   } else {
     staffCard.style.display = 'none';
     clmCard.style.display = 'none';
     backupCard.style.display = 'none';
     fixOldOrdersCard.style.display = 'none';
+    rtmCard.style.display = 'none';
   }
 }
 let editingStaffUser = null; // null = adding a new staff member; otherwise the original @username being edited
@@ -4947,17 +5851,44 @@ async function fixOldWholesaleOrders(){
   alert('تم التحديث ✅\nعدد الطلبات اللي اتعدلت: '+changedOrders+'\nعدد الأصناف اللي اتحددت كعيّنة/هدية: '+changedItems);
 }
 
+// Builds the "الصفحات المتاحة" checkbox list inside the staff form from ALL_TILE_IDS/TILE_LABELS.
+// checkedTiles: array of tile ids that should start checked (defaults to a brand-new employee's
+// default allowlist when omitted, i.e. everything except the opt-in "تقييمي" tile).
+function paintStaffTilesCheckboxes(checkedTiles){
+  const checked = checkedTiles || defaultAllowedTiles();
+  const box = document.getElementById('newStaffTilesBox');
+  box.innerHTML = ALL_TILE_IDS.map(tid=>{
+    const isChecked = checked.indexOf(tid) !== -1;
+    return '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--espresso-2);">'
+      + '<input type="checkbox" class="newStaffTileChk" value="'+tid+'" style="width:auto;margin:0;" '+(isChecked?'checked':'')+'> '+esc(TILE_LABELS[tid])
+      + '</label>';
+  }).join('');
+}
+function getCheckedStaffTiles(){
+  return Array.from(document.querySelectorAll('.newStaffTileChk:checked')).map(el=> el.value);
+}
+// Managing performance reviews (recording/editing anyone's daily entries) is always admin-only and
+// never granted through this picker, so the tile section only makes sense for a plain employee —
+// hide it for admin/viewer accounts, whose access rules are fixed and unrelated to this list.
+function updateStaffTilesSectionVisibility(){
+  const isAdmin = document.getElementById('newStaffIsAdmin').checked;
+  const isViewerChk = document.getElementById('newStaffIsViewer').checked;
+  document.getElementById('newStaffTilesSection').style.display = (isAdmin || isViewerChk) ? 'none' : 'block';
+}
+
 async function paintStaffList(){
   const box = document.getElementById('staffListBox');
-  const staff = await getStaff();
+  const [staff, templates] = await Promise.all([getStaff(), getReviewTemplates()]);
   if(!staff.length){ box.innerHTML = '<div style="color:var(--muted);font-size:11.5px;">لا يوجد موظفين بعد.</div>'; return; }
-  box.innerHTML = staff.map(s=>
-    '<div class="staffrow"><div><b>'+esc(s.name)+'</b> '+(s.role==='admin'?'👑':(s.role==='viewer'?'👁️':''))+'<br><span>@'+esc(s.user)+'</span></div>'
+  box.innerHTML = staff.map(s=>{
+    const tpl = templates.find(t=> t.id === s.reviewTemplateId);
+    const canSeeOwnReview = s.role !== 'admin' && s.role !== 'viewer' && staffAllowedTiles(s).indexOf('tileMyPerformance') !== -1;
+    return '<div class="staffrow"><div><b>'+esc(s.name)+'</b> '+(s.role==='admin'?'👑':(s.role==='viewer'?'👁️':''))+(canSeeOwnReview?' ⭐':'')+'<br><span>@'+esc(s.user)+(tpl?' · '+esc(tpl.jobTitle):'')+'</span></div>'
     + '<div style="display:flex;gap:10px;">'
       + '<button class="delStaff" data-edituser="'+esc(s.user)+'" style="color:var(--primary,#0F5C4F);">تعديل</button>'
       + '<button class="delStaff" data-user="'+esc(s.user)+'">حذف</button>'
-    + '</div></div>'
-  ).join('');
+    + '</div></div>';
+  }).join('');
   box.querySelectorAll('[data-user]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const user = btn.getAttribute('data-user');
@@ -4980,6 +5911,9 @@ async function paintStaffList(){
       document.getElementById('newStaffPass').value = s.pass;
       document.getElementById('newStaffIsAdmin').checked = s.role==='admin';
       document.getElementById('newStaffIsViewer').checked = s.role==='viewer';
+      paintStaffTilesCheckboxes(staffAllowedTiles(s));
+      updateStaffTilesSectionVisibility();
+      document.getElementById('newStaffReviewTemplate').value = s.reviewTemplateId || '';
       document.getElementById('staffFormTitle').textContent = 'تعديل بيانات: '+s.name;
       document.getElementById('addStaffBtn').textContent = 'حفظ التعديل';
       document.getElementById('cancelEditStaffBtn').style.display = 'block';
@@ -4995,6 +5929,9 @@ function resetStaffForm(){
   document.getElementById('newStaffPass').value = '';
   document.getElementById('newStaffIsAdmin').checked = false;
   document.getElementById('newStaffIsViewer').checked = false;
+  paintStaffTilesCheckboxes();
+  updateStaffTilesSectionVisibility();
+  document.getElementById('newStaffReviewTemplate').value = '';
   document.getElementById('staffFormTitle').textContent = 'إضافة موظف جديد';
   document.getElementById('addStaffBtn').textContent = 'إضافة موظف';
   document.getElementById('cancelEditStaffBtn').style.display = 'none';
@@ -5012,6 +5949,10 @@ async function addStaffMember(){
   const user = document.getElementById('newStaffUser').value.trim();
   const pass = document.getElementById('newStaffPass').value;
   const role = computeStaffRole();
+  // admin/viewer accounts have no tile restrictions, so this is only meaningful for a plain
+  // employee — still captured either way, but ignored by staffAllowedTiles() for those roles.
+  const allowedTiles = getCheckedStaffTiles();
+  const reviewTemplateId = document.getElementById('newStaffReviewTemplate').value || null;
   if(!name || !user || !pass){ alert('من فضلك املأ اسم الموظف واسم المستخدم وكلمة السر'); return; }
 
   const list = await getStaff();
@@ -5022,16 +5963,16 @@ async function addStaffMember(){
     if(dupeExists){ alert('اسم المستخدم ده مستخدم بالفعل'); return; }
     const idx = list.findIndex(s=>s.user===editingStaffUser);
     if(idx===-1){ alert('تعذر إيجاد الموظف ده، ممكن يكون اتحذف'); resetStaffForm(); await paintStaffList(); return; }
-    list[idx] = {user, pass, name, role};
+    list[idx] = {user, pass, name, role, allowedTiles, reviewTemplateId};
     await saveStaff(list);
     // if the logged-in admin just edited their own account, keep the session in sync
     if(currentStaff && currentStaff.user === editingStaffUser){
-      currentStaff = {user, name, role};
+      currentStaff = {user, name, role, allowedTiles, reviewTemplateId};
       document.getElementById('staffNameLabel').textContent = name;
     }
   } else {
     if(list.some(s=>s.user===user)){ alert('اسم المستخدم ده مستخدم بالفعل'); return; }
-    list.push({user, pass, name, role});
+    list.push({user, pass, name, role, allowedTiles, reviewTemplateId});
     await saveStaff(list);
   }
 
@@ -5103,7 +6044,7 @@ async function doLogin(){
     return;
   }
   err.textContent = '';
-  currentStaff = {user:match.user, name:match.name, role: match.role || 'employee'};
+  currentStaff = {user:match.user, name:match.name, role: match.role || 'employee', allowedTiles: staffAllowedTiles(match), reviewTemplateId: match.reviewTemplateId};
   document.getElementById('staffNameLabel').textContent = match.name;
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
@@ -5151,12 +6092,16 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('installBtnLogin').addEventListener('click', installApp);
   document.getElementById('installBtnSettings').addEventListener('click', installApp);
   document.getElementById('addStaffBtn').addEventListener('click', addStaffMember);
-  document.getElementById('newStaffIsAdmin').addEventListener('change', function(){ if(this.checked) document.getElementById('newStaffIsViewer').checked = false; });
-  document.getElementById('newStaffIsViewer').addEventListener('change', function(){ if(this.checked) document.getElementById('newStaffIsAdmin').checked = false; });
+  document.getElementById('newStaffIsAdmin').addEventListener('change', function(){ if(this.checked) document.getElementById('newStaffIsViewer').checked = false; updateStaffTilesSectionVisibility(); });
+  document.getElementById('newStaffIsViewer').addEventListener('change', function(){ if(this.checked) document.getElementById('newStaffIsAdmin').checked = false; updateStaffTilesSectionVisibility(); });
   document.getElementById('cancelEditStaffBtn').addEventListener('click', resetStaffForm);
   document.getElementById('openChecklistManageBtn').addEventListener('click', ()=> go('checklistManage'));
   document.getElementById('clmAddSectionBtn').addEventListener('click', addChecklistManageSection);
   document.getElementById('clmSaveBtn').addEventListener('click', saveChecklistManageChanges);
+  document.getElementById('openReviewTemplatesBtn').addEventListener('click', ()=> go('reviewTemplatesManage'));
+  document.getElementById('prExportBtn').addEventListener('click', exportPerformanceReviewsExcel);
+  document.getElementById('rtmAddTemplateBtn').addEventListener('click', addReviewTemplate);
+  document.getElementById('rtmSaveBtn').addEventListener('click', saveReviewTemplatesChanges);
   document.getElementById('qaSaveBtn').addEventListener('click', submitQuickAdd);
   populateComplaintProductSelect();
   document.getElementById('cpSaveBtn').addEventListener('click', submitComplaint);
@@ -5241,6 +6186,25 @@ document.addEventListener('DOMContentLoaded', function(){
     exportRowsToExcel('تقرير-المقترحات.xlsx', 'المقترحات', headers, rows);
   });
   document.getElementById('sgSaveBtn').addEventListener('click', submitSuggestion);
+  document.getElementById('prSaveBtn').addEventListener('click', savePerformanceReview);
+  document.getElementById('prAddTodayBtn').addEventListener('click', ()=> openPerformanceReviewEdit(null));
+  document.getElementById('pr_jobTemplate').addEventListener('change', onPrJobTemplateChange);
+  document.getElementById('prMonthSel').addEventListener('change', e=>{
+    prHistoryMonth = e.target.value ? parseInt(e.target.value,10) : null;
+    paintPerformanceReviewHistory();
+  });
+  document.getElementById('prYearSel').addEventListener('change', e=>{
+    prHistoryYear = e.target.value ? parseInt(e.target.value,10) : null;
+    paintPerformanceReviewHistory();
+  });
+  document.getElementById('myPrMonthSel').addEventListener('change', e=>{
+    myPrMonth = e.target.value ? parseInt(e.target.value,10) : null;
+    paintMyPerformanceReview();
+  });
+  document.getElementById('myPrYearSel').addEventListener('change', e=>{
+    myPrYear = e.target.value ? parseInt(e.target.value,10) : null;
+    paintMyPerformanceReview();
+  });
   document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
   document.getElementById('chatToast').addEventListener('click', ()=>{
     document.getElementById('chatToast').classList.remove('show');
