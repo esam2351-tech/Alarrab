@@ -975,7 +975,13 @@
         <div class="field"><label>تاريخ التقييم</label>
           <input type="date" id="pr_date">
         </div>
-        <div class="field" style="margin-bottom:0;"><label>الوظيفة اللي اشتغلها الموظف اليوم</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--espresso-2);margin:2px 0 10px;">
+          <input type="checkbox" id="pr_isLeave" style="width:auto;margin:0;"> 📅 الموظف إجازة/غايب اليوم (من غير تقييم)
+        </label>
+        <div class="field" id="pr_arrivalTimeField"><label>موعد الحضور</label>
+          <input type="time" id="pr_arrivalTime">
+        </div>
+        <div class="field" id="pr_jobTemplateField" style="margin-bottom:0;"><label>الوظيفة اللي اشتغلها الموظف اليوم</label>
           <select id="pr_jobTemplate"><option value="">اختار الوظيفة</option></select>
         </div>
       </div>
@@ -4941,11 +4947,13 @@ async function renderPerformanceReviewsList(){
     const avg = prMonthlyAverage(thisMonthEntries);
     // the job varies day to day, so show whatever was recorded most recently as a hint —
     // the actual job for each day lives on that day's entry, not on the staff record
-    const lastJob = allEntries.length ? allEntries[0].jobTitle : (templates.find(t=>t.id===s.reviewTemplateId)||{}).jobTitle;
+    const lastJobEntry = allEntries.find(e=> e.jobTitle);
+    const lastJob = lastJobEntry ? lastJobEntry.jobTitle : (templates.find(t=>t.id===s.reviewTemplateId)||{}).jobTitle;
     const jobLabel = lastJob ? 'آخر وظيفة: '+lastJob : 'لسه معملوش تقييم';
+    const lastDateLabel = allEntries.length ? 'آخر تقييم: '+new Date(allEntries[0].date).toLocaleDateString('ar-EG') : '';
     const avgLabel = thisMonthEntries.length ? (avg.toFixed(0)+'% · الشهر الحالي ('+thisMonthEntries.length+' يوم)') : 'لا يوجد تقييم الشهر ده';
     return '<div class="staffrow" data-prstaff="'+esc(s.user)+'" style="cursor:pointer;">'
-      + '<div><b>'+esc(s.name)+'</b><br><span>'+esc(jobLabel)+' · '+avgLabel+'</span></div>'
+      + '<div><b>'+esc(s.name)+'</b><br><span>'+esc(jobLabel)+(lastDateLabel?' · '+esc(lastDateLabel):'')+' · '+avgLabel+'</span></div>'
       + '<div style="display:flex;gap:10px;align-items:center;"><span style="color:var(--muted);font-size:16px;">›</span></div>'
       + '</div>';
   }).join('');
@@ -5055,9 +5063,11 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
   const cellStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL };
 
   const nCriteria = criteria.length;
-  const totalCol = 2 + nCriteria;      // 0-based column index of "إجمالي التقييم"
-  const notesCol = totalCol + 1;       // 0-based column index of "ملاحظات"
-  const colCount = notesCol + 1;
+  const CRIT_START = 3;                 // col0=اليوم col1=التاريخ col2=موعد الحضور، والبنود تبدأ من هنا
+  const totalCol = CRIT_START + nCriteria; // 0-based column index of "إجمالي التقييم"
+  const notesCol = totalCol + 1;        // 0-based column index of "ملاحظات"
+  const recordedByCol = notesCol + 1;   // 0-based column index of "سجّله" (المدير اللي سجل تقييم اليوم ده)
+  const colCount = recordedByCol + 1;
   const colLetter = (i)=> XLSX.utils.encode_col(i);
   const groups = prDetectGroupedHeaders(criteria); // null, or the 2 known category-header defs
   const groupedCriteriaIdx = new Set(); // criteria indexes that belong to a group (both members)
@@ -5069,17 +5079,19 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
   const entryByDate = {};
   monthEntries.forEach(e=> entryByDate[new Date(e.date).getDate()] = e);
 
-  const aoa = [ new Array(colCount).fill(''), new Array(colCount).fill(''), new Array(colCount).fill('') ];
-  aoa[0][0] = 'اليوم'; aoa[0][1] = 'التاريخ'; aoa[0][totalCol] = 'إجمالي التقييم'; aoa[0][notesCol] = 'ملاحظات';
+  const aoa = [ new Array(colCount).fill(null), new Array(colCount).fill(null), new Array(colCount).fill(null) ];
+  aoa[0][0] = 'اليوم'; aoa[0][1] = 'التاريخ'; aoa[0][2] = 'موعد الحضور';
+  aoa[0][totalCol] = 'إجمالي التقييم'; aoa[0][notesCol] = 'ملاحظات'; aoa[0][recordedByCol] = 'سجّله';
   aoa[2][0] = 'وزن البند';
+  aoa[2][totalCol] = 0; // placeholder so the cell exists before the SUM formula is attached below
   for(let ci=0; ci<nCriteria; ci++){
-    const col = 2+ci;
+    const col = CRIT_START+ci;
     if(!groupedCriteriaIdx.has(ci)){ aoa[0][col] = criteria[ci].label; } // standalone: label sits on row1, spans down to row2
     aoa[2][col] = (Number(criteria[ci].weight)||0)/100;
   }
   if(groups) groups.forEach(g=>{
-    aoa[0][2+g.subIdx[0]] = g.header;              // shared category label, row1, merged across its 2 columns
-    g.subIdx.forEach(i=> aoa[1][2+i] = criteria[i].label); // each criterion's own label, row2
+    aoa[0][CRIT_START+g.subIdx[0]] = g.header;              // shared category label, row1, merged across its 2 columns
+    g.subIdx.forEach(i=> aoa[1][CRIT_START+i] = criteria[i].label); // each criterion's own label, row2
   });
 
   const dayTotalRows = []; // 1-based Excel row numbers of every day row, for the AVERAGE formula
@@ -5088,27 +5100,28 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
     const dateObj = new Date(year, month-1, d);
     const dayName = ARABIC_WEEKDAYS[dateObj.getDay()];
     const entry = entryByDate[d];
-    const row = [dayName, dateObj];
+    const row = [dayName, dateObj, entry && entry.arrivalTime ? entry.arrivalTime : null];
     let dayTotal = 0;
     for(let ci=0; ci<nCriteria; ci++){
       const w = (Number(criteria[ci].weight)||0)/100;
       if(entry){
         const match = (entry.criteria||[]).find(c=> c.label === criteria[ci].label);
         const checked = match ? !!match.checked : false;
-        row.push(match ? (checked?1:0) : '');
+        row.push(match ? (checked?1:0) : null); // null → a true blank cell, not text, so it reads as 0 in the SUM formula below (an empty STRING cell would throw #VALUE!); displayed as ✓/✗ via a number format below, not as a raw digit
         if(checked) dayTotal += w;
       } else {
-        row.push('');
+        row.push(null);
       }
     }
     row.push(dayTotal); // placeholder value; the real formula is attached to this cell below
-    row.push(entry ? (entry.notes||'') : '');
+    row.push(entry && entry.notes ? entry.notes : null);
+    row.push(entry && entry.updatedBy ? entry.updatedBy : null);
     aoa.push(row);
     dayTotalRows.push(aoa.length); // 1-based row number this line just landed on
     dayTotalValues.push(dayTotal);
   }
 
-  const avgRow = new Array(colCount).fill('');
+  const avgRow = new Array(colCount).fill(null);
   avgRow[0] = 'المتوسط النهائي للشهر';
   avgRow[totalCol] = dayTotalValues.length ? (dayTotalValues.reduce((a,b)=>a+b,0)/dayTotalValues.length) : 0;
   aoa.push(avgRow);
@@ -5120,10 +5133,10 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
   // formulas (kept alongside the already-computed value above, so every viewer shows the
   // right number immediately, even one that doesn't auto-recalculate on open)
   dayTotalRows.forEach(rowNum=>{
-    const sumTerms = criteria.map((c,ci)=> colLetter(2+ci)+rowNum+'*'+colLetter(2+ci)+'$'+weightRowNum1based).join('+');
+    const sumTerms = criteria.map((c,ci)=> colLetter(CRIT_START+ci)+rowNum+'*'+colLetter(CRIT_START+ci)+'$'+weightRowNum1based).join('+');
     ws[colLetter(totalCol)+rowNum].f = 'SUM('+sumTerms+')';
   });
-  ws[colLetter(totalCol)+weightRowNum1based].f = 'SUM('+colLetter(2)+weightRowNum1based+':'+colLetter(1+nCriteria)+weightRowNum1based+')';
+  ws[colLetter(totalCol)+weightRowNum1based].f = 'SUM('+colLetter(CRIT_START)+weightRowNum1based+':'+colLetter(CRIT_START-1+nCriteria)+weightRowNum1based+')';
   if(dayTotalRows.length){
     ws[colLetter(totalCol)+avgRowNum1based].f = 'AVERAGE('+colLetter(totalCol)+dayTotalRows[0]+':'+colLetter(totalCol)+dayTotalRows[dayTotalRows.length-1]+')';
   }
@@ -5131,28 +5144,34 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
   ws['!merges'] = [
     { s:{r:0,c:0}, e:{r:1,c:0} },              // اليوم
     { s:{r:0,c:1}, e:{r:1,c:1} },               // التاريخ
+    { s:{r:0,c:2}, e:{r:1,c:2} },               // موعد الحضور
     { s:{r:0,c:totalCol}, e:{r:1,c:totalCol} }, // إجمالي التقييم
     { s:{r:0,c:notesCol}, e:{r:2,c:notesCol} }, // ملاحظات (spans all 3 header rows — no weight of its own)
-    { s:{r:2,c:0}, e:{r:2,c:1} },               // "وزن البند" label
+    { s:{r:0,c:recordedByCol}, e:{r:2,c:recordedByCol} }, // سجّله (spans all 3 header rows — no weight of its own)
+    { s:{r:2,c:0}, e:{r:2,c:2} },               // "وزن البند" label (spans اليوم/التاريخ/موعد الحضور)
     { s:{r:aoa.length-1,c:0}, e:{r:aoa.length-1,c:totalCol-1} } // "المتوسط النهائي للشهر" label
   ];
   for(let ci=0; ci<nCriteria; ci++){
-    if(!groupedCriteriaIdx.has(ci)) ws['!merges'].push({ s:{r:0,c:2+ci}, e:{r:1,c:2+ci} }); // standalone criterion: label spans row1:row2
+    if(!groupedCriteriaIdx.has(ci)) ws['!merges'].push({ s:{r:0,c:CRIT_START+ci}, e:{r:1,c:CRIT_START+ci} }); // standalone criterion: label spans row1:row2
   }
-  if(groups) groups.forEach(g=> ws['!merges'].push({ s:{r:0,c:2+g.subIdx[0]}, e:{r:0,c:2+g.subIdx[1]} })); // shared category label, row1 only
+  if(groups) groups.forEach(g=> ws['!merges'].push({ s:{r:0,c:CRIT_START+g.subIdx[0]}, e:{r:0,c:CRIT_START+g.subIdx[1]} })); // shared category label, row1 only
 
-  ws['!cols'] = [ {wch:12}, {wch:12}, ...criteria.map(()=>({wch:11})), {wch:9}, {wch:28} ];
+  ws['!cols'] = [ {wch:12}, {wch:12}, {wch:10}, ...criteria.map(()=>({wch:11})), {wch:9}, {wch:28}, {wch:14} ];
   ws['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:aoa.length-1,c:colCount-1} });
 
   for(let r=0; r<aoa.length; r++){
     for(let c=0; c<colCount; c++){
       const addr = XLSX.utils.encode_cell({r,c});
-      if(!ws[addr]) ws[addr] = { t:'s', v:'' };
+      // a blank cell here must stay a true blank ('z' = styled stub, no value) rather than an
+      // empty-string text cell — text cells make the SUM(...) daily-total formula throw #VALUE!
+      if(!ws[addr]) ws[addr] = { t:'z' };
       const isHeaderRow = (r < HEADER_ROWS);
       const isFinalRow = (r===aoa.length-1);
       ws[addr].s = (isHeaderRow || isFinalRow) ? headerStyle : cellStyle;
-      if(r===2 && c>=2 && c<=totalCol) ws[addr].z = '0%';         // weight row + its 100% check, as a percentage
+      if(r===2 && c>=CRIT_START && c<=totalCol) ws[addr].z = '0%'; // weight row + its 100% check, as a percentage
       if(r>=DAY_ROW_START && !isFinalRow && c===1) ws[addr].z = 'dd/mm/yyyy'; // date column
+      if(r>=DAY_ROW_START && !isFinalRow && c===2) ws[addr].z = 'hh:mm';      // موعد الحضور column
+      if(r>=DAY_ROW_START && !isFinalRow && c>=CRIT_START && c<totalCol) ws[addr].z = '[=1]"✓";[=0]"✗"'; // show ✓/✗ instead of a raw 1/0, no change to the underlying value the formula multiplies
       if(r>=DAY_ROW_START && c===totalCol) ws[addr].z = '0%';     // daily total + month average, as a percentage
     }
   }
@@ -5213,9 +5232,11 @@ function paintPerformanceReviewHistory(){
   box.innerHTML = list.map(r=>{
     const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
     const score = prDayScore(r);
+    const isLeave = r.isLeave || !(r.criteria && r.criteria.length);
+    const jobLabel = isLeave ? '📅 إجازة/غايب' : (r.jobTitle||'—');
     return '<div class="complaintcard">'
-      + '<div class="ctop"><div><h4>'+dateLabel+'</h4><small>'+esc(r.jobTitle||'—')+' · سجّله: '+esc(r.updatedBy||'—')+'</small></div>'
-      + '<span class="cstatus resolved">'+score.toFixed(0)+'%</span></div>'
+      + '<div class="ctop"><div><h4>'+dateLabel+'</h4><small>'+esc(jobLabel)+' · سجّله: '+esc(r.updatedBy||'—')+'</small></div>'
+      + (isLeave ? '' : '<span class="cstatus resolved">'+score.toFixed(0)+'%</span>') + '</div>'
       + (r.notes ? '<div class="crow">'+esc(r.notes)+'</div>' : '')
       + '<div class="cbtnrow" style="margin-top:8px;">'
         + '<button class="delCpBtn" data-predit="'+esc(r.id)+'" style="background:#F1E7D6;color:var(--espresso-2);">✏️ تعديل</button>'
@@ -5279,6 +5300,22 @@ async function onPrJobTemplateChange(){
   paintPrCriteriaBox();
 }
 
+// Toggled by the "📅 الموظف إجازة/غايب اليوم" checkbox — a leave day skips the job/checklist
+// entirely (nothing was worked, so nothing to check off) and is just a dated note, same as an
+// "أجازة"/"إذن انصراف" row on the branch's paper form: blank criteria, 0% for the day, whatever
+// reason the manager types in the notes field below.
+function togglePrLeaveMode(){
+  const isLeave = document.getElementById('pr_isLeave').checked;
+  document.getElementById('pr_jobTemplateField').style.display = isLeave ? 'none' : '';
+  document.getElementById('pr_arrivalTimeField').style.display = isLeave ? 'none' : '';
+  document.getElementById('prCriteriaCard').style.display = isLeave ? 'none' : (prWorkingCriteria.length ? 'block' : 'none');
+  if(isLeave){
+    document.getElementById('pr_jobTemplate').value = '';
+    document.getElementById('pr_arrivalTime').value = '';
+    prWorkingCriteria = [];
+  }
+}
+
 // entryId === null → a brand-new entry for today; otherwise opens that existing day for editing.
 async function openPerformanceReviewEdit(entryId){
   const [staffList, templates] = await Promise.all([getStaff(), getReviewTemplates()]);
@@ -5295,7 +5332,8 @@ async function openPerformanceReviewEdit(entryId){
   const sel = document.getElementById('pr_jobTemplate');
   sel.innerHTML = '<option value="">اختار الوظيفة</option>' + templates.map(t=> '<option value="'+esc(t.id)+'">'+esc(t.jobTitle)+'</option>').join('');
 
-  if(entry && entry.criteria && entry.criteria.length){
+  const isLeaveEntry = !!(entry && (entry.isLeave || !(entry.criteria && entry.criteria.length)));
+  if(entry && !isLeaveEntry){
     // editing an existing day — reuse the checklist exactly as it was recorded that day, and
     // show the job it was recorded under (even if that template was renamed/deleted since)
     prWorkingCriteria = JSON.parse(JSON.stringify(entry.criteria));
@@ -5306,17 +5344,24 @@ async function openPerformanceReviewEdit(entryId){
       sel.appendChild(opt);
       sel.value = '__snapshot__';
     }
-  } else {
+  } else if(!entry){
     // new entry — pre-fill with the employee's default job, if set, but the manager can change it
     const defaultTpl = templates.find(t=> t.id === s.reviewTemplateId);
     sel.value = defaultTpl ? defaultTpl.id : '';
     prWorkingCriteria = defaultTpl ? defaultTpl.criteria.map(c=> ({id:c.id, label:c.label, weight:c.weight, checked:true})) : [];
+  } else {
+    // an existing leave/no-checklist entry
+    sel.value = '';
+    prWorkingCriteria = [];
   }
 
   document.getElementById('prEditTitle').textContent = 'تقييم أداء: '+s.name;
   document.getElementById('pr_date').value = entry ? new Date(entry.date).toISOString().slice(0,10) : todayDateInputValue();
   document.getElementById('pr_notes').value = entry ? (entry.notes||'') : '';
+  document.getElementById('pr_arrivalTime').value = entry ? (entry.arrivalTime||'') : '';
+  document.getElementById('pr_isLeave').checked = isLeaveEntry;
   paintPrCriteriaBox();
+  togglePrLeaveMode();
   const lastUpdatedEl = document.getElementById('prLastUpdated');
   lastUpdatedEl.textContent = entry && entry.updatedAt
     ? 'آخر تحديث: '+new Date(entry.updatedAt).toLocaleDateString('ar-EG')+' — بواسطة: '+esc(entry.updatedBy||'—')
@@ -5328,24 +5373,43 @@ async function savePerformanceReview(){
   if(!editingReviewUser) return;
   const dateVal = document.getElementById('pr_date').value;
   if(!dateVal){ alert('من فضلك اختار تاريخ التقييم'); return; }
+  const isLeave = document.getElementById('pr_isLeave').checked;
   const sel = document.getElementById('pr_jobTemplate');
-  if(!sel.value || !prWorkingCriteria.length){ alert('من فضلك اختار الوظيفة اللي اشتغلها الموظف اليوم'); return; }
+  if(!isLeave && (!sel.value || !prWorkingCriteria.length)){ alert('من فضلك اختار الوظيفة اللي اشتغلها الموظف اليوم — أو علّم "الموظف إجازة/غايب اليوم" لو معملش شغل خالص'); return; }
+  if(isLeave && !document.getElementById('pr_notes').value.trim()){ alert('من فضلك اكتب السبب (إجازة، إذن انصراف، أجازة مرضي...) في الملاحظات'); return; }
+
+  const reviews = await getPerformanceReviews();
+
+  // brand-new entry for a date that already has a recorded review for this employee → warn the
+  // manager instead of silently creating a duplicate day; let them choose to overwrite it in place
+  if(!editingReviewId){
+    const targetDateStr = new Date(dateVal+'T12:00:00').toDateString();
+    const existing = reviews.find(r=> r.user===editingReviewUser && new Date(r.date).toDateString()===targetDateStr);
+    if(existing){
+      const who = existing.updatedBy || 'غير معروف';
+      const ok = confirm('فيه تقييم متسجل بالفعل للموظف ده في اليوم ده — سجّله: '+who+'.\nلو كملت هيتم استبدال التقييم القديم بالتقييم الجديد ده. عايز تكمل؟');
+      if(!ok){ return; }
+      editingReviewId = existing.id;
+    }
+  }
+
   const btn = document.getElementById('prSaveBtn');
   btn.disabled = true; btn.textContent = 'جارِ الحفظ...';
 
-  const reviews = await getPerformanceReviews();
   const staffList = await getStaff();
   const s = staffList.find(x=> x.user === editingReviewUser);
   const templates = await getReviewTemplates();
-  const chosenTpl = templates.find(t=> t.id === sel.value);
-  const jobTitle = chosenTpl ? chosenTpl.jobTitle : sel.options[sel.selectedIndex].textContent;
+  const chosenTpl = isLeave ? null : templates.find(t=> t.id === sel.value);
+  const jobTitle = isLeave ? null : (chosenTpl ? chosenTpl.jobTitle : sel.options[sel.selectedIndex].textContent);
 
   const data = {
     user: editingReviewUser, staffName: s ? s.name : editingReviewUser,
     date: new Date(dateVal+'T12:00:00').toISOString(),
-    templateId: sel.value === '__snapshot__' ? null : sel.value,
+    templateId: isLeave ? null : (sel.value === '__snapshot__' ? null : sel.value),
     jobTitle: jobTitle,
-    criteria: JSON.parse(JSON.stringify(prWorkingCriteria)),
+    isLeave: isLeave,
+    criteria: isLeave ? [] : JSON.parse(JSON.stringify(prWorkingCriteria)),
+    arrivalTime: isLeave ? '' : (document.getElementById('pr_arrivalTime').value || ''),
     notes: document.getElementById('pr_notes').value.trim(),
     updatedAt: new Date().toISOString(),
     updatedBy: currentStaff ? currentStaff.name : 'غير معروف'
@@ -5416,10 +5480,11 @@ function paintMyPerformanceReview(){
     + list.map(r=>{
       const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
       const score = prDayScore(r);
+      const isLeave = r.isLeave || !(r.criteria && r.criteria.length);
       const rows = (r.criteria||[]).map(c=> '<div class="frow"><span>'+(c.checked?'✅':'⬜')+' '+esc(c.label)+'</span><b>'+c.weight+'%</b></div>').join('');
       return '<div class="card">'
-        + '<h3>'+dateLabel+' — '+score.toFixed(0)+'%</h3>'
-        + '<p class="sub" style="margin:-4px 0 10px;">الوظيفة: '+esc(r.jobTitle||'—')+'</p>'
+        + '<h3>'+dateLabel+(isLeave?'':' — '+score.toFixed(0)+'%')+'</h3>'
+        + '<p class="sub" style="margin:-4px 0 10px;">'+(isLeave ? '📅 إجازة/غايب' : 'الوظيفة: '+esc(r.jobTitle||'—'))+'</p>'
         + rows
         + (r.notes ? '<div class="crow" style="margin-top:10px;">'+esc(r.notes)+'</div>' : '')
         + '</div>';
@@ -6014,7 +6079,7 @@ function resetStaffForm(){
   document.getElementById('newStaffPass').value = '';
   document.getElementById('newStaffIsAdmin').checked = false;
   document.getElementById('newStaffIsViewer').checked = false;
-  paintStaffTilesCheckboxes();
+  paintStaffTilesCheckboxes([]); // start every tile unchecked — the admin picks what this employee sees, nothing is pre-granted
   updateStaffTilesSectionVisibility();
   document.getElementById('newStaffReviewTemplate').value = '';
   document.getElementById('staffFormTitle').textContent = 'إضافة موظف جديد';
@@ -6274,6 +6339,7 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('prSaveBtn').addEventListener('click', savePerformanceReview);
   document.getElementById('prAddTodayBtn').addEventListener('click', ()=> openPerformanceReviewEdit(null));
   document.getElementById('pr_jobTemplate').addEventListener('change', onPrJobTemplateChange);
+  document.getElementById('pr_isLeave').addEventListener('change', togglePrLeaveMode);
   document.getElementById('prMonthSel').addEventListener('change', e=>{
     prHistoryMonth = e.target.value ? parseInt(e.target.value,10) : null;
     paintPerformanceReviewHistory();
