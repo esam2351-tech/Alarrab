@@ -5268,17 +5268,29 @@ function paintPrCriteriaBox(){
     return;
   }
   card.style.display = 'block';
+  // كل بند متعلّمش عليه (❌) لازم مدير الشيفت يكتب السبب — بيظهر تحت البند تلقائي لحد ما يتعلّم
   box.innerHTML = prWorkingCriteria.map((c, ci)=>
-    '<label style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;">'
-      + '<span style="display:flex;align-items:center;gap:10px;"><input type="checkbox" data-critidx="'+ci+'" '+(c.checked?'checked':'')+' style="width:19px;height:19px;margin:0;accent-color:var(--gold);"><span style="font-size:12.5px;">'+esc(c.label)+'</span></span>'
-      + '<b style="color:var(--muted);font-size:11.5px;flex-shrink:0;">'+c.weight+'%</b>'
-    + '</label>'
+    '<div style="padding:10px 0;border-bottom:1px solid var(--line);">'
+      + '<label style="display:flex;align-items:center;gap:10px;justify-content:space-between;cursor:pointer;">'
+        + '<span style="display:flex;align-items:center;gap:10px;"><input type="checkbox" data-critidx="'+ci+'" '+(c.checked?'checked':'')+' style="width:19px;height:19px;margin:0;accent-color:var(--gold);"><span style="font-size:12.5px;">'+esc(c.label)+'</span></span>'
+        + '<b style="color:var(--muted);font-size:11.5px;flex-shrink:0;">'+c.weight+'%</b>'
+      + '</label>'
+      + '<input type="text" data-critreason="'+ci+'" value="'+esc(c.reason||'')+'" placeholder="ليه؟ اكتب السبب..." style="display:'+(c.checked?'none':'block')+';width:100%;margin-top:8px;border:1.5px solid var(--bad);border-radius:8px;padding:7px 9px;font-size:12px;font-family:\'Tajawal\';background:#FDF4F1;">'
+    + '</div>'
   ).join('');
   box.querySelectorAll('input[type=checkbox]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
       const ci = parseInt(cb.getAttribute('data-critidx'),10);
       prWorkingCriteria[ci].checked = cb.checked;
+      const reasonInput = box.querySelector('[data-critreason="'+ci+'"]');
+      if(reasonInput) reasonInput.style.display = cb.checked ? 'none' : 'block';
       updatePrTotalScore();
+    });
+  });
+  box.querySelectorAll('input[data-critreason]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const ci = parseInt(inp.getAttribute('data-critreason'),10);
+      prWorkingCriteria[ci].reason = inp.value;
     });
   });
   updatePrTotalScore();
@@ -5377,6 +5389,10 @@ async function savePerformanceReview(){
   const sel = document.getElementById('pr_jobTemplate');
   if(!isLeave && (!sel.value || !prWorkingCriteria.length)){ alert('من فضلك اختار الوظيفة اللي اشتغلها الموظف اليوم — أو علّم "الموظف إجازة/غايب اليوم" لو معملش شغل خالص'); return; }
   if(isLeave && !document.getElementById('pr_notes').value.trim()){ alert('من فضلك اكتب السبب (إجازة، إذن انصراف، أجازة مرضي...) في الملاحظات'); return; }
+  if(!isLeave){
+    const missingReason = prWorkingCriteria.find(c=> !c.checked && !(c.reason && c.reason.trim()));
+    if(missingReason){ alert('من فضلك اكتب سبب عدم تحقيق بند "'+missingReason.label+'"'); return; }
+  }
 
   const reviews = await getPerformanceReviews();
 
@@ -5481,11 +5497,29 @@ function paintMyPerformanceReview(){
       const dateLabel = new Date(r.date).toLocaleDateString('ar-EG');
       const score = prDayScore(r);
       const isLeave = r.isLeave || !(r.criteria && r.criteria.length);
-      const rows = (r.criteria||[]).map(c=> '<div class="frow"><span>'+(c.checked?'✅':'⬜')+' '+esc(c.label)+'</span><b>'+c.weight+'%</b></div>').join('');
+      const hasReasons = (r.criteria||[]).some(c=> !c.checked && c.reason);
+      const table = (r.criteria||[]).length
+        ? '<div style="overflow-x:auto;"><table style="border-collapse:collapse;width:100%;min-width:280px;">'
+          + '<thead><tr style="background:#FBF3E6;">'
+            + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap;">البند</th>'
+            + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">النسبة</th>'
+            + '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">الحالة</th>'
+            + (hasReasons ? '<th style="padding:8px 6px;font-size:10.5px;color:var(--muted);text-align:right;">السبب</th>' : '')
+          + '</tr></thead>'
+          + '<tbody>' + (r.criteria||[]).map(c=>
+              '<tr style="border-top:1px solid var(--line);">'
+                + '<td style="padding:8px 6px;font-size:12px;font-weight:700;">'+esc(c.label)+'</td>'
+                + '<td style="padding:8px 6px;font-size:12px;text-align:center;">'+c.weight+'%</td>'
+                + '<td style="padding:8px 6px;font-size:14px;text-align:center;">'+(c.checked?'✅':'⬜')+'</td>'
+                + (hasReasons ? '<td style="padding:8px 6px;font-size:11.5px;color:var(--bad);">'+(!c.checked && c.reason ? esc(c.reason) : '')+'</td>' : '')
+              + '</tr>'
+            ).join('')
+          + '</tbody></table></div>'
+        : '';
       return '<div class="card">'
         + '<h3>'+dateLabel+(isLeave?'':' — '+score.toFixed(0)+'%')+'</h3>'
         + '<p class="sub" style="margin:-4px 0 10px;">'+(isLeave ? '📅 إجازة/غايب' : 'الوظيفة: '+esc(r.jobTitle||'—'))+'</p>'
-        + rows
+        + table
         + (r.notes ? '<div class="crow" style="margin-top:10px;">'+esc(r.notes)+'</div>' : '')
         + '</div>';
     }).join('');
