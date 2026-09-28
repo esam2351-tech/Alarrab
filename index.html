@@ -5079,8 +5079,9 @@ function todayDateInputValue(){ return new Date().toISOString().slice(0,10); }
 
 async function renderPerformanceReviewsList(){
   const box = document.getElementById('prStaffList');
-  if(!currentStaff || currentStaff.role !== 'admin'){
-    box.innerHTML = '<div class="emptystate">الشاشة دي لمدير الشيفت فقط.</div>';
+  const canManage = currentStaff && (currentStaff.role === 'admin' || staffAllowedTiles(currentStaff).indexOf('tileManagePerformance') !== -1);
+  if(!canManage){
+    box.innerHTML = '<div class="emptystate">مالكش صلاحية لإدارة تقييمات الأداء. كلّم مدير الشيفت لو محتاج الصلاحية دي.</div>';
     return;
   }
   box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
