@@ -5205,12 +5205,21 @@ async function exportPerformanceReviewsExcel(){
       // convention as each department sheet's own "المتوسط النهائي للشهر" row, so this number
       // is never a different figure from what the sheets right below it already show
       const combinedAvg = monthEntries.length ? prMonthOverallAverage(monthEntries, daysInMonth) : null;
+      // "موعد الحضور" و"ملاحظات" في شيت الملخص بيجمعوا كل أيام الشهر اللي فيها قيمة مسجّلة، كل
+      // يوم في سطر منفصل جوه نفس الخلية (رقم اليوم/الشهر: القيمة) — نفس البيانات الموجودة أصلًا
+      // في شيت كل موظف، بس مجمّعة هنا عشان المدير يقدر يشوفها من غير ما يفتح كل شيت لوحده
+      const sortedMonthEntries = monthEntries.slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
+      const arrivalText = sortedMonthEntries.filter(e=> e.arrivalTime && String(e.arrivalTime).trim())
+        .map(e=> new Date(e.date).getDate()+'/'+month+': '+String(e.arrivalTime).trim()).join('\n');
+      const notesText = sortedMonthEntries.filter(e=> e.notes && String(e.notes).trim())
+        .map(e=> new Date(e.date).getDate()+'/'+month+': '+String(e.notes).trim()).join('\n');
       summaryRows.push({
         name: s.name,
         depts: deptKeys.map(k=> deptGroups[k].jobTitle).filter(Boolean).join(' + ') || '—',
         avg: combinedAvg,
         days: workEntries.length,
-        leaveDays, absenceDays
+        leaveDays, absenceDays,
+        arrivalText, notesText
       });
 
       return { s, deptGroups, deptKeys, leaveAbsenceEntries };
@@ -5228,14 +5237,18 @@ async function exportPerformanceReviewsExcel(){
       const cellStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL };
       const leaveCellStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL, fill:{ fgColor:{ rgb:'D9F2E3' }, patternType:'solid' } };
       const absenceCellStyle = { font: BODY_FONT, alignment: CENTER, border: BORDER_ALL, fill:{ fgColor:{ rgb:'FBDCD5' }, patternType:'solid' } };
-      const LEAVE_COL = 4, ABSENCE_COL = 5; // 0-based
-      const sumAoa = [ ['الموظف','القسم / الأقسام','متوسط تقييم الشهر','عدد أيام التقييم','أيام إجازة','أيام غياب'] ];
-      summaryRows.forEach(row=> sumAoa.push([ row.name, row.depts, row.avg==null ? null : row.avg/100, row.days, row.leaveDays||0, row.absenceDays||0 ]));
+      // موعد الحضور/ملاحظات بيتجمعوا سطر لكل يوم جوه نفس الخلية، فمحتاجين محاذاة يمين (نص عربي)
+      // مع wrapText بدل المحاذاة النص زي باقي أعمدة الأرقام
+      const textCellStyle = { font: BODY_FONT, alignment: { horizontal:'right', vertical:'center', wrapText:true }, border: BORDER_ALL };
+      const LEAVE_COL = 4, ABSENCE_COL = 5, ARRIVAL_COL = 6, NOTES_COL = 7; // 0-based
+      const COL_COUNT = 8;
+      const sumAoa = [ ['الموظف','القسم / الأقسام','متوسط تقييم الشهر','عدد أيام التقييم','أيام إجازة','أيام غياب','موعد الحضور','ملاحظات'] ];
+      summaryRows.forEach(row=> sumAoa.push([ row.name, row.depts, row.avg==null ? null : row.avg/100, row.days, row.leaveDays||0, row.absenceDays||0, row.arrivalText||'', row.notesText||'' ]));
       const sumWs = XLSX.utils.aoa_to_sheet(sumAoa);
-      sumWs['!cols'] = [ {wch:20}, {wch:28}, {wch:16}, {wch:14}, {wch:11}, {wch:11} ];
-      sumWs['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:sumAoa.length-1,c:5} });
+      sumWs['!cols'] = [ {wch:20}, {wch:28}, {wch:16}, {wch:14}, {wch:11}, {wch:11}, {wch:22}, {wch:40} ];
+      sumWs['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:sumAoa.length-1,c:COL_COUNT-1} });
       for(let r=0; r<sumAoa.length; r++){
-        for(let c=0; c<6; c++){
+        for(let c=0; c<COL_COUNT; c++){
           const addr = XLSX.utils.encode_cell({r,c});
           if(!sumWs[addr]) sumWs[addr] = { t:'z' };
           // كل الشيت بنفس اللون العادي — فقط خلية "عدد أيام إجازة" لو فيها رقم أكبر من صفر بتلوّن
@@ -5243,13 +5256,24 @@ async function exportPerformanceReviewsExcel(){
           // من غير أي تلوين مختلف
           const isLeaveHit = r>0 && c===LEAVE_COL && (summaryRows[r-1].leaveDays||0) > 0;
           const isAbsenceHit = r>0 && c===ABSENCE_COL && (summaryRows[r-1].absenceDays||0) > 0;
+          const isTextCol = c===ARRIVAL_COL || c===NOTES_COL;
           // a fresh copy per cell, not the shared style object itself — xlsx-js-style embeds the
           // number format (.z) INTO the referenced style object when writing, so every other cell
           // pointing at that same shared object would otherwise silently inherit the % format too
           // (this was exactly why "عدد أيام التقييم" and the zero-count leave/absence cells were
           // showing up as "100%"/"0%" instead of plain numbers)
-          sumWs[addr].s = Object.assign({}, (r===0) ? headerStyle : isLeaveHit ? leaveCellStyle : isAbsenceHit ? absenceCellStyle : cellStyle);
+          sumWs[addr].s = Object.assign({}, (r===0) ? headerStyle : isLeaveHit ? leaveCellStyle : isAbsenceHit ? absenceCellStyle : isTextCol ? textCellStyle : cellStyle);
           if(r>0 && c===2) sumWs[addr].z = '0%';
+        }
+        // صفوف فيها أكتر من يوم واحد في الملاحظات/موعد الحضور محتاجة ارتفاع أكبر عشان الالتفاف
+        // (wrapText) يبان كامل بدل ما يتقص — بنحسبه من أكبر عدد أسطر بين العمودين في الصف ده
+        if(r>0){
+          const rowData = summaryRows[r-1];
+          const lineCount = Math.max(1, (rowData.arrivalText||'').split('\n').length, (rowData.notesText||'').split('\n').length);
+          if(lineCount>1){
+            if(!sumWs['!rows']) sumWs['!rows'] = [];
+            sumWs['!rows'][r] = { hpt: Math.min(18*lineCount, 200) };
+          }
         }
       }
       XLSX.utils.book_append_sheet(wb, sumWs, 'ملخص الشهر');
