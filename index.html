@@ -1168,7 +1168,7 @@
       </label>
       <div id="newStaffTilesSection" style="margin-top:10px;">
         <label style="display:block;font-size:11.5px;font-weight:700;color:var(--espresso-2);margin-bottom:6px;">الصفحات المتاحة للموظف ده (حدد اللي هو يقدر يدخلها بس)</label>
-        <p style="font-size:10.5px;color:var(--muted);margin:0 0 8px;">التحكم في تقييمات الأداء (تسجيلها/تعديلها لأي موظف) صلاحية المدير بس، ومش بتدخل هنا. تحديد "⭐ تقييمي" هنا بيسمح للموظف يشوف تقييم نفسه بس.</p>
+        <p style="font-size:10.5px;color:var(--muted);margin:0 0 8px;">حدد "📈 تقييم أداء الموظفين" لو عايز الموظف ده يقدر يسجل ويعدّل تقييمات باقي الموظفين (زي المدير بالظبط). تحديد "⭐ تقييمي" هنا بيسمح للموظف يشوف تقييم نفسه بس.</p>
         <div id="newStaffTilesBox" style="display:flex;flex-direction:column;gap:5px;"></div>
       </div>
       <div style="margin-top:10px;">
@@ -1260,18 +1260,19 @@ function isHR(){ return !!(currentStaff && currentStaff.role === 'hr'); }
 // Only role==='employee' accounts are restricted this way — admin always sees everything
 // (and is the only one who can manage performance-review templates and other staff' reviews),
 // and 'viewer' keeps its own separate, unrelated rule set.
-const ALL_TILE_IDS = ['tileNewFeedback','tileNewCustomer','tileNewComplaint','tileComplaintsList','tileCustomers','tileReports','tileChecklist','tileWholesale','tileIssueReports','tileDailyNotes','tileWasteReports','tileSuggestions','tileInternalChat','tileMyPerformance','tileMySalary'];
+const ALL_TILE_IDS = ['tileNewFeedback','tileNewCustomer','tileNewComplaint','tileComplaintsList','tileCustomers','tileReports','tileChecklist','tileWholesale','tileIssueReports','tileDailyNotes','tileWasteReports','tileSuggestions','tileInternalChat','tileMyPerformance','tileMySalary','tileManagePerformance'];
 const TILE_LABELS = {
   tileNewFeedback:'تسجيل فيدباك', tileNewCustomer:'تسجيل عميل جديد', tileNewComplaint:'تسجيل شكوى',
   tileComplaintsList:'متابعة الشكاوى', tileCustomers:'متابعة العملاء', tileReports:'التقارير والإحصائيات',
   tileChecklist:'تشيك ليست الفرع', tileWholesale:'متابعة عملاء الجملة', tileIssueReports:'تقارير المشاكل',
   tileDailyNotes:'ملاحظات يومية', tileWasteReports:'تقارير هوالك', tileSuggestions:'المقترحات',
   tileInternalChat:'الشات الداخلي', tileMyPerformance:'⭐ تقييمي (تقييم الأداء الخاص بيه)',
-  tileMySalary:'💰 مرتبي (تفاصيل المرتب الخاصة بيه)'
+  tileMySalary:'💰 مرتبي (تفاصيل المرتب الخاصة بيه)',
+  tileManagePerformance:'📈 تقييم أداء الموظفين (تسجيل/تعديل تقييمات كل الموظفين)'
 };
-// Default for a brand-new employee account: everything except the performance-review and salary
-// tiles, which are opt-in — matches how the app behaved before this per-tile picker existed.
-function defaultAllowedTiles(){ return ALL_TILE_IDS.filter(t=> t!=='tileMyPerformance' && t!=='tileMySalary'); }
+// Default for a brand-new employee account: everything except the performance-review, salary and
+// review-management tiles, which are opt-in — matches how the app behaved before this per-tile picker existed.
+function defaultAllowedTiles(){ return ALL_TILE_IDS.filter(t=> t!=='tileMyPerformance' && t!=='tileMySalary' && t!=='tileManagePerformance'); }
 function staffAllowedTiles(s){
   if(!s) return [];
   if(Array.isArray(s.allowedTiles)) return s.allowedTiles;
@@ -1297,7 +1298,8 @@ const SCREEN_TO_TILE = {
   suggestions:'tileSuggestions', suggestionAdd:'tileSuggestions',
   internalChat:'tileInternalChat',
   myPerformanceReview:'tileMyPerformance',
-  mySalary:'tileMySalary'
+  mySalary:'tileMySalary',
+  performanceReviews:'tileManagePerformance', performanceReviewHistory:'tileManagePerformance', performanceReviewEdit:'tileManagePerformance'
 };
 // true only for a plain employee account (never admin/viewer, who have their own rules) that
 // lacks the tile a screen requires.
@@ -2003,13 +2005,13 @@ function go(id){
       if(salTile) salTile.style.display = '';
     } else if(isPlainEmployee){
       // show only the tiles the admin picked for this employee (data-tileid, not just tiles
-      // that already had an id) — general per-tile allowlist, no longer a binary "review-only" case
+      // that already had an id) — general per-tile allowlist, no longer a binary "review-only" case.
+      // tileManagePerformance (managing everyone's reviews) is included in this same allowlist now,
+      // so a plain employee sees it only if the admin explicitly granted it via the staff form.
       const allowed = staffAllowedTiles(currentStaff);
       document.querySelectorAll('#home .grid .tile[data-tileid]').forEach(el=>{
         el.style.display = (allowed.indexOf(el.dataset.tileid) !== -1) ? '' : 'none';
       });
-      const manageTile = document.getElementById('tileManagePerformance');
-      if(manageTile) manageTile.style.display = 'none'; // managing everyone's reviews stays admin-only, never delegable
       const salManageTile = document.getElementById('tileManageSalaries');
       if(salManageTile) salManageTile.style.display = 'none'; // managing salaries stays HR-only, never delegable
     } else {
@@ -2021,7 +2023,7 @@ function go(id){
       // admin/viewer accounts have no tile restrictions — make sure every tile is visible in
       // case this account was previously a restricted employee re-logging in on the same page
       ALL_TILE_IDS.forEach(tid=>{
-        if(tid==='tileMyPerformance' || tid==='tileMySalary') return; // handled just below
+        if(tid==='tileMyPerformance' || tid==='tileMySalary' || tid==='tileManagePerformance') return; // handled just below
         const el = document.getElementById(tid) || document.querySelector('#home .grid .tile[data-tileid="'+tid+'"]');
         if(el && el.style.display==='none' && !hideForViewer.includes(tid)) el.style.display = '';
       });
@@ -6701,9 +6703,9 @@ function paintStaffTilesCheckboxes(checkedTiles){
 function getCheckedStaffTiles(){
   return Array.from(document.querySelectorAll('.newStaffTileChk:checked')).map(el=> el.value);
 }
-// Managing performance reviews (recording/editing anyone's daily entries) is always admin-only and
-// never granted through this picker, so the tile section only makes sense for a plain employee —
-// hide it for admin/viewer accounts, whose access rules are fixed and unrelated to this list.
+// This per-tile picker (including "📈 تقييم أداء الموظفين", which lets a plain employee record/edit
+// everyone's reviews like an admin would) only makes sense for a plain employee account — hide it
+// for admin/viewer/HR accounts, whose access rules are fixed and unrelated to this list.
 function updateStaffTilesSectionVisibility(){
   const isAdmin = document.getElementById('newStaffIsAdmin').checked;
   const isViewerChk = document.getElementById('newStaffIsViewer').checked;
@@ -6718,7 +6720,8 @@ async function paintStaffList(){
   box.innerHTML = staff.map(s=>{
     const tpl = templates.find(t=> t.id === s.reviewTemplateId);
     const canSeeOwnReview = s.role !== 'admin' && s.role !== 'viewer' && s.role !== 'hr' && staffAllowedTiles(s).indexOf('tileMyPerformance') !== -1;
-    return '<div class="staffrow"><div><b>'+esc(s.name)+'</b> '+(s.role==='admin'?'👑':(s.role==='viewer'?'👁️':(s.role==='hr'?'💰':'')))+(canSeeOwnReview?' ⭐':'')+'<br><span>@'+esc(s.user)+(tpl?' · '+esc(tpl.jobTitle):'')+'</span></div>'
+    const canManageReviews = s.role !== 'admin' && s.role !== 'viewer' && s.role !== 'hr' && staffAllowedTiles(s).indexOf('tileManagePerformance') !== -1;
+    return '<div class="staffrow"><div><b>'+esc(s.name)+'</b> '+(s.role==='admin'?'👑':(s.role==='viewer'?'👁️':(s.role==='hr'?'💰':'')))+(canSeeOwnReview?' ⭐':'')+(canManageReviews?' 📈':'')+'<br><span>@'+esc(s.user)+(tpl?' · '+esc(tpl.jobTitle):'')+'</span></div>'
     + '<div style="display:flex;gap:10px;">'
       + '<button class="delStaff" data-edituser="'+esc(s.user)+'" style="color:var(--primary,#0F5C4F);">تعديل</button>'
       + '<button class="delStaff" data-user="'+esc(s.user)+'">حذف</button>'
