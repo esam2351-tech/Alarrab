@@ -449,6 +449,8 @@
       <div class="tile js-go" data-go="internalChat" data-tileid="tileInternalChat" style="position:relative;"><span class="ic">💬</span><span>الشات الداخلي</span><span class="badge" id="chatTileBadge" style="display:none;">0</span></div>
       <div class="tile js-go" data-go="performanceReviews" id="tileManagePerformance" data-tileid="tileManagePerformance" style="display:none;"><span class="ic">📈</span><span>تقييم أداء الموظفين</span></div>
       <div class="tile js-go" data-go="myPerformanceReview" id="tileMyPerformance" data-tileid="tileMyPerformance" style="display:none;"><span class="ic">⭐</span><span>تقييمي</span></div>
+      <div class="tile js-go" data-go="manageSalaries" id="tileManageSalaries" data-tileid="tileManageSalaries" style="display:none;"><span class="ic">💰</span><span>إدارة المرتبات</span></div>
+      <div class="tile js-go" data-go="mySalary" id="tileMySalary" data-tileid="tileMySalary" style="display:none;"><span class="ic">💵</span><span>مرتبي</span></div>
     </div>
   </div>
 
@@ -1026,6 +1028,99 @@
     <div id="myPrBox" class="wrap" style="padding-top:0;"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
 
+  <!-- ============ SALARIES — EMPLOYEE LIST (HR) ============ -->
+  <div class="screen" id="manageSalaries">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>إدارة المرتبات</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <p class="sub" style="margin-bottom:12px;">اختار الموظف عشان تسجّل مرتب شهر أو تشوف سجل مرتباته السابقة.</p>
+    </div>
+    <div id="salStaffList"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ SALARIES — EMPLOYEE HISTORY (HR) ============ -->
+  <div class="screen" id="salaryHistory">
+    <div class="head"><div class="back js-go" data-go="manageSalaries">→</div><h2 id="salhTitle">سجل المرتبات</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <button class="btn primary full" id="salAddBtn" style="margin-bottom:12px;">+ تسجيل مرتب شهر جديد</button>
+    </div>
+    <div id="salHistoryList"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
+  <!-- ============ SALARIES — EDIT (HR) ============ -->
+  <div class="screen" id="salaryEdit">
+    <div class="head"><div class="back js-go" data-go="salaryHistory">→</div><h2 id="salEditTitle">مرتب الشهر</h2></div>
+    <div class="wrap">
+      <div class="card">
+        <h3>الشهر</h3>
+        <div style="display:flex;gap:8px;">
+          <select id="sal_month" style="flex:1;margin-bottom:0;"></select>
+          <select id="sal_year" style="flex:1;margin-bottom:0;"></select>
+        </div>
+      </div>
+      <div class="card">
+        <h3>الأساسي والحوافز</h3>
+        <div class="field"><label>الأساسي</label><input type="number" step="0.01" id="sal_basicSalary" placeholder="0"></div>
+        <div class="field"><label>الحافز</label><input type="number" step="0.01" id="sal_incentiveTarget" placeholder="0"></div>
+        <div class="field"><label>حافز البيع</label><input type="number" step="0.01" id="sal_salesIncentiveTarget" placeholder="0"></div>
+        <div class="field"><label>بدل الوجبة</label><input type="number" step="0.01" id="sal_mealAllowance" placeholder="0"></div>
+        <div class="field"><label>نسبة تحقيق البيع %</label><input type="number" step="0.01" id="sal_salesAchievementPct" placeholder="0"></div>
+        <div class="field" style="margin-bottom:0;"><label>متوسط التقييم الفني %</label><input type="number" step="0.01" id="sal_techEvalPct" placeholder="0"></div>
+      </div>
+      <div class="card">
+        <h3>أيام وساعات العمل</h3>
+        <div style="display:flex;gap:8px;">
+          <div class="field" style="flex:1;"><label>أيام العمل المخططة</label><input type="number" step="0.01" id="sal_plannedWorkDays" placeholder="0"></div>
+          <div class="field" style="flex:1;"><label>أيام العمل الفعلية</label><input type="number" step="0.01" id="sal_actualWorkDays" placeholder="0"></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div class="field" style="flex:1;"><label>عدد الساعات المخططة</label><input type="number" step="0.01" id="sal_plannedHours" placeholder="0"></div>
+          <div class="field" style="flex:1;"><label>عدد الساعات الفعلية</label><input type="number" step="0.01" id="sal_actualHours" placeholder="0"></div>
+        </div>
+        <div class="field" style="margin-bottom:0;"><label>أيام إضافي</label><input type="number" step="0.01" id="sal_overtimeDays" placeholder="0"></div>
+      </div>
+      <div class="card">
+        <h3>الخصومات</h3>
+        <div class="field"><label>خصم ساعات حافز</label><input type="number" step="0.01" id="sal_incentiveHoursDeduction" placeholder="0"></div>
+        <div class="field"><label>أيام عدم تواجد مستجدين</label><input type="number" step="0.01" id="sal_newHireAbsenceDays" placeholder="0"></div>
+        <div class="field"><label>خصم أيام حافز</label><input type="number" step="0.01" id="sal_incentiveDaysDeduction" placeholder="0"></div>
+        <div class="field"><label>خصم ساعات مرتب</label><input type="number" step="0.01" id="sal_salaryHoursDeduction" placeholder="0"></div>
+        <div class="field"><label>خصم أيام مرتب</label><input type="number" step="0.01" id="sal_salaryDaysDeduction" placeholder="0"></div>
+        <div class="field" style="margin-bottom:0;"><label>أيام جزاء مرتب</label><input type="number" step="0.01" id="sal_penaltyDays" placeholder="0"></div>
+      </div>
+      <div class="card">
+        <h3>سلف وملاحظات</h3>
+        <div class="field"><label>سلف</label><input type="number" step="0.01" id="sal_advances" placeholder="0"></div>
+        <div class="field"><label>ملاحظات</label><input id="sal_notes" placeholder="ملاحظات عامة"></div>
+        <div class="field"><label>جزاء</label><input id="sal_penaltyNote" placeholder="تفاصيل الجزاء (لو فيه)"></div>
+        <div class="field"><label>تأخيرات</label><input id="sal_latenessNote" placeholder="تفاصيل التأخيرات (لو فيه)"></div>
+        <div class="field"><label>غياب</label><input id="sal_absenceNote" placeholder="تفاصيل الغياب (لو فيه)"></div>
+        <div class="field" style="margin-bottom:0;"><label>مرضي</label><input id="sal_sickNote" placeholder="إجازات مرضية (لو فيه)"></div>
+      </div>
+      <div class="card" id="salSummaryCard">
+        <h3>الملخص المحسوب</h3>
+        <p class="sub" style="margin-bottom:10px;">البنود دي بتتحسب أوتوماتيك من البيانات اللي فوق — تقدير تقريبي، راجعه قبل الاعتماد.</p>
+        <div id="salSummaryBox"></div>
+      </div>
+      <p class="sub" id="salLastUpdated" style="margin:-6px 4px 0;"></p>
+    </div>
+    <div class="btnrow">
+      <button class="btn ghost js-go" data-go="salaryHistory">إلغاء</button>
+      <button class="btn primary" id="salSaveBtn">حفظ المرتب</button>
+    </div>
+  </div>
+
+  <!-- ============ SALARIES — MY SALARY (EMPLOYEE, READ-ONLY) ============ -->
+  <div class="screen" id="mySalary">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>مرتبي</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <select id="mySalMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;"></select>
+        <select id="mySalYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;"></select>
+      </div>
+    </div>
+    <div id="mySalBox" class="wrap" style="padding-top:0;"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
   <!-- ============ SETTINGS ============ -->
   <div class="screen" id="settings">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>الإعدادات</h2></div>
@@ -1067,6 +1162,9 @@
       </label>
       <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-top:8px;">
         <input type="checkbox" id="newStaffIsViewer" style="width:auto;margin:0;"> حساب اطّلاع فقط (يشوف التقارير ويصدّرها، بدون إضافة/تعديل/حذف أي بيانات)
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-top:8px;">
+        <input type="checkbox" id="newStaffIsHR" style="width:auto;margin:0;"> حساب HR (يشوف شاشة إدارة المرتبات بس، ومفيش أي شاشة تانية في التطبيق)
       </label>
       <div id="newStaffTilesSection" style="margin-top:10px;">
         <label style="display:block;font-size:11.5px;font-weight:700;color:var(--espresso-2);margin-bottom:6px;">الصفحات المتاحة للموظف ده (حدد اللي هو يقدر يدخلها بس)</label>
@@ -1153,23 +1251,27 @@ const DEFAULT_STAFF = [
 
 let currentStaff = null; // {user,name,role,allowedTiles} - in-memory only, resets on reload
 function isViewer(){ return !!(currentStaff && currentStaff.role === 'viewer'); }
+// HR is its own separate role: it can ONLY see the salary-management screen (never the rest of
+// the app, and never delegated to admin either — a deliberate, narrower account than admin/viewer).
+function isHR(){ return !!(currentStaff && currentStaff.role === 'hr'); }
 
 // ---- Per-employee home-screen permissions ----
 // The admin picks, per employee (staff form), exactly which home tiles that account can see.
 // Only role==='employee' accounts are restricted this way — admin always sees everything
 // (and is the only one who can manage performance-review templates and other staff' reviews),
 // and 'viewer' keeps its own separate, unrelated rule set.
-const ALL_TILE_IDS = ['tileNewFeedback','tileNewCustomer','tileNewComplaint','tileComplaintsList','tileCustomers','tileReports','tileChecklist','tileWholesale','tileIssueReports','tileDailyNotes','tileWasteReports','tileSuggestions','tileInternalChat','tileMyPerformance'];
+const ALL_TILE_IDS = ['tileNewFeedback','tileNewCustomer','tileNewComplaint','tileComplaintsList','tileCustomers','tileReports','tileChecklist','tileWholesale','tileIssueReports','tileDailyNotes','tileWasteReports','tileSuggestions','tileInternalChat','tileMyPerformance','tileMySalary'];
 const TILE_LABELS = {
   tileNewFeedback:'تسجيل فيدباك', tileNewCustomer:'تسجيل عميل جديد', tileNewComplaint:'تسجيل شكوى',
   tileComplaintsList:'متابعة الشكاوى', tileCustomers:'متابعة العملاء', tileReports:'التقارير والإحصائيات',
   tileChecklist:'تشيك ليست الفرع', tileWholesale:'متابعة عملاء الجملة', tileIssueReports:'تقارير المشاكل',
   tileDailyNotes:'ملاحظات يومية', tileWasteReports:'تقارير هوالك', tileSuggestions:'المقترحات',
-  tileInternalChat:'الشات الداخلي', tileMyPerformance:'⭐ تقييمي (تقييم الأداء الخاص بيه)'
+  tileInternalChat:'الشات الداخلي', tileMyPerformance:'⭐ تقييمي (تقييم الأداء الخاص بيه)',
+  tileMySalary:'💰 مرتبي (تفاصيل المرتب الخاصة بيه)'
 };
-// Default for a brand-new employee account: everything except the performance-review tile,
-// which is opt-in — matches how the app behaved before this per-tile picker existed.
-function defaultAllowedTiles(){ return ALL_TILE_IDS.filter(t=> t!=='tileMyPerformance'); }
+// Default for a brand-new employee account: everything except the performance-review and salary
+// tiles, which are opt-in — matches how the app behaved before this per-tile picker existed.
+function defaultAllowedTiles(){ return ALL_TILE_IDS.filter(t=> t!=='tileMyPerformance' && t!=='tileMySalary'); }
 function staffAllowedTiles(s){
   if(!s) return [];
   if(Array.isArray(s.allowedTiles)) return s.allowedTiles;
@@ -1194,17 +1296,18 @@ const SCREEN_TO_TILE = {
   wasteReports:'tileWasteReports', wasteReportAdd:'tileWasteReports', equipmentManage:'tileWasteReports', equipmentReport:'tileWasteReports', wasteItemsReport:'tileWasteReports',
   suggestions:'tileSuggestions', suggestionAdd:'tileSuggestions',
   internalChat:'tileInternalChat',
-  myPerformanceReview:'tileMyPerformance'
+  myPerformanceReview:'tileMyPerformance',
+  mySalary:'tileMySalary'
 };
 // true only for a plain employee account (never admin/viewer, who have their own rules) that
 // lacks the tile a screen requires.
 function isTileBlockedForCurrentStaff(screenId){
-  if(!currentStaff || currentStaff.role==='admin' || currentStaff.role==='viewer') return false;
+  if(!currentStaff || currentStaff.role==='admin' || currentStaff.role==='viewer' || currentStaff.role==='hr') return false;
   const neededTile = SCREEN_TO_TILE[screenId];
   if(!neededTile) return false; // screen isn't gated by any tile (home, settings, admin-only screens already self-guard)
   return staffAllowedTiles(currentStaff).indexOf(neededTile) === -1;
 }
-let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [], suggestions: [], chatMessages: [], performanceReviews: [], performanceReviewTemplates: [] };
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [], suggestions: [], chatMessages: [], performanceReviews: [], performanceReviewTemplates: [], salaries: [] };
 let backendReady = false;
 let currentScreen = 'login';
 let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
@@ -1461,6 +1564,12 @@ function attachLiveSync(){
     if(currentScreen==='reviewTemplatesManage') renderReviewTemplatesManage();
     if(document.getElementById('settings') && document.getElementById('settings').classList.contains('active')) populateStaffReviewTemplateSelect();
   });
+  subscribeShared('salaries', list=>{
+    APP_STATE.salaries = list;
+    if(currentScreen==='manageSalaries') renderManageSalariesList();
+    if(currentScreen==='salaryHistory') renderSalaryHistory();
+    if(currentScreen==='mySalary') renderMySalary();
+  });
   subscribeItemCollection('internalChatMessages', list=>{
     const sorted = list.slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
     if(chatFirstLoadDone){
@@ -1585,8 +1694,8 @@ async function loadAppState(){
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
     if(!(await ensureSignedIn())){ backendReady = false; return { ok:false, reason:'auth-failed' }; }
-    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions, chatMessages, performanceReviews, performanceReviewTemplates] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages'), loadShared('performanceReviews', []), loadShared('performanceReviewTemplates', [])
+    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions, chatMessages, performanceReviews, performanceReviewTemplates, salaries] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages'), loadShared('performanceReviews', []), loadShared('performanceReviewTemplates', []), loadShared('salaries', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -1605,6 +1714,7 @@ async function loadAppState(){
     APP_STATE.chatMessages = chatMessages.slice().sort((a,b)=> new Date(a.date) - new Date(b.date));
     APP_STATE.performanceReviews = performanceReviews;
     APP_STATE.performanceReviewTemplates = performanceReviewTemplates;
+    APP_STATE.salaries = salaries;
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -1653,6 +1763,8 @@ async function getSuggestions(){ return APP_STATE.suggestions; }
 async function saveSuggestions(arr){ APP_STATE.suggestions = arr; saveShared('suggestions', arr); }
 async function getPerformanceReviews(){ return APP_STATE.performanceReviews; }
 async function savePerformanceReviews(arr){ APP_STATE.performanceReviews = arr; saveShared('performanceReviews', arr); }
+async function getSalaries(){ return APP_STATE.salaries; }
+async function saveSalaries(arr){ APP_STATE.salaries = arr; saveShared('salaries', arr); }
 async function getChecklists(){ return APP_STATE.checklists; }
 async function saveChecklists(arr){ APP_STATE.checklists = arr; saveShared('checklists', arr); }
 async function getChecklistSections(){ return APP_STATE.checklistSections; }
@@ -1871,10 +1983,25 @@ function go(id){
   if(id==='performanceReviewHistory') renderPerformanceReviewHistory();
   if(id==='myPerformanceReview') renderMyPerformanceReview();
   if(id==='reviewTemplatesManage') renderReviewTemplatesManage();
+  if(id==='manageSalaries') renderManageSalariesList();
+  if(id==='salaryHistory') renderSalaryHistory();
+  if(id==='mySalary') renderMySalary();
   if(id==='home'){
     const isAdminNow = currentStaff && currentStaff.role === 'admin';
-    const isPlainEmployee = currentStaff && !isAdminNow && !isViewer();
-    if(isPlainEmployee){
+    const isHRNow = isHR();
+    const isPlainEmployee = currentStaff && !isAdminNow && !isHRNow && !isViewer();
+    if(isHRNow){
+      // HR is a deliberately narrow account: it sees ONLY the salary-management tile, never the
+      // rest of the app (not even as read-only) — hide every other tile outright, admin included.
+      ALL_TILE_IDS.forEach(tid=>{
+        const el = document.getElementById(tid) || document.querySelector('#home .grid .tile[data-tileid="'+tid+'"]');
+        if(el) el.style.display = 'none';
+      });
+      const manageTile = document.getElementById('tileManagePerformance');
+      if(manageTile) manageTile.style.display = 'none';
+      const salTile = document.getElementById('tileManageSalaries');
+      if(salTile) salTile.style.display = '';
+    } else if(isPlainEmployee){
       // show only the tiles the admin picked for this employee (data-tileid, not just tiles
       // that already had an id) — general per-tile allowlist, no longer a binary "review-only" case
       const allowed = staffAllowedTiles(currentStaff);
@@ -1883,6 +2010,8 @@ function go(id){
       });
       const manageTile = document.getElementById('tileManagePerformance');
       if(manageTile) manageTile.style.display = 'none'; // managing everyone's reviews stays admin-only, never delegable
+      const salManageTile = document.getElementById('tileManageSalaries');
+      if(salManageTile) salManageTile.style.display = 'none'; // managing salaries stays HR-only, never delegable
     } else {
       const hideForViewer = ['tileNewFeedback','tileNewCustomer','tileNewComplaint'];
       hideForViewer.forEach(tid=>{
@@ -1892,7 +2021,7 @@ function go(id){
       // admin/viewer accounts have no tile restrictions — make sure every tile is visible in
       // case this account was previously a restricted employee re-logging in on the same page
       ALL_TILE_IDS.forEach(tid=>{
-        if(tid==='tileMyPerformance') return; // handled just below
+        if(tid==='tileMyPerformance' || tid==='tileMySalary') return; // handled just below
         const el = document.getElementById(tid) || document.querySelector('#home .grid .tile[data-tileid="'+tid+'"]');
         if(el && el.style.display==='none' && !hideForViewer.includes(tid)) el.style.display = '';
       });
@@ -1900,13 +2029,23 @@ function go(id){
       if(manageTile) manageTile.style.display = isAdminNow ? '' : 'none';
       const myTile = document.getElementById('tileMyPerformance');
       if(myTile) myTile.style.display = 'none'; // admin manages reviews via tileManagePerformance, not this tile; viewer never sees it
+      // salary management is HR-only, never shown to admin/viewer — per how this app was set up,
+      // even the owner's admin account doesn't see salary data, only the dedicated HR account does
+      const salManageTile2 = document.getElementById('tileManageSalaries');
+      if(salManageTile2) salManageTile2.style.display = 'none';
+      const mySalTile = document.getElementById('tileMySalary');
+      if(mySalTile) mySalTile.style.display = 'none';
     }
   }
   // a plain employee only sees the customers/reports bottom-nav tabs if the admin gave them
-  // the matching tile — admin and viewer keep seeing both, as before
+  // the matching tile — admin and viewer keep seeing both, as before; HR sees neither (it only
+  // ever has the salary-management screen)
   const custNav = document.querySelector('.navitem[data-tab="customers"]');
   const reportsNav = document.querySelector('.navitem[data-tab="reports"]');
-  if(currentStaff && currentStaff.role==='employee'){
+  if(isHR()){
+    if(custNav) custNav.style.display = 'none';
+    if(reportsNav) reportsNav.style.display = 'none';
+  } else if(currentStaff && currentStaff.role==='employee'){
     const allowed = staffAllowedTiles(currentStaff);
     if(custNav) custNav.style.display = (allowed.indexOf('tileCustomers')!==-1) ? '' : 'none';
     if(reportsNav) reportsNav.style.display = (allowed.indexOf('tileReports')!==-1) ? '' : 'none';
@@ -5699,6 +5838,343 @@ function paintMyPerformanceReview(){
     }).join('');
 }
 
+/* ================= SALARIES (HR account only manages this; each employee sees only their own) =================
+   One record per employee per calendar month, entered by HR as raw figures (basic salary,
+   incentive targets, achievement %, planned/actual days & hours, deductions...), with every
+   derived figure (earned incentives, daily/hourly rate, overtime pay, totals, net) computed by
+   computeSalary() below — the SAME function used for the live preview while HR is typing, the
+   saved snapshot, and the employee's own read-only screen, so all three always agree. The exact
+   formulas are a best-effort match to the branch's real paper payroll sheet and are meant as a
+   verifiable estimate, not a payroll-grade calculator — HR should review before relying on it. */
+let editingSalaryUser = null;   // the @username whose salary history/edit screen is open
+let editingSalaryId = null;     // null = adding a new month's record; otherwise the record being edited
+let salHistoryCache = [];
+let allMySalCache = [];
+let mySalMonth = new Date().getMonth()+1;
+let mySalYear = new Date().getFullYear();
+
+const SALARY_MONTH_DAYS = 30;      // أجر اليوم = الأساسي ÷ 30 (نفس اتفاقية الكشوفات الورقية)
+const SALARY_HOURS_PER_DAY = 9;    // احتياطي لو الأيام/الساعات المخططة مش متسجلة
+const SALARY_OVERTIME_MULTIPLIER = 1.5;
+
+function computeSalary(rec){
+  const n = v => Number(v) || 0;
+  const basicSalary = n(rec.basicSalary);
+  const incentiveTarget = n(rec.incentiveTarget);
+  const salesIncentiveTarget = n(rec.salesIncentiveTarget);
+  const mealAllowance = n(rec.mealAllowance);
+  const salesAchievementPct = n(rec.salesAchievementPct);
+  const techEvalPct = n(rec.techEvalPct);
+  const plannedWorkDays = n(rec.plannedWorkDays);
+  const actualWorkDays = n(rec.actualWorkDays);
+  const plannedHours = n(rec.plannedHours);
+  const actualHours = n(rec.actualHours);
+  const overtimeDays = n(rec.overtimeDays);
+  const incentiveHoursDeduction = n(rec.incentiveHoursDeduction);
+  const newHireAbsenceDays = n(rec.newHireAbsenceDays);
+  const incentiveDaysDeduction = n(rec.incentiveDaysDeduction);
+  const salaryHoursDeduction = n(rec.salaryHoursDeduction);
+  const salaryDaysDeduction = n(rec.salaryDaysDeduction);
+  const penaltyDays = n(rec.penaltyDays);
+  const advances = n(rec.advances);
+
+  const earnedIncentive = incentiveTarget * (techEvalPct/100);
+  const earnedSalesIncentive = salesIncentiveTarget * (salesAchievementPct/100);
+  const earnedMealAllowance = plannedWorkDays>0 ? mealAllowance * Math.min(1, actualWorkDays/plannedWorkDays) : mealAllowance;
+
+  const dailyRate = basicSalary / SALARY_MONTH_DAYS;
+  const hoursPerDay = (plannedWorkDays>0 && plannedHours>0) ? (plannedHours/plannedWorkDays) : SALARY_HOURS_PER_DAY;
+  const hourlyRate = hoursPerDay>0 ? dailyRate/hoursPerDay : 0;
+  const dailyIncentiveRate = earnedIncentive / SALARY_MONTH_DAYS;
+  const hourlyIncentiveRate = hoursPerDay>0 ? dailyIncentiveRate/hoursPerDay : 0;
+
+  const overtimeHours = Math.max(0, actualHours - plannedHours);
+  const overtimeHoursPay = overtimeHours * hourlyRate * SALARY_OVERTIME_MULTIPLIER;
+  const overtimeDaysPay = overtimeDays * dailyRate * SALARY_OVERTIME_MULTIPLIER;
+
+  const incentiveHoursDeductionPay = incentiveHoursDeduction * hourlyIncentiveRate;
+  const newHireAbsenceDeductionPay = newHireAbsenceDays * dailyRate;
+  const incentiveDaysDeductionPay = incentiveDaysDeduction * dailyIncentiveRate;
+  const salaryHoursDeductionPay = salaryHoursDeduction * hourlyRate;
+  const salaryDaysDeductionPay = salaryDaysDeduction * dailyRate;
+  const penaltyDaysPay = penaltyDays * dailyRate;
+
+  const totalDue = basicSalary + earnedIncentive + earnedSalesIncentive + earnedMealAllowance + overtimeHoursPay + overtimeDaysPay;
+  const totalDeductions = incentiveHoursDeductionPay + newHireAbsenceDeductionPay + incentiveDaysDeductionPay + salaryHoursDeductionPay + salaryDaysDeductionPay + penaltyDaysPay;
+  const netDue = totalDue - totalDeductions - advances;
+
+  return {
+    earnedIncentive, earnedSalesIncentive, earnedMealAllowance,
+    dailyRate, hourlyRate, dailyIncentiveRate, hourlyIncentiveRate,
+    overtimeHours, overtimeHoursPay, overtimeDaysPay,
+    incentiveHoursDeductionPay, newHireAbsenceDeductionPay, incentiveDaysDeductionPay,
+    salaryHoursDeductionPay, salaryDaysDeductionPay, penaltyDaysPay,
+    totalDue, totalDeductions, netDue
+  };
+}
+function fmtMoney(v){ return (Number(v)||0).toLocaleString('ar-EG', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+async function renderManageSalariesList(){
+  const box = document.getElementById('salStaffList');
+  if(!currentStaff || currentStaff.role !== 'hr'){
+    box.innerHTML = '<div class="emptystate">الشاشة دي لحساب الـ HR فقط.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const [staffList, salaries] = await Promise.all([getStaff(), getSalaries()]);
+  const employees = staffList.filter(s=> s.role !== 'admin' && s.role !== 'hr');
+  if(!employees.length){
+    box.innerHTML = '<div class="emptystate">لا يوجد موظفين بعد.</div>';
+    return;
+  }
+  const nowMonth = new Date().getMonth()+1, nowYear = new Date().getFullYear();
+  box.innerHTML = employees.map(s=>{
+    const recs = salaries.filter(r=> r.user===s.user).sort((a,b)=> (b.year-a.year) || (b.month-a.month));
+    const thisMonthRec = recs.find(r=> r.month===nowMonth && r.year===nowYear);
+    const label = thisMonthRec ? ('صافي مرتب '+ARABIC_MONTHS[nowMonth-1]+': '+fmtMoney(computeSalary(thisMonthRec).netDue)+' ج.م') : 'لسه معملوش مرتب الشهر ده';
+    const lastLabel = recs.length ? (' · آخر سجل: '+ARABIC_MONTHS[recs[0].month-1]+' '+recs[0].year) : '';
+    return '<div class="staffrow" data-salstaff="'+esc(s.user)+'" style="cursor:pointer;">'
+      + '<div><b>'+esc(s.name)+'</b><br><span>'+esc(label+lastLabel)+'</span></div>'
+      + '<div style="display:flex;gap:10px;align-items:center;"><span style="color:var(--muted);font-size:16px;">›</span></div>'
+      + '</div>';
+  }).join('');
+  box.querySelectorAll('[data-salstaff]').forEach(row=>{
+    row.addEventListener('click', ()=> openSalaryHistory(row.getAttribute('data-salstaff')));
+  });
+}
+
+async function openSalaryHistory(user){
+  editingSalaryUser = user;
+  go('salaryHistory');
+}
+async function renderSalaryHistory(){
+  const box = document.getElementById('salHistoryList');
+  if(!editingSalaryUser){ go('manageSalaries'); return; }
+  const staffList = await getStaff();
+  const s = staffList.find(x=> x.user===editingSalaryUser);
+  document.getElementById('salhTitle').textContent = s ? ('سجل مرتبات: '+s.name) : 'سجل المرتبات';
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const salaries = await getSalaries();
+  salHistoryCache = salaries.filter(r=> r.user===editingSalaryUser).sort((a,b)=> (b.year-a.year) || (b.month-a.month));
+  paintSalaryHistory();
+}
+function paintSalaryHistory(){
+  const box = document.getElementById('salHistoryList');
+  if(!salHistoryCache.length){
+    box.innerHTML = '<div class="emptystate">لسه مفيش مرتبات مسجّلة لهذا الموظف.</div>';
+    return;
+  }
+  box.innerHTML = salHistoryCache.map(r=>{
+    const c = computeSalary(r);
+    return '<div class="complaintcard">'
+      + '<div class="ctop"><div><h4>'+ARABIC_MONTHS[r.month-1]+' '+r.year+'</h4><small>سجّله: '+esc(r.updatedBy||'—')+'</small></div>'
+      + '<span class="cstatus resolved">'+fmtMoney(c.netDue)+' ج.م</span></div>'
+      + '<div class="cbtnrow" style="margin-top:8px;">'
+        + '<button class="delCpBtn" data-saledit="'+esc(r.id)+'" style="background:#F1E7D6;color:var(--espresso-2);">✏️ تعديل</button>'
+        + '<button class="delCpBtn" data-saldel="'+esc(r.id)+'" style="background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+  box.querySelectorAll('[data-saledit]').forEach(btn=> btn.addEventListener('click', ()=> openSalaryEdit(btn.getAttribute('data-saledit'))));
+  box.querySelectorAll('[data-saldel]').forEach(btn=> btn.addEventListener('click', ()=> deleteSalaryRecord(btn.getAttribute('data-saldel'))));
+}
+async function deleteSalaryRecord(id){
+  const ok = confirm('متأكد إنك عايز تحذف سجل المرتب ده؟');
+  if(!ok) return;
+  const salaries = await getSalaries();
+  await saveSalaries(salaries.filter(r=> r.id !== id));
+  await renderSalaryHistory();
+}
+
+const SALARY_FIELD_IDS = ['basicSalary','incentiveTarget','salesIncentiveTarget','mealAllowance','salesAchievementPct','techEvalPct','plannedWorkDays','actualWorkDays','plannedHours','actualHours','overtimeDays','incentiveHoursDeduction','newHireAbsenceDays','incentiveDaysDeduction','salaryHoursDeduction','salaryDaysDeduction','penaltyDays','advances'];
+const SALARY_TEXT_FIELD_IDS = ['notes','penaltyNote','latenessNote','absenceNote','sickNote'];
+
+// entryId === null → a brand-new month's record; otherwise opens that existing month for editing.
+async function openSalaryEdit(entryId){
+  const staffList = await getStaff();
+  const s = staffList.find(x=> x.user === editingSalaryUser);
+  if(!s){ alert('تعذر إيجاد الموظف ده'); return; }
+  editingSalaryId = entryId || null;
+
+  let rec = null;
+  if(editingSalaryId){
+    const salaries = await getSalaries();
+    rec = salaries.find(r=> r.id === editingSalaryId);
+  }
+
+  document.getElementById('salEditTitle').textContent = 'مرتب: '+s.name;
+
+  const monthSel = document.getElementById('sal_month');
+  if(monthSel.options.length===0){
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i+1; opt.textContent = m;
+      monthSel.appendChild(opt);
+    });
+  }
+  const yearSel = document.getElementById('sal_year');
+  if(yearSel.options.length===0){
+    const thisYear = new Date().getFullYear();
+    for(let y=thisYear-2; y<=thisYear+1; y++){
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      yearSel.appendChild(opt);
+    }
+  }
+
+  if(rec){
+    monthSel.value = rec.month;
+    yearSel.value = rec.year;
+    SALARY_FIELD_IDS.forEach(f=>{ document.getElementById('sal_'+f).value = (rec[f]!=null) ? rec[f] : ''; });
+    SALARY_TEXT_FIELD_IDS.forEach(f=>{ document.getElementById('sal_'+f).value = rec[f] || ''; });
+    document.getElementById('salLastUpdated').textContent = rec.updatedAt ? ('آخر تحديث: '+new Date(rec.updatedAt).toLocaleString('ar-EG')+' بواسطة '+(rec.updatedBy||'—')) : '';
+  } else {
+    monthSel.value = new Date().getMonth()+1;
+    yearSel.value = new Date().getFullYear();
+    SALARY_FIELD_IDS.forEach(f=>{ document.getElementById('sal_'+f).value = ''; });
+    SALARY_TEXT_FIELD_IDS.forEach(f=>{ document.getElementById('sal_'+f).value = ''; });
+    document.getElementById('salLastUpdated').textContent = '';
+    // pre-fill "متوسط التقييم الفني %" from this employee's canonical performance-review average
+    // for the selected month, if one exists — just a starting point, HR can still type over it
+    prefillSalaryTechEval();
+  }
+  updateSalarySummary();
+  go('salaryEdit');
+}
+
+async function prefillSalaryTechEval(){
+  const month = parseInt(document.getElementById('sal_month').value, 10);
+  const year = parseInt(document.getElementById('sal_year').value, 10);
+  if(!month || !year || !editingSalaryUser) return;
+  const reviews = await getPerformanceReviews();
+  const monthEntries = reviews.filter(r=> r.user===editingSalaryUser && (new Date(r.date).getMonth()+1)===month && new Date(r.date).getFullYear()===year);
+  if(!monthEntries.length) return;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const avg = prMonthOverallAverage(monthEntries, daysInMonth);
+  const field = document.getElementById('sal_techEvalPct');
+  if(field && !field.value){ field.value = avg.toFixed(2); updateSalarySummary(); }
+}
+
+function readSalaryFormRecord(){
+  const rec = {};
+  SALARY_FIELD_IDS.forEach(f=>{ rec[f] = document.getElementById('sal_'+f).value; });
+  return rec;
+}
+
+function updateSalarySummary(){
+  const rec = readSalaryFormRecord();
+  const c = computeSalary(rec);
+  const box = document.getElementById('salSummaryBox');
+  const row = (label, val, big)=> '<div style="display:flex;justify-content:space-between;padding:6px 0;'+(big?'border-top:1px solid var(--line);margin-top:4px;':'')+'">'
+    + '<span style="font-size:'+(big?'13px':'12px')+';font-weight:'+(big?'800':'600')+';color:'+(big?'var(--espresso)':'var(--espresso-2)')+';">'+label+'</span>'
+    + '<b style="font-family:\'Cairo\';font-size:'+(big?'15px':'12.5px')+';color:'+(big?'var(--gold)':'var(--ink)')+';">'+fmtMoney(val)+' ج.م</b></div>';
+  box.innerHTML = row('الحافز المستحق', c.earnedIncentive)
+    + row('حافز البيع المستحق', c.earnedSalesIncentive)
+    + row('بدل الوجبة المستحق', c.earnedMealAllowance)
+    + row('أجر اليوم', c.dailyRate)
+    + row('أجر الساعة', c.hourlyRate)
+    + row('ساعات إضافي ('+c.overtimeHours.toFixed(2)+' ساعة)', c.overtimeHoursPay)
+    + row('مقابل أيام إضافي', c.overtimeDaysPay)
+    + row('إجمالي الخصومات', c.totalDeductions)
+    + row('إجمالي المستحق', c.totalDue, true)
+    + row('صافي المستحق', c.netDue, true);
+}
+
+async function saveSalaryRecord(){
+  if(!editingSalaryUser) return;
+  const month = parseInt(document.getElementById('sal_month').value, 10);
+  const year = parseInt(document.getElementById('sal_year').value, 10);
+  if(!month || !year){ alert('اختار الشهر والسنة'); return; }
+
+  const salaries = await getSalaries();
+  const dupe = salaries.find(r=> r.user===editingSalaryUser && r.month===month && r.year===year && r.id!==editingSalaryId);
+  if(dupe){
+    const ok = confirm('فيه مرتب متسجل بالفعل لنفس الموظف في '+ARABIC_MONTHS[month-1]+' '+year+' (سجّله: '+(dupe.updatedBy||'—')+'). عايز تستبدله بالبيانات دي؟');
+    if(!ok) return;
+    editingSalaryId = dupe.id;
+  }
+
+  const staffList = await getStaff();
+  const s = staffList.find(x=> x.user===editingSalaryUser);
+
+  const rec = { id: editingSalaryId || ('sal_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)),
+    user: editingSalaryUser, staffName: s ? s.name : editingSalaryUser, month, year };
+  SALARY_FIELD_IDS.forEach(f=>{ const v = document.getElementById('sal_'+f).value; rec[f] = v==='' ? null : Number(v); });
+  SALARY_TEXT_FIELD_IDS.forEach(f=>{ rec[f] = document.getElementById('sal_'+f).value; });
+  rec.updatedAt = new Date().toISOString();
+  rec.updatedBy = currentStaff ? currentStaff.name : '—';
+
+  const idx = salaries.findIndex(r=> r.id === rec.id);
+  if(idx===-1) salaries.push(rec); else salaries[idx] = rec;
+  await saveSalaries(salaries);
+  editingSalaryId = null;
+  go('salaryHistory');
+}
+
+async function renderMySalary(){
+  const box = document.getElementById('mySalBox');
+  if(!currentStaff){ box.innerHTML = '<div class="emptystate">من فضلك سجّل الدخول.</div>'; return; }
+  if(currentStaff.role !== 'admin' && staffAllowedTiles(currentStaff).indexOf('tileMySalary') === -1){
+    box.innerHTML = '<div class="emptystate">مالكش صلاحية لعرض بيانات المرتب. كلّم الإدارة لو محتاج الصلاحية دي.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const salaries = await getSalaries();
+  allMySalCache = salaries.filter(r=> r.user===currentStaff.user).sort((a,b)=> (b.year-a.year) || (b.month-a.month));
+
+  const monthSel = document.getElementById('mySalMonthSel');
+  if(monthSel.options.length===0){
+    const opt0 = document.createElement('option'); opt0.value=''; opt0.textContent='كل الشهور'; monthSel.appendChild(opt0);
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i+1; opt.textContent = m;
+      monthSel.appendChild(opt);
+    });
+  }
+  const yearSel = document.getElementById('mySalYearSel');
+  const yearsInData = new Set(allMySalCache.map(r=> r.year));
+  yearsInData.add(new Date().getFullYear());
+  const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
+  yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  monthSel.value = mySalMonth==null ? '' : mySalMonth;
+  yearSel.value = mySalYear==null ? '' : mySalYear;
+
+  paintMySalary();
+}
+function paintMySalary(){
+  const box = document.getElementById('mySalBox');
+  let list = allMySalCache;
+  if(mySalMonth!=null){ list = list.filter(r=> r.month===mySalMonth); }
+  if(mySalYear!=null){ list = list.filter(r=> r.year===mySalYear); }
+
+  if(!list.length){
+    box.innerHTML = '<div class="emptystate">لسه الإدارة معملتش تسجيل لمرتبك في الفترة دي.</div>';
+    return;
+  }
+  box.innerHTML = list.map(r=>{
+    const c = computeSalary(r);
+    const row = (label, val)=> '<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);"><span style="font-size:12px;color:var(--espresso-2);">'+label+'</span><b style="font-family:\'Cairo\';font-size:12.5px;">'+fmtMoney(val)+' ج.م</b></div>';
+    const noteRow = (label, val)=> val ? '<div style="padding:6px 0;border-top:1px solid var(--line);"><span style="font-size:11.5px;color:var(--muted);">'+label+': </span><span style="font-size:12px;">'+esc(val)+'</span></div>' : '';
+    return '<div class="card">'
+      + '<h3>'+ARABIC_MONTHS[r.month-1]+' '+r.year+'</h3>'
+      + '<p class="sub" style="font-size:22px;font-weight:800;color:var(--espresso);margin:6px 0 10px;">صافي المستحق: '+fmtMoney(c.netDue)+' ج.م</p>'
+      + row('الأساسي', Number(r.basicSalary)||0)
+      + row('الحافز المستحق', c.earnedIncentive)
+      + row('حافز البيع المستحق', c.earnedSalesIncentive)
+      + row('بدل الوجبة المستحق', c.earnedMealAllowance)
+      + row('مقابل ساعات/أيام إضافي', c.overtimeHoursPay + c.overtimeDaysPay)
+      + row('إجمالي المستحق', c.totalDue)
+      + row('إجمالي الخصومات', c.totalDeductions)
+      + row('سلف', Number(r.advances)||0)
+      + noteRow('ملاحظات', r.notes)
+      + noteRow('جزاء', r.penaltyNote)
+      + noteRow('تأخيرات', r.latenessNote)
+      + noteRow('غياب', r.absenceNote)
+      + noteRow('مرضي', r.sickNote)
+      + '</div>';
+  }).join('');
+}
+
 /* ================= INTERNAL CHAT (بين الموظفين والإدارة) ================= */
 let isSendingChatMessage = false;
 
@@ -6136,7 +6612,7 @@ async function renderReports(){
 /* ================= SETTINGS ================= */
 async function renderSettings(){
   document.getElementById('settStaffName').textContent = currentStaff ? currentStaff.name : '—';
-  document.getElementById('settStaffRole').textContent = currentStaff ? (currentStaff.role==='admin' ? 'مدير' : (currentStaff.role==='viewer' ? 'اطّلاع فقط' : 'موظف')) : '—';
+  document.getElementById('settStaffRole').textContent = currentStaff ? (currentStaff.role==='admin' ? 'مدير' : (currentStaff.role==='viewer' ? 'اطّلاع فقط' : (currentStaff.role==='hr' ? 'HR — إدارة المرتبات' : 'موظف'))) : '—';
   document.getElementById('connStatus').textContent = backendConfigured() ? (backendReady ? '✓ متصل' : '✗ غير متصل') : 'لم يتم إعداد Firebase بعد';
   const staffCard = document.getElementById('staffCard');
   const clmCard = document.getElementById('checklistManageCard');
@@ -6231,7 +6707,8 @@ function getCheckedStaffTiles(){
 function updateStaffTilesSectionVisibility(){
   const isAdmin = document.getElementById('newStaffIsAdmin').checked;
   const isViewerChk = document.getElementById('newStaffIsViewer').checked;
-  document.getElementById('newStaffTilesSection').style.display = (isAdmin || isViewerChk) ? 'none' : 'block';
+  const isHRChk = document.getElementById('newStaffIsHR').checked;
+  document.getElementById('newStaffTilesSection').style.display = (isAdmin || isViewerChk || isHRChk) ? 'none' : 'block';
 }
 
 async function paintStaffList(){
@@ -6240,8 +6717,8 @@ async function paintStaffList(){
   if(!staff.length){ box.innerHTML = '<div style="color:var(--muted);font-size:11.5px;">لا يوجد موظفين بعد.</div>'; return; }
   box.innerHTML = staff.map(s=>{
     const tpl = templates.find(t=> t.id === s.reviewTemplateId);
-    const canSeeOwnReview = s.role !== 'admin' && s.role !== 'viewer' && staffAllowedTiles(s).indexOf('tileMyPerformance') !== -1;
-    return '<div class="staffrow"><div><b>'+esc(s.name)+'</b> '+(s.role==='admin'?'👑':(s.role==='viewer'?'👁️':''))+(canSeeOwnReview?' ⭐':'')+'<br><span>@'+esc(s.user)+(tpl?' · '+esc(tpl.jobTitle):'')+'</span></div>'
+    const canSeeOwnReview = s.role !== 'admin' && s.role !== 'viewer' && s.role !== 'hr' && staffAllowedTiles(s).indexOf('tileMyPerformance') !== -1;
+    return '<div class="staffrow"><div><b>'+esc(s.name)+'</b> '+(s.role==='admin'?'👑':(s.role==='viewer'?'👁️':(s.role==='hr'?'💰':'')))+(canSeeOwnReview?' ⭐':'')+'<br><span>@'+esc(s.user)+(tpl?' · '+esc(tpl.jobTitle):'')+'</span></div>'
     + '<div style="display:flex;gap:10px;">'
       + '<button class="delStaff" data-edituser="'+esc(s.user)+'" style="color:var(--primary,#0F5C4F);">تعديل</button>'
       + '<button class="delStaff" data-user="'+esc(s.user)+'">حذف</button>'
@@ -6269,6 +6746,7 @@ async function paintStaffList(){
       document.getElementById('newStaffPass').value = s.pass;
       document.getElementById('newStaffIsAdmin').checked = s.role==='admin';
       document.getElementById('newStaffIsViewer').checked = s.role==='viewer';
+      document.getElementById('newStaffIsHR').checked = s.role==='hr';
       paintStaffTilesCheckboxes(staffAllowedTiles(s));
       updateStaffTilesSectionVisibility();
       document.getElementById('newStaffReviewTemplate').value = s.reviewTemplateId || '';
@@ -6287,6 +6765,7 @@ function resetStaffForm(){
   document.getElementById('newStaffPass').value = '';
   document.getElementById('newStaffIsAdmin').checked = false;
   document.getElementById('newStaffIsViewer').checked = false;
+  document.getElementById('newStaffIsHR').checked = false;
   paintStaffTilesCheckboxes([]); // start every tile unchecked — the admin picks what this employee sees, nothing is pre-granted
   updateStaffTilesSectionVisibility();
   document.getElementById('newStaffReviewTemplate').value = '';
@@ -6295,10 +6774,12 @@ function resetStaffForm(){
   document.getElementById('cancelEditStaffBtn').style.display = 'none';
 }
 
-// A staff member can be exactly one of: admin, viewer (read-only reports), or a regular employee.
+// A staff member can be exactly one of: admin, viewer (read-only reports), HR (salary management
+// only), or a regular employee.
 function computeStaffRole(){
   if(document.getElementById('newStaffIsAdmin').checked) return 'admin';
   if(document.getElementById('newStaffIsViewer').checked) return 'viewer';
+  if(document.getElementById('newStaffIsHR').checked) return 'hr';
   return 'employee';
 }
 
@@ -6450,8 +6931,9 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('installBtnLogin').addEventListener('click', installApp);
   document.getElementById('installBtnSettings').addEventListener('click', installApp);
   document.getElementById('addStaffBtn').addEventListener('click', addStaffMember);
-  document.getElementById('newStaffIsAdmin').addEventListener('change', function(){ if(this.checked) document.getElementById('newStaffIsViewer').checked = false; updateStaffTilesSectionVisibility(); });
-  document.getElementById('newStaffIsViewer').addEventListener('change', function(){ if(this.checked) document.getElementById('newStaffIsAdmin').checked = false; updateStaffTilesSectionVisibility(); });
+  document.getElementById('newStaffIsAdmin').addEventListener('change', function(){ if(this.checked){ document.getElementById('newStaffIsViewer').checked = false; document.getElementById('newStaffIsHR').checked = false; } updateStaffTilesSectionVisibility(); });
+  document.getElementById('newStaffIsViewer').addEventListener('change', function(){ if(this.checked){ document.getElementById('newStaffIsAdmin').checked = false; document.getElementById('newStaffIsHR').checked = false; } updateStaffTilesSectionVisibility(); });
+  document.getElementById('newStaffIsHR').addEventListener('change', function(){ if(this.checked){ document.getElementById('newStaffIsAdmin').checked = false; document.getElementById('newStaffIsViewer').checked = false; } updateStaffTilesSectionVisibility(); });
   document.getElementById('cancelEditStaffBtn').addEventListener('click', resetStaffForm);
   document.getElementById('openChecklistManageBtn').addEventListener('click', ()=> go('checklistManage'));
   document.getElementById('clmAddSectionBtn').addEventListener('click', addChecklistManageSection);
@@ -6563,6 +7045,22 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('myPrYearSel').addEventListener('change', e=>{
     myPrYear = e.target.value ? parseInt(e.target.value,10) : null;
     paintMyPerformanceReview();
+  });
+  document.getElementById('salAddBtn').addEventListener('click', ()=> openSalaryEdit(null));
+  document.getElementById('salSaveBtn').addEventListener('click', saveSalaryRecord);
+  document.getElementById('sal_month').addEventListener('change', ()=>{ if(!editingSalaryId) prefillSalaryTechEval(); });
+  document.getElementById('sal_year').addEventListener('change', ()=>{ if(!editingSalaryId) prefillSalaryTechEval(); });
+  SALARY_FIELD_IDS.forEach(f=>{
+    const el = document.getElementById('sal_'+f);
+    if(el) el.addEventListener('input', updateSalarySummary);
+  });
+  document.getElementById('mySalMonthSel').addEventListener('change', e=>{
+    mySalMonth = e.target.value ? parseInt(e.target.value,10) : null;
+    paintMySalary();
+  });
+  document.getElementById('mySalYearSel').addEventListener('change', e=>{
+    mySalYear = e.target.value ? parseInt(e.target.value,10) : null;
+    paintMySalary();
   });
   document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
   document.getElementById('chatToast').addEventListener('click', ()=>{
