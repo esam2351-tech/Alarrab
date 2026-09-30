@@ -5219,6 +5219,16 @@ function prMonthOverallAverage(monthEntries, daysInMonth){
 }
 function todayDateInputValue(){ return new Date().toISOString().slice(0,10); }
 
+// موظف عنده صلاحية "📈 تقييم أداء الموظفين" (مش أدمن) بيقدر يسجّل/يعدّل تقييم باقي الموظفين،
+// لكن معندوش حق يشوف أو يعدّل تقييم نفسه، ولا تقييم أي زميل ليه نفس الصلاحية دي (مدير شيفت
+// زيه) — كده مديرين الشيفتات معدش يشوفوا تقييم بعض. الأدمن بس هو اللي شايف وقادر يدير تقييم
+// الكل من غير أي استثناء.
+function reviewableStaffFor(viewer, staffList){
+  const employees = staffList.filter(s=> s.role !== 'admin');
+  if(!viewer || viewer.role==='admin') return employees;
+  return employees.filter(s=> s.user !== viewer.user && staffAllowedTiles(s).indexOf('tileManagePerformance') === -1);
+}
+
 async function renderPerformanceReviewsList(){
   const box = document.getElementById('prStaffList');
   const canManage = currentStaff && (currentStaff.role === 'admin' || staffAllowedTiles(currentStaff).indexOf('tileManagePerformance') !== -1);
@@ -5251,7 +5261,7 @@ async function renderPerformanceReviewsList(){
   if(expMonthSel) expMonthSel.value = new Date().getMonth()+1;
   if(expYearSel) expYearSel.value = new Date().getFullYear();
 
-  const employees = staffList.filter(s=> s.role !== 'admin');
+  const employees = reviewableStaffFor(currentStaff, staffList);
   if(!employees.length){
     box.innerHTML = '<div class="emptystate">لا يوجد موظفين لتقييمهم بعد.</div>';
     return;
@@ -5295,7 +5305,7 @@ async function exportPerformanceReviewsExcel(){
   btn.disabled = true; btn.textContent = 'جارِ التصدير...';
   try{
     const [staffList, reviews, templates] = await Promise.all([getStaff(), getPerformanceReviews(), getReviewTemplates()]);
-    const employees = staffList.filter(s=> s.role !== 'admin');
+    const employees = reviewableStaffFor(currentStaff, staffList);
     const daysInMonth = new Date(year, month, 0).getDate();
 
     const wb = XLSX.utils.book_new();
@@ -5700,6 +5710,7 @@ async function renderAttendanceScreen(){
         if(!s) return;
         attSelectedDeviceId = s.deviceId;
         attSelectedStaffName = s.name;
+        attEditingRecordId = null;
         go('attendanceDetail');
       });
     });
@@ -5741,6 +5752,14 @@ async function renderAttendanceScreen(){
   }
 }
 
+let attEditingRecordId = null; // id of the attendance day row currently open for manual edit, or null
+
+// HH:MM (24h) from an ISO timestamp, for pre-filling an <input type="time">
+function timeInputValue(iso){
+  const d = new Date(iso);
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+
 async function renderAttendanceDetail(){
   const box = document.getElementById('attDetailBox');
   document.getElementById('attDetailTitle').textContent = attSelectedStaffName ? 'تفاصيل حضور: '+attSelectedStaffName : 'تفاصيل الحضور';
@@ -5749,16 +5768,68 @@ async function renderAttendanceDetail(){
   const records = attendanceDays.filter(r=> String(r.deviceId)===String(attSelectedDeviceId)).slice().sort((a,b)=> String(b.date).localeCompare(String(a.date)));
   if(!records.length){ box.innerHTML = '<div class="emptystate">لا يوجد بصمات مسجّلة لهذا الموظف.</div>'; return; }
   const totalHours = records.reduce((s,r)=> s+(r.hours||0), 0);
-  box.innerHTML = '<p class="sub" style="margin-bottom:10px;">إجمالي كل الأيام المستوردة: '+totalHours.toFixed(1)+' ساعة على '+records.length+' يوم</p>'
+  box.innerHTML = '<p class="sub" style="margin-bottom:10px;">إجمالي كل الأيام المستوردة: '+totalHours.toFixed(1)+' ساعة على '+records.length+' يوم · دوس على أي يوم عشان تعدّل معاد الحضور والانصراف يدوي</p>'
     + records.map(r=>{
         const inTime = new Date(r.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
         const outTime = new Date(r.checkOut).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
         const dateLabel = new Date(r.date+'T00:00:00').toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
-        const warn = r.punchCount < 2 ? ' <span style="color:#B33;">(بصمة واحدة بس)</span>'
+        const isSinglePunch = r.punchCount < 2;
+        const editedTag = r.manualEdit ? ' <span style="color:#2E7D32;">(معدّل يدوي)</span>' : '';
+        const warn = isSinglePunch ? ' <span style="color:#B33;">(بصمة واحدة بس)</span>'
           : (r.punchCount > 2 ? ' <span style="color:#8a6d00;">(فيه مشوار — '+Math.floor(r.punchCount/2)+' فترة عمل)</span>' : '');
-        return '<div class="staffrow"><div><b>'+esc(dateLabel)+'</b>'+warn+'<br><span>'+esc(inTime)+' ← '+esc(outTime)+'</span></div>'
+        if(attEditingRecordId === r.id){
+          return '<div class="staffrow" style="flex-direction:column;align-items:stretch;gap:8px;">'
+            + '<div style="display:flex;justify-content:space-between;"><b>'+esc(dateLabel)+'</b>'+warn+editedTag+'</div>'
+            + '<div style="display:flex;gap:8px;">'
+            + '<div class="field" style="flex:1;margin-bottom:0;"><label style="font-size:10.5px;">معاد الحضور</label><input type="time" id="attEditCheckIn" value="'+timeInputValue(r.checkIn)+'" style="margin-bottom:0;"></div>'
+            + '<div class="field" style="flex:1;margin-bottom:0;"><label style="font-size:10.5px;">معاد الانصراف</label><input type="time" id="attEditCheckOut" value="'+(r.punchCount<2 ? '' : timeInputValue(r.checkOut))+'" style="margin-bottom:0;"></div>'
+            + '</div>'
+            + '<div style="display:flex;gap:8px;">'
+            + '<button class="btn primary" data-save-att-edit="'+esc(r.id)+'" style="flex:1;padding:8px;font-size:12px;">حفظ</button>'
+            + '<button class="btn ghost" data-cancel-att-edit="1" style="flex:0 0 auto;padding:8px 14px;font-size:12px;">إلغاء</button>'
+            + '</div></div>';
+        }
+        return '<div class="staffrow" data-open-att-edit="'+esc(r.id)+'" style="cursor:pointer;"><div><b>'+esc(dateLabel)+'</b>'+warn+editedTag+'<br><span>'+esc(inTime)+' ← '+esc(outTime)+'</span></div>'
           + '<div style="font-family:\'Cairo\';font-weight:700;color:var(--gold);">'+r.hours.toFixed(1)+' س</div></div>';
       }).join('');
+
+  box.querySelectorAll('[data-open-att-edit]').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      attEditingRecordId = row.getAttribute('data-open-att-edit');
+      renderAttendanceDetail();
+    });
+  });
+  const cancelBtn = box.querySelector('[data-cancel-att-edit]');
+  if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ attEditingRecordId = null; renderAttendanceDetail(); });
+  const saveBtn = box.querySelector('[data-save-att-edit]');
+  if(saveBtn){
+    saveBtn.addEventListener('click', async ()=>{
+      const id = saveBtn.getAttribute('data-save-att-edit');
+      const rec = records.find(r=> r.id===id);
+      if(!rec) return;
+      const inVal = document.getElementById('attEditCheckIn').value;
+      const outVal = document.getElementById('attEditCheckOut').value;
+      if(!inVal || !outVal){ alert('من فضلك حدد معاد الحضور والانصراف الاتنين'); return; }
+      const checkInDate = new Date(rec.date+'T'+inVal+':00');
+      const checkOutDate = new Date(rec.date+'T'+outVal+':00');
+      if(checkOutDate <= checkInDate){ alert('معاد الانصراف لازم يكون بعد معاد الحضور'); return; }
+      const all = await getAttendanceDays();
+      const idx = all.findIndex(r=> r.id===id);
+      if(idx===-1) return;
+      all[idx] = Object.assign({}, all[idx], {
+        checkIn: checkInDate.toISOString(),
+        checkOut: checkOutDate.toISOString(),
+        punchCount: 2,
+        hours: (checkOutDate - checkInDate) / 3600000,
+        manualEdit: true,
+        editedBy: currentStaff ? currentStaff.name : '',
+        editedAt: new Date().toISOString()
+      });
+      await saveAttendanceDays(all);
+      attEditingRecordId = null;
+      renderAttendanceDetail();
+    });
+  }
 }
 
 /* ================= LATENESS & PENALTIES ================= */
@@ -6150,6 +6221,8 @@ async function openPerformanceReviewHistory(user){
   const staffList = await getStaff();
   const s = staffList.find(x=> x.user === user);
   if(!s){ alert('تعذر إيجاد الموظف ده'); return; }
+  const allowed = reviewableStaffFor(currentStaff, staffList);
+  if(!allowed.some(e=> e.user===user)){ alert('مالكش صلاحية تشوف أو تعدّل تقييم الموظف ده.'); return; }
   editingReviewUser = user;
   document.getElementById('prhTitle').textContent = 'سجل تقييم: '+s.name;
   go('performanceReviewHistory');
