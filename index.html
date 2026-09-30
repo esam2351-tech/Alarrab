@@ -1528,6 +1528,16 @@ function attachLiveSync(){
   subscribeShared('staff', list=>{
     APP_STATE.staff = list;
     if(currentScreen==='settings') renderSettings();
+    // إذا الأدمن غيّر بيانات نفس الموظف اللي داخل بحسابه دلوقتي (زي ربط رقم بصمة أو
+    // تغيير صلاحياته)، حدّث currentStaff فورًا من غير ما يحتاج يعمل logout/login تاني.
+    if(currentStaff){
+      const fresh = list.find(s=> s.user===currentStaff.user);
+      if(fresh){
+        currentStaff.deviceId = fresh.deviceId;
+        currentStaff.allowedTiles = staffAllowedTiles(fresh);
+        currentStaff.reviewTemplateId = fresh.reviewTemplateId;
+      }
+    }
   });
   subscribeShared('customers', list=>{
     APP_STATE.customers = list;
@@ -7341,7 +7351,7 @@ async function doLogin(){
     return;
   }
   err.textContent = '';
-  currentStaff = {user:match.user, name:match.name, role: match.role || 'employee', allowedTiles: staffAllowedTiles(match), reviewTemplateId: match.reviewTemplateId};
+  currentStaff = {user:match.user, name:match.name, role: match.role || 'employee', allowedTiles: staffAllowedTiles(match), reviewTemplateId: match.reviewTemplateId, deviceId: match.deviceId};
   document.getElementById('staffNameLabel').textContent = match.name;
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
