@@ -448,9 +448,11 @@
       <div class="tile js-go" data-go="suggestions" data-tileid="tileSuggestions"><span class="ic">💡</span><span>المقترحات</span></div>
       <div class="tile js-go" data-go="internalChat" data-tileid="tileInternalChat" style="position:relative;"><span class="ic">💬</span><span>الشات الداخلي</span><span class="badge" id="chatTileBadge" style="display:none;">0</span></div>
       <div class="tile js-go" data-go="performanceReviews" id="tileManagePerformance" data-tileid="tileManagePerformance" style="display:none;"><span class="ic">📈</span><span>تقييم أداء الموظفين</span></div>
+      <div class="tile js-go" data-go="attendance" id="tileAttendance" data-tileid="tileAttendance" style="display:none;"><span class="ic">⏱️</span><span>حضور وانصراف</span></div>
       <div class="tile js-go" data-go="myPerformanceReview" id="tileMyPerformance" data-tileid="tileMyPerformance" style="display:none;"><span class="ic">⭐</span><span>تقييمي</span></div>
       <div class="tile js-go" data-go="manageSalaries" id="tileManageSalaries" data-tileid="tileManageSalaries" style="display:none;"><span class="ic">💰</span><span>إدارة المرتبات</span></div>
       <div class="tile js-go" data-go="mySalary" id="tileMySalary" data-tileid="tileMySalary" style="display:none;"><span class="ic">💵</span><span>مرتبي</span></div>
+      <div class="tile js-go" data-go="myHours" id="tileMyHours" data-tileid="tileMyHours" style="display:none;"><span class="ic">⏱️</span><span>ساعاتي</span></div>
     </div>
   </div>
 
@@ -1012,6 +1014,35 @@
     </div>
   </div>
 
+  <!-- ============ ATTENDANCE (FINGERPRINT DEVICE IMPORT) ============ -->
+  <div class="screen" id="attendance">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>حضور وانصراف</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <div class="card" style="margin-bottom:14px;">
+        <h3 style="margin-top:0;">⏱️ استيراد من جهاز البصمة</h3>
+        <p class="sub" style="margin-bottom:10px;">ارفع ملف الحضور والانصراف اللي بيصدّره برنامج جهاز البصمة (Excel)، وهيتحسب عدد ساعات العمل لكل موظف تلقائيًا من أول وآخر بصمة كل يوم.</p>
+        <input type="file" id="attImportFile" accept=".xls,.xlsx,.csv" style="margin-bottom:10px;width:100%;">
+        <button class="btn primary full" id="attImportBtn">استيراد الملف</button>
+        <p class="sub" id="attImportStatus" style="margin:8px 4px 0;"></p>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <label style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:6px;">اعرض ساعات شهر</label>
+        <div style="display:flex;gap:8px;">
+          <select id="attMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;"></select>
+          <select id="attYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;"></select>
+        </div>
+      </div>
+    </div>
+    <div id="attUnmatchedBox"></div>
+    <div id="attStaffList"></div>
+  </div>
+
+  <!-- ============ ATTENDANCE — EMPLOYEE DAILY DETAIL ============ -->
+  <div class="screen" id="attendanceDetail">
+    <div class="head"><div class="back js-go" data-go="attendance">→</div><h2 id="attDetailTitle">تفاصيل الحضور</h2></div>
+    <div id="attDetailBox" class="wrap" style="padding-top:0;"></div>
+  </div>
+
   <!-- ============ PERFORMANCE REVIEW — MY REVIEW (EMPLOYEE, READ-ONLY) ============ -->
   <div class="screen" id="myPerformanceReview">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>تقييمي</h2></div>
@@ -1121,6 +1152,18 @@
     <div id="mySalBox" class="wrap" style="padding-top:0;"><div class="emptystate">جارِ التحميل...</div></div>
   </div>
 
+  <!-- ============ MY HOURS (EMPLOYEE, READ-ONLY — من بيانات جهاز البصمة) ============ -->
+  <div class="screen" id="myHours">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>ساعاتي</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <select id="myHoursMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;"></select>
+        <select id="myHoursYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;"></select>
+      </div>
+    </div>
+    <div id="myHoursBox" class="wrap" style="padding-top:0;"><div class="emptystate">جارِ التحميل...</div></div>
+  </div>
+
   <!-- ============ SETTINGS ============ -->
   <div class="screen" id="settings">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>الإعدادات</h2></div>
@@ -1176,6 +1219,10 @@
         <select id="newStaffReviewTemplate" style="margin-bottom:0;">
           <option value="">بدون نموذج تقييم</option>
         </select>
+      </div>
+      <div style="margin-top:10px;">
+        <label style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:6px;">رقم الموظف في جهاز البصمة (اختياري — عشان ساعات الحضور والانصراف تتربط بيه أوتوماتيك)</label>
+        <input id="newStaffDeviceId" placeholder="مثال: 104" inputmode="numeric" style="margin-bottom:0;">
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="btn primary full" id="addStaffBtn">إضافة موظف</button>
@@ -1260,7 +1307,7 @@ function isHR(){ return !!(currentStaff && currentStaff.role === 'hr'); }
 // Only role==='employee' accounts are restricted this way — admin always sees everything
 // (and is the only one who can manage performance-review templates and other staff' reviews),
 // and 'viewer' keeps its own separate, unrelated rule set.
-const ALL_TILE_IDS = ['tileNewFeedback','tileNewCustomer','tileNewComplaint','tileComplaintsList','tileCustomers','tileReports','tileChecklist','tileWholesale','tileIssueReports','tileDailyNotes','tileWasteReports','tileSuggestions','tileInternalChat','tileMyPerformance','tileMySalary','tileManagePerformance'];
+const ALL_TILE_IDS = ['tileNewFeedback','tileNewCustomer','tileNewComplaint','tileComplaintsList','tileCustomers','tileReports','tileChecklist','tileWholesale','tileIssueReports','tileDailyNotes','tileWasteReports','tileSuggestions','tileInternalChat','tileMyPerformance','tileMySalary','tileMyHours','tileManagePerformance','tileAttendance'];
 const TILE_LABELS = {
   tileNewFeedback:'تسجيل فيدباك', tileNewCustomer:'تسجيل عميل جديد', tileNewComplaint:'تسجيل شكوى',
   tileComplaintsList:'متابعة الشكاوى', tileCustomers:'متابعة العملاء', tileReports:'التقارير والإحصائيات',
@@ -1268,11 +1315,14 @@ const TILE_LABELS = {
   tileDailyNotes:'ملاحظات يومية', tileWasteReports:'تقارير هوالك', tileSuggestions:'المقترحات',
   tileInternalChat:'الشات الداخلي', tileMyPerformance:'⭐ تقييمي (تقييم الأداء الخاص بيه)',
   tileMySalary:'💰 مرتبي (تفاصيل المرتب الخاصة بيه)',
-  tileManagePerformance:'📈 تقييم أداء الموظفين (تسجيل/تعديل تقييمات كل الموظفين)'
+  tileMyHours:'⏱️ ساعاتي (عدد ساعات العمل الخاصة بيه من بيانات البصمة)',
+  tileManagePerformance:'📈 تقييم أداء الموظفين (تسجيل/تعديل تقييمات كل الموظفين)',
+  tileAttendance:'⏱️ حضور وانصراف (استيراد بيانات جهاز البصمة وحساب ساعات العمل)'
 };
-// Default for a brand-new employee account: everything except the performance-review, salary and
-// review-management tiles, which are opt-in — matches how the app behaved before this per-tile picker existed.
-function defaultAllowedTiles(){ return ALL_TILE_IDS.filter(t=> t!=='tileMyPerformance' && t!=='tileMySalary' && t!=='tileManagePerformance'); }
+// Default for a brand-new employee account: everything except the performance-review, salary,
+// own-hours, review-management and attendance tiles, which are opt-in — matches how the app
+// behaved before this per-tile picker existed.
+function defaultAllowedTiles(){ return ALL_TILE_IDS.filter(t=> t!=='tileMyPerformance' && t!=='tileMySalary' && t!=='tileMyHours' && t!=='tileManagePerformance' && t!=='tileAttendance'); }
 function staffAllowedTiles(s){
   if(!s) return [];
   if(Array.isArray(s.allowedTiles)) return s.allowedTiles;
@@ -1299,7 +1349,9 @@ const SCREEN_TO_TILE = {
   internalChat:'tileInternalChat',
   myPerformanceReview:'tileMyPerformance',
   mySalary:'tileMySalary',
-  performanceReviews:'tileManagePerformance', performanceReviewHistory:'tileManagePerformance', performanceReviewEdit:'tileManagePerformance'
+  myHours:'tileMyHours',
+  performanceReviews:'tileManagePerformance', performanceReviewHistory:'tileManagePerformance', performanceReviewEdit:'tileManagePerformance',
+  attendance:'tileAttendance', attendanceDetail:'tileAttendance'
 };
 // true only for a plain employee account (never admin/viewer, who have their own rules) that
 // lacks the tile a screen requires.
@@ -1309,7 +1361,7 @@ function isTileBlockedForCurrentStaff(screenId){
   if(!neededTile) return false; // screen isn't gated by any tile (home, settings, admin-only screens already self-guard)
   return staffAllowedTiles(currentStaff).indexOf(neededTile) === -1;
 }
-let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [], suggestions: [], chatMessages: [], performanceReviews: [], performanceReviewTemplates: [], salaries: [] };
+let APP_STATE = { staff: [], customers: [], feedback: [], complaints: [], checklists: [], checklistSections: [], wholesaleCustomers: [], wholesaleOrders: [], wholesaleCalls: [], wholesaleProducts: [], issueReports: [], dailyNotes: [], wasteReports: [], equipment: [], suggestions: [], chatMessages: [], performanceReviews: [], performanceReviewTemplates: [], salaries: [], attendanceDays: [] };
 let backendReady = false;
 let currentScreen = 'login';
 let lastSeenFeedbackCount = 0; // notification badge shows only feedback registered SINCE the bell was last opened
@@ -1560,6 +1612,11 @@ function attachLiveSync(){
     if(currentScreen==='performanceReviewHistory') renderPerformanceReviewHistory();
     if(currentScreen==='myPerformanceReview') renderMyPerformanceReview();
   });
+  subscribeShared('attendanceDays', list=>{
+    APP_STATE.attendanceDays = list;
+    if(currentScreen==='attendance') renderAttendanceScreen();
+    if(currentScreen==='myHours') renderMyHours();
+  });
   subscribeShared('performanceReviewTemplates', list=>{
     APP_STATE.performanceReviewTemplates = list;
     if(currentScreen==='performanceReviews') renderPerformanceReviewsList();
@@ -1696,8 +1753,8 @@ async function loadAppState(){
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
     if(!(await ensureSignedIn())){ backendReady = false; return { ok:false, reason:'auth-failed' }; }
-    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions, chatMessages, performanceReviews, performanceReviewTemplates, salaries] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages'), loadShared('performanceReviews', []), loadShared('performanceReviewTemplates', []), loadShared('salaries', [])
+    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions, chatMessages, performanceReviews, performanceReviewTemplates, salaries, attendanceDays] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages'), loadShared('performanceReviews', []), loadShared('performanceReviewTemplates', []), loadShared('salaries', []), loadShared('attendanceDays', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -1717,6 +1774,7 @@ async function loadAppState(){
     APP_STATE.performanceReviews = performanceReviews;
     APP_STATE.performanceReviewTemplates = performanceReviewTemplates;
     APP_STATE.salaries = salaries;
+    APP_STATE.attendanceDays = attendanceDays;
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -1767,6 +1825,8 @@ async function getPerformanceReviews(){ return APP_STATE.performanceReviews; }
 async function savePerformanceReviews(arr){ APP_STATE.performanceReviews = arr; saveShared('performanceReviews', arr); }
 async function getSalaries(){ return APP_STATE.salaries; }
 async function saveSalaries(arr){ APP_STATE.salaries = arr; saveShared('salaries', arr); }
+async function getAttendanceDays(){ return APP_STATE.attendanceDays; }
+async function saveAttendanceDays(arr){ APP_STATE.attendanceDays = arr; saveShared('attendanceDays', arr); }
 async function getChecklists(){ return APP_STATE.checklists; }
 async function saveChecklists(arr){ APP_STATE.checklists = arr; saveShared('checklists', arr); }
 async function getChecklistSections(){ return APP_STATE.checklistSections; }
@@ -1983,11 +2043,14 @@ function go(id){
   if(id==='internalChat'){ renderChatMessages(); markChatSeen(); }
   if(id==='performanceReviews') renderPerformanceReviewsList();
   if(id==='performanceReviewHistory') renderPerformanceReviewHistory();
+  if(id==='attendance') renderAttendanceScreen();
+  if(id==='attendanceDetail') renderAttendanceDetail();
   if(id==='myPerformanceReview') renderMyPerformanceReview();
   if(id==='reviewTemplatesManage') renderReviewTemplatesManage();
   if(id==='manageSalaries') renderManageSalariesList();
   if(id==='salaryHistory') renderSalaryHistory();
   if(id==='mySalary') renderMySalary();
+  if(id==='myHours') renderMyHours();
   if(id==='home'){
     const isAdminNow = currentStaff && currentStaff.role === 'admin';
     const isHRNow = isHR();
@@ -2023,12 +2086,14 @@ function go(id){
       // admin/viewer accounts have no tile restrictions — make sure every tile is visible in
       // case this account was previously a restricted employee re-logging in on the same page
       ALL_TILE_IDS.forEach(tid=>{
-        if(tid==='tileMyPerformance' || tid==='tileMySalary' || tid==='tileManagePerformance') return; // handled just below
+        if(tid==='tileMyPerformance' || tid==='tileMySalary' || tid==='tileMyHours' || tid==='tileManagePerformance' || tid==='tileAttendance') return; // handled just below
         const el = document.getElementById(tid) || document.querySelector('#home .grid .tile[data-tileid="'+tid+'"]');
         if(el && el.style.display==='none' && !hideForViewer.includes(tid)) el.style.display = '';
       });
       const manageTile = document.getElementById('tileManagePerformance');
       if(manageTile) manageTile.style.display = isAdminNow ? '' : 'none';
+      const attTile = document.getElementById('tileAttendance');
+      if(attTile) attTile.style.display = isAdminNow ? '' : 'none';
       const myTile = document.getElementById('tileMyPerformance');
       if(myTile) myTile.style.display = 'none'; // admin manages reviews via tileManagePerformance, not this tile; viewer never sees it
       // salary management is HR-only, never shown to admin/viewer — per how this app was set up,
@@ -2037,6 +2102,8 @@ function go(id){
       if(salManageTile2) salManageTile2.style.display = 'none';
       const mySalTile = document.getElementById('tileMySalary');
       if(mySalTile) mySalTile.style.display = 'none';
+      const myHoursTile = document.getElementById('tileMyHours');
+      if(myHoursTile) myHoursTile.style.display = 'none'; // "my hours" is a plain-employee self-service tile too, not for admin/viewer
     }
   }
   // a plain employee only sees the customers/reports bottom-nav tabs if the admin gave them
@@ -5314,6 +5381,294 @@ async function exportPerformanceReviewsExcel(){
   }
 }
 
+/* ================= ATTENDANCE — FINGERPRINT DEVICE IMPORT =================
+   Reads the raw punch-log report exported from the branch's fingerprint device software
+   (ZKTeco TX628 and compatible). Export column layouts vary by device software version, so
+   this reads by HEADER NAME (case/spacing tolerant), not fixed column position — it only
+   needs an employee-id column and a date/time column to exist somewhere in the file;
+   everything else (Department, Status label, Location ID, ...) is ignored.
+   One row = one raw punch (a single clock-in OR clock-out event, never a pair). For each
+   employee+day, the EARLIEST punch of the day is taken as the arrival time and the LATEST
+   as the departure time — deliberately independent of the "C/In"/"C/Out" label the device
+   assigns, because real device logs are often noisy (duplicate punches, a stray "C/Out"
+   logged before "C/In" that day, etc.). First-punch/last-punch is the same convention every
+   payroll system built on raw device logs uses, and it's robust to that noise. */
+const ATT_HEADER_ALIASES = {
+  deviceId: ['no.','no','ac-no','acno','userid','user id','pin','emp id','empid','employeeid','employee id','id number','idnumber','badgenumber','badge number'],
+  dateTime: ['date/time','datetime','date time','time','punch time','attendance time','check time']
+};
+function attNormalizeHeader(h){ return String(h==null?'':h).trim().toLowerCase().replace(/\s+/g,' '); }
+function attFindColumn(headerRow, aliases){
+  const norm = headerRow.map(attNormalizeHeader);
+  for(const alias of aliases){
+    const idx = norm.indexOf(alias);
+    if(idx !== -1) return idx;
+  }
+  return -1;
+}
+// Excel's day 0 is 1899-12-30 in every spreadsheet engine's date system (25569 = days between
+// that and the Unix epoch) — this is the same conversion SheetJS itself uses internally, kept
+// here explicitly because we read with raw:true (plain numeric serials, not pre-formatted
+// strings) so a genuine date/time cell always arrives as a number, never text.
+function attExcelSerialToDate(serial){
+  const utcMs = Math.round((serial - 25569) * 86400 * 1000);
+  const d = new Date(utcMs);
+  // re-anchor as a LOCAL date carrying the same calendar/time digits — a spreadsheet serial has
+  // no timezone of its own, it's just a naive date+time, so this keeps every attendance date
+  // consistently "local" no matter whether it came from a numeric cell or the regex path below
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds());
+}
+// Handles a real Date value (rare), a numeric Excel serial (the normal case for a genuine
+// date/time cell), or "DD/MM/YYYY h:mm[:ss] AM/PM" text (some exports store it as plain text
+// instead of a real date cell) — deliberately NOT handed to Date.parse/new Date(string), which
+// is ambiguous between DD/MM and MM/DD and would silently produce a wrong date instead of
+// failing loudly.
+function attParseDateTime(raw){
+  if(raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
+  if(typeof raw === 'number') return attExcelSerialToDate(raw);
+  const s = String(raw==null?'':raw).trim();
+  if(!s) return null;
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
+  if(!m) return null;
+  let d=+m[1], mo=+m[2], y=+m[3], h=+m[4], mi=+m[5], se=m[6]?+m[6]:0, ap=m[7];
+  if(ap){
+    const isPM = /p/i.test(ap);
+    if(h===12) h = isPM ? 12 : 0;
+    else if(isPM) h += 12;
+  }
+  const dt = new Date(y, mo-1, d, h, mi, se);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+function attDateKey(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function attReadFileAsArrayBuffer(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result);
+    reader.onerror = ()=> reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function importAttendanceFile(){
+  const fileInput = document.getElementById('attImportFile');
+  const statusEl = document.getElementById('attImportStatus');
+  const btn = document.getElementById('attImportBtn');
+  const file = fileInput.files && fileInput.files[0];
+  if(!file){ alert('اختار ملف الأول'); return; }
+  btn.disabled = true; btn.textContent = 'جارِ الاستيراد...';
+  statusEl.textContent = '';
+  try{
+    const buf = await attReadFileAsArrayBuffer(file);
+    const wb = XLSX.read(buf, {type:'array'});
+    if(!wb.SheetNames.length){ statusEl.textContent = 'الملف فاضي أو شكله مش مدعوم.'; return; }
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:true, defval:''});
+    if(!rows.length){ statusEl.textContent = 'الملف فاضي.'; return; }
+    const headerRow = rows[0];
+    const idCol = attFindColumn(headerRow, ATT_HEADER_ALIASES.deviceId);
+    const dtCol = attFindColumn(headerRow, ATT_HEADER_ALIASES.dateTime);
+    if(idCol===-1 || dtCol===-1){
+      statusEl.textContent = 'مش قادر أتعرف على شكل الملف ده — تأكد إنه نفس تصدير برنامج جهاز البصمة من غير تعديل (لازم يكون فيه عمود رقم الموظف وعمود التاريخ/الوقت).';
+      return;
+    }
+
+    // deviceId -> dateKey -> array of punch Dates
+    const punchesByDeviceDay = {};
+    let parsedCount = 0, skippedCount = 0;
+    for(let r=1; r<rows.length; r++){
+      const row = rows[r];
+      if(!row || !row.length) continue;
+      const deviceId = String(row[idCol]==null ? '' : row[idCol]).trim();
+      if(!deviceId) continue;
+      const dt = attParseDateTime(row[dtCol]);
+      if(!dt){ skippedCount++; continue; }
+      const dayKey = attDateKey(dt);
+      if(!punchesByDeviceDay[deviceId]) punchesByDeviceDay[deviceId] = {};
+      if(!punchesByDeviceDay[deviceId][dayKey]) punchesByDeviceDay[deviceId][dayKey] = [];
+      punchesByDeviceDay[deviceId][dayKey].push(dt);
+      parsedCount++;
+    }
+    if(!parsedCount){
+      statusEl.textContent = 'مفيش أي بصمة اتقرأت من الملف — تأكد إن الملف صح.';
+      return;
+    }
+
+    // first punch of the day = check-in, last punch = check-out
+    const newDayRecords = [];
+    Object.keys(punchesByDeviceDay).forEach(deviceId=>{
+      const days = punchesByDeviceDay[deviceId];
+      Object.keys(days).forEach(dayKey=>{
+        const punches = days[dayKey].slice().sort((a,b)=> a-b);
+        const checkIn = punches[0];
+        const checkOut = punches[punches.length-1];
+        const hours = punches.length>1 ? (checkOut - checkIn)/3600000 : 0;
+        newDayRecords.push({
+          id: deviceId+'_'+dayKey,
+          deviceId, date: dayKey,
+          checkIn: checkIn.toISOString(), checkOut: checkOut.toISOString(),
+          punchCount: punches.length, hours,
+          importedAt: new Date().toISOString()
+        });
+      });
+    });
+
+    // upsert by id (deviceId+date) — re-importing a file that overlaps previously-imported days
+    // replaces those days instead of duplicating them
+    const existing = await getAttendanceDays();
+    const byId = {};
+    existing.forEach(rec=> byId[rec.id] = rec);
+    newDayRecords.forEach(rec=> byId[rec.id] = rec);
+    await saveAttendanceDays(Object.values(byId));
+
+    const deviceCount = Object.keys(punchesByDeviceDay).length;
+    statusEl.textContent = 'تم الاستيراد ✅ — '+newDayRecords.length+' يوم عمل لـ'+deviceCount+' رقم بصمة'+(skippedCount ? ' (اتجاهل '+skippedCount+' صف مش مفهوم التاريخ بتاعه)' : '')+'.';
+    fileInput.value = '';
+    if(currentScreen==='attendance') renderAttendanceScreen();
+  }catch(e){
+    console.error('importAttendanceFile', e);
+    statusEl.textContent = 'حصل خطأ أثناء قراءة الملف — تأكد إنه نفس الملف اللي بيصدّره برنامج جهاز البصمة من غير تعديل.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'استيراد الملف';
+  }
+}
+
+let attSelectedDeviceId = null; // deviceId of the employee currently open on the drill-down screen
+let attSelectedStaffName = null;
+
+async function renderAttendanceScreen(){
+  const listBox = document.getElementById('attStaffList');
+  const unmatchedBox = document.getElementById('attUnmatchedBox');
+  const canManage = currentStaff && (currentStaff.role === 'admin' || staffAllowedTiles(currentStaff).indexOf('tileAttendance') !== -1);
+  if(!canManage){
+    listBox.innerHTML = '<div class="emptystate">مالكش صلاحية لشاشة الحضور والانصراف. كلّم مدير الشيفت لو محتاج الصلاحية دي.</div>';
+    unmatchedBox.innerHTML = '';
+    return;
+  }
+  const monthSel = document.getElementById('attMonthSel');
+  const yearSel = document.getElementById('attYearSel');
+  const [attendanceDays, staffList] = await Promise.all([getAttendanceDays(), getStaff()]);
+  if(monthSel.options.length === 0){
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option'); opt.value = i+1; opt.textContent = m; monthSel.appendChild(opt);
+    });
+    monthSel.value = new Date().getMonth()+1;
+    monthSel.addEventListener('change', renderAttendanceScreen);
+  }
+  if(yearSel.options.length === 0){
+    const years = new Set(attendanceDays.map(r=> +String(r.date).slice(0,4)));
+    years.add(new Date().getFullYear());
+    Array.from(years).sort((a,b)=>b-a).forEach(y=>{
+      const opt = document.createElement('option'); opt.value = y; opt.textContent = y; yearSel.appendChild(opt);
+    });
+    yearSel.value = new Date().getFullYear();
+    yearSel.addEventListener('change', renderAttendanceScreen);
+  }
+  const month = parseInt(monthSel.value, 10) || new Date().getMonth()+1;
+  const year = parseInt(yearSel.value, 10) || new Date().getFullYear();
+  const monthPrefix = year+'-'+String(month).padStart(2,'0');
+  const monthRecords = attendanceDays.filter(r=> String(r.date).startsWith(monthPrefix));
+
+  const byDevice = {};
+  monthRecords.forEach(r=>{
+    if(!byDevice[r.deviceId]) byDevice[r.deviceId] = [];
+    byDevice[r.deviceId].push(r);
+  });
+
+  const employees = staffList.filter(s=> s.role !== 'admin');
+  const matchedRows = [];
+  const unmatchedDeviceIds = [];
+  Object.keys(byDevice).forEach(deviceId=>{
+    const s = employees.find(e=> e.deviceId && String(e.deviceId)===String(deviceId));
+    if(s) matchedRows.push({s, records: byDevice[deviceId]});
+    else unmatchedDeviceIds.push(deviceId);
+  });
+  // an employee with a deviceId assigned but zero punches this month still gets a zero row, so
+  // the admin can see who's missing attendance data for the selected month, not just who has some
+  employees.forEach(s=>{
+    if(s.deviceId && !matchedRows.find(row=> row.s.user===s.user)) matchedRows.push({s, records: []});
+  });
+  matchedRows.sort((a,b)=> String(a.s.name).localeCompare(String(b.s.name), 'ar'));
+
+  if(!matchedRows.length && !unmatchedDeviceIds.length){
+    listBox.innerHTML = '<div class="emptystate">لسه مفيش بيانات حضور متستوردة. ارفع ملف من جهاز البصمة فوق.</div>';
+  } else {
+    listBox.innerHTML = matchedRows.map(({s, records})=>{
+      const totalHours = records.reduce((sum,r)=> sum + (r.hours||0), 0);
+      const daysCount = records.length;
+      const incompleteDays = records.filter(r=> r.punchCount < 2).length;
+      const label = daysCount ? (totalHours.toFixed(1)+' ساعة · '+daysCount+' يوم'+(incompleteDays?' · '+incompleteDays+' يوم ببصمة واحدة بس':'')) : 'لا يوجد بصمات الشهر ده';
+      return '<div class="staffrow" data-attstaff="'+esc(s.user)+'" style="cursor:pointer;">'
+        + '<div><b>'+esc(s.name)+'</b><br><span>'+esc(label)+'</span></div>'
+        + '<div style="display:flex;gap:10px;align-items:center;"><span style="color:var(--muted);font-size:16px;">›</span></div>'
+        + '</div>';
+    }).join('');
+    listBox.querySelectorAll('[data-attstaff]').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const user = row.getAttribute('data-attstaff');
+        const s = employees.find(e=>e.user===user);
+        if(!s) return;
+        attSelectedDeviceId = s.deviceId;
+        attSelectedStaffName = s.name;
+        go('attendanceDetail');
+      });
+    });
+  }
+
+  if(unmatchedDeviceIds.length){
+    const options = ['<option value="">اختار الموظف</option>'].concat(
+      employees.map(e=> '<option value="'+esc(e.user)+'">'+esc(e.name)+'</option>')
+    ).join('');
+    unmatchedBox.innerHTML = '<div class="card" style="margin:0 16px 14px;">'
+      + '<h3 style="margin-top:0;">⚠️ أرقام بصمة مش مربوطة بموظف</h3>'
+      + '<p class="sub" style="margin-bottom:10px;">الأرقام دي موجودة في ملف البصمة بس مش متسجلة لأي موظف — اربطها عشان ساعاتها تظهر.</p>'
+      + unmatchedDeviceIds.map(deviceId=>
+          '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">'
+          + '<span style="font-size:11.5px;color:var(--muted);flex:0 0 auto;">بصمة #'+esc(deviceId)+' ('+byDevice[deviceId].length+' يوم)</span>'
+          + '<select class="attLinkSel" data-deviceid="'+esc(deviceId)+'" style="flex:1;min-width:0;border:1.5px solid var(--line);border-radius:8px;padding:6px;font-size:11.5px;font-family:\'Tajawal\';">'+options+'</select>'
+          + '<button class="btn primary attLinkBtn" data-deviceid="'+esc(deviceId)+'" style="flex:0 0 auto;padding:6px 12px;font-size:11.5px;">ربط</button>'
+          + '</div>'
+        ).join('')
+      + '</div>';
+    unmatchedBox.querySelectorAll('.attLinkBtn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const deviceId = btn.getAttribute('data-deviceid');
+        const sel = unmatchedBox.querySelector('.attLinkSel[data-deviceid="'+deviceId.replace(/"/g,'\\"')+'"]');
+        const user = sel ? sel.value : '';
+        if(!user){ alert('اختار الموظف الأول'); return; }
+        const list = await getStaff();
+        const dupe = list.find(s=> s.deviceId && String(s.deviceId)===deviceId);
+        if(dupe){ alert('رقم البصمة ده متربط بالفعل بـ'+dupe.name); return; }
+        const idx = list.findIndex(s=>s.user===user);
+        if(idx===-1) return;
+        list[idx] = Object.assign({}, list[idx], {deviceId});
+        await saveStaff(list);
+        renderAttendanceScreen();
+      });
+    });
+  } else {
+    unmatchedBox.innerHTML = '';
+  }
+}
+
+async function renderAttendanceDetail(){
+  const box = document.getElementById('attDetailBox');
+  document.getElementById('attDetailTitle').textContent = attSelectedStaffName ? 'تفاصيل حضور: '+attSelectedStaffName : 'تفاصيل الحضور';
+  if(!attSelectedDeviceId){ box.innerHTML = '<div class="emptystate">اختار موظف الأول من شاشة حضور وانصراف.</div>'; return; }
+  const attendanceDays = await getAttendanceDays();
+  const records = attendanceDays.filter(r=> String(r.deviceId)===String(attSelectedDeviceId)).slice().sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+  if(!records.length){ box.innerHTML = '<div class="emptystate">لا يوجد بصمات مسجّلة لهذا الموظف.</div>'; return; }
+  const totalHours = records.reduce((s,r)=> s+(r.hours||0), 0);
+  box.innerHTML = '<p class="sub" style="margin-bottom:10px;">إجمالي كل الأيام المستوردة: '+totalHours.toFixed(1)+' ساعة على '+records.length+' يوم</p>'
+    + records.map(r=>{
+        const inTime = new Date(r.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+        const outTime = new Date(r.checkOut).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+        const dateLabel = new Date(r.date+'T00:00:00').toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
+        const warn = r.punchCount < 2 ? ' <span style="color:#B33;">(بصمة واحدة بس)</span>' : '';
+        return '<div class="staffrow"><div><b>'+esc(dateLabel)+'</b>'+warn+'<br><span>'+esc(inTime)+' ← '+esc(outTime)+'</span></div>'
+          + '<div style="font-family:\'Cairo\';font-weight:700;color:var(--gold);">'+r.hours.toFixed(1)+' س</div></div>';
+      }).join('');
+}
+
 // Detects the branch's 2 fixed category groupings ("الإلتزام بالمظهر اللائق" over نظافة
 // شخصية+يونيفورم كامل, and "التعامل بأسلوب لائق" over تعامل مع العملاء+تعامل مع الزملاء/فريق
 // العمل) whenever a template's first 4 criteria match, in order — true for every job on the
@@ -6202,6 +6557,71 @@ function paintMySalary(){
   }).join('');
 }
 
+/* ================= MY HOURS (EMPLOYEE, READ-ONLY — مبنية على bيانات جهاز البصمة المستوردة) ================= */
+let allMyHoursCache = [];
+let myHoursMonth = new Date().getMonth()+1;
+let myHoursYear = new Date().getFullYear();
+
+async function renderMyHours(){
+  const box = document.getElementById('myHoursBox');
+  if(!currentStaff){ box.innerHTML = '<div class="emptystate">من فضلك سجّل الدخول.</div>'; return; }
+  if(currentStaff.role !== 'admin' && staffAllowedTiles(currentStaff).indexOf('tileMyHours') === -1){
+    box.innerHTML = '<div class="emptystate">مالكش صلاحية لعرض ساعات عملك. كلّم الإدارة لو محتاج الصلاحية دي.</div>';
+    return;
+  }
+  if(!currentStaff.deviceId){
+    box.innerHTML = '<div class="emptystate">حسابك لسه مش مربوط برقم بصمة — كلّم مدير الفرع عشان يربطه، وبعدها ساعاتك هتظهر هنا تلقائيًا.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="emptystate">جارِ التحميل...</div>';
+  const attendanceDays = await getAttendanceDays();
+  allMyHoursCache = attendanceDays.filter(r=> String(r.deviceId)===String(currentStaff.deviceId)).slice().sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+
+  const monthSel = document.getElementById('myHoursMonthSel');
+  if(monthSel.options.length===0){
+    const opt0 = document.createElement('option'); opt0.value=''; opt0.textContent='كل الشهور'; monthSel.appendChild(opt0);
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option');
+      opt.value = i+1; opt.textContent = m;
+      monthSel.appendChild(opt);
+    });
+  }
+  const yearSel = document.getElementById('myHoursYearSel');
+  const yearsInData = new Set(allMyHoursCache.map(r=> +String(r.date).slice(0,4)));
+  yearsInData.add(new Date().getFullYear());
+  const yearOptions = Array.from(yearsInData).sort((a,b)=>b-a);
+  yearSel.innerHTML = '<option value="">كل السنين</option>' + yearOptions.map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  monthSel.value = myHoursMonth==null ? '' : myHoursMonth;
+  yearSel.value = myHoursYear==null ? '' : myHoursYear;
+
+  paintMyHours();
+}
+function paintMyHours(){
+  const box = document.getElementById('myHoursBox');
+  let list = allMyHoursCache;
+  if(myHoursMonth!=null){ list = list.filter(r=> (+String(r.date).slice(5,7))===myHoursMonth); }
+  if(myHoursYear!=null){ list = list.filter(r=> (+String(r.date).slice(0,4))===myHoursYear); }
+
+  if(!list.length){
+    box.innerHTML = '<div class="emptystate">لا يوجد بصمات مسجّلة في الفترة دي.</div>';
+    return;
+  }
+  const totalHours = list.reduce((s,r)=> s+(r.hours||0), 0);
+  box.innerHTML = '<div class="card" style="text-align:center;">'
+      + '<p class="sub" style="margin:0 0 4px;">إجمالي ساعات العمل</p>'
+      + '<b style="font-family:\'Cairo\';font-size:26px;color:var(--gold);">'+totalHours.toFixed(1)+' ساعة</b>'
+      + '<p class="sub" style="margin:6px 0 0;">على '+list.length+' يوم عمل</p>'
+      + '</div>'
+    + list.map(r=>{
+        const inTime = new Date(r.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+        const outTime = new Date(r.checkOut).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+        const dateLabel = new Date(r.date+'T00:00:00').toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
+        const warn = r.punchCount < 2 ? ' <span style="color:#B33;">(بصمة واحدة بس)</span>' : '';
+        return '<div class="staffrow"><div><b>'+esc(dateLabel)+'</b>'+warn+'<br><span>'+esc(inTime)+' ← '+esc(outTime)+'</span></div>'
+          + '<div style="font-family:\'Cairo\';font-weight:700;color:var(--gold);">'+(r.hours||0).toFixed(1)+' س</div></div>';
+      }).join('');
+}
+
 /* ================= INTERNAL CHAT (بين الموظفين والإدارة) ================= */
 let isSendingChatMessage = false;
 
@@ -6746,7 +7166,8 @@ async function paintStaffList(){
     const tpl = templates.find(t=> t.id === s.reviewTemplateId);
     const canSeeOwnReview = s.role !== 'admin' && s.role !== 'viewer' && s.role !== 'hr' && staffAllowedTiles(s).indexOf('tileMyPerformance') !== -1;
     const canManageReviews = s.role !== 'admin' && s.role !== 'viewer' && s.role !== 'hr' && staffAllowedTiles(s).indexOf('tileManagePerformance') !== -1;
-    return '<div class="staffrow"><div><b>'+esc(s.name)+'</b> '+(s.role==='admin'?'👑':(s.role==='viewer'?'👁️':(s.role==='hr'?'💰':'')))+(canSeeOwnReview?' ⭐':'')+(canManageReviews?' 📈':'')+'<br><span>@'+esc(s.user)+(tpl?' · '+esc(tpl.jobTitle):'')+'</span></div>'
+    const canSeeOwnHours = s.role !== 'admin' && s.role !== 'viewer' && s.role !== 'hr' && staffAllowedTiles(s).indexOf('tileMyHours') !== -1;
+    return '<div class="staffrow"><div><b>'+esc(s.name)+'</b> '+(s.role==='admin'?'👑':(s.role==='viewer'?'👁️':(s.role==='hr'?'💰':'')))+(canSeeOwnReview?' ⭐':'')+(canManageReviews?' 📈':'')+(canSeeOwnHours?' ⏱️':'')+'<br><span>@'+esc(s.user)+(tpl?' · '+esc(tpl.jobTitle):'')+(s.deviceId?' · بصمة #'+esc(s.deviceId):'')+'</span></div>'
     + '<div style="display:flex;gap:10px;">'
       + '<button class="delStaff" data-edituser="'+esc(s.user)+'" style="color:var(--primary,#0F5C4F);">تعديل</button>'
       + '<button class="delStaff" data-user="'+esc(s.user)+'">حذف</button>'
@@ -6778,6 +7199,7 @@ async function paintStaffList(){
       paintStaffTilesCheckboxes(staffAllowedTiles(s));
       updateStaffTilesSectionVisibility();
       document.getElementById('newStaffReviewTemplate').value = s.reviewTemplateId || '';
+      document.getElementById('newStaffDeviceId').value = s.deviceId || '';
       document.getElementById('staffFormTitle').textContent = 'تعديل بيانات: '+s.name;
       document.getElementById('addStaffBtn').textContent = 'حفظ التعديل';
       document.getElementById('cancelEditStaffBtn').style.display = 'block';
@@ -6797,6 +7219,7 @@ function resetStaffForm(){
   paintStaffTilesCheckboxes([]); // start every tile unchecked — the admin picks what this employee sees, nothing is pre-granted
   updateStaffTilesSectionVisibility();
   document.getElementById('newStaffReviewTemplate').value = '';
+  document.getElementById('newStaffDeviceId').value = '';
   document.getElementById('staffFormTitle').textContent = 'إضافة موظف جديد';
   document.getElementById('addStaffBtn').textContent = 'إضافة موظف';
   document.getElementById('cancelEditStaffBtn').style.display = 'none';
@@ -6820,9 +7243,16 @@ async function addStaffMember(){
   // employee — still captured either way, but ignored by staffAllowedTiles() for those roles.
   const allowedTiles = getCheckedStaffTiles();
   const reviewTemplateId = document.getElementById('newStaffReviewTemplate').value || null;
+  const deviceId = document.getElementById('newStaffDeviceId').value.trim() || null;
   if(!name || !user || !pass){ alert('من فضلك املأ اسم الموظف واسم المستخدم وكلمة السر'); return; }
 
   const list = await getStaff();
+
+  // رقم جهاز البصمة لازم يكون فريد — لو اتكرر، ساعات موظفين مختلفين هتتخلط في بعض عند الاستيراد
+  if(deviceId){
+    const deviceDupe = list.find(s=> String(s.deviceId||'')===deviceId && s.user!==editingStaffUser);
+    if(deviceDupe){ alert('رقم الموظف ده في جهاز البصمة متسجل بالفعل للموظف "'+deviceDupe.name+'"'); return; }
+  }
 
   if(editingStaffUser){
     // editing an existing staff member (username itself may have been changed too)
@@ -6830,16 +7260,16 @@ async function addStaffMember(){
     if(dupeExists){ alert('اسم المستخدم ده مستخدم بالفعل'); return; }
     const idx = list.findIndex(s=>s.user===editingStaffUser);
     if(idx===-1){ alert('تعذر إيجاد الموظف ده، ممكن يكون اتحذف'); resetStaffForm(); await paintStaffList(); return; }
-    list[idx] = {user, pass, name, role, allowedTiles, reviewTemplateId};
+    list[idx] = {user, pass, name, role, allowedTiles, reviewTemplateId, deviceId};
     await saveStaff(list);
     // if the logged-in admin just edited their own account, keep the session in sync
     if(currentStaff && currentStaff.user === editingStaffUser){
-      currentStaff = {user, name, role, allowedTiles, reviewTemplateId};
+      currentStaff = {user, name, role, allowedTiles, reviewTemplateId, deviceId};
       document.getElementById('staffNameLabel').textContent = name;
     }
   } else {
     if(list.some(s=>s.user===user)){ alert('اسم المستخدم ده مستخدم بالفعل'); return; }
-    list.push({user, pass, name, role, allowedTiles, reviewTemplateId});
+    list.push({user, pass, name, role, allowedTiles, reviewTemplateId, deviceId});
     await saveStaff(list);
   }
 
@@ -6968,6 +7398,7 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('clmSaveBtn').addEventListener('click', saveChecklistManageChanges);
   document.getElementById('openReviewTemplatesBtn').addEventListener('click', ()=> go('reviewTemplatesManage'));
   document.getElementById('prExportBtn').addEventListener('click', exportPerformanceReviewsExcel);
+  document.getElementById('attImportBtn').addEventListener('click', importAttendanceFile);
   document.getElementById('rtmAddTemplateBtn').addEventListener('click', addReviewTemplate);
   document.getElementById('rtmSaveBtn').addEventListener('click', saveReviewTemplatesChanges);
   document.getElementById('qaSaveBtn').addEventListener('click', submitQuickAdd);
@@ -7089,6 +7520,14 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('mySalYearSel').addEventListener('change', e=>{
     mySalYear = e.target.value ? parseInt(e.target.value,10) : null;
     paintMySalary();
+  });
+  document.getElementById('myHoursMonthSel').addEventListener('change', e=>{
+    myHoursMonth = e.target.value ? parseInt(e.target.value,10) : null;
+    paintMyHours();
+  });
+  document.getElementById('myHoursYearSel').addEventListener('change', e=>{
+    myHoursYear = e.target.value ? parseInt(e.target.value,10) : null;
+    paintMyHours();
   });
   document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
   document.getElementById('chatToast').addEventListener('click', ()=>{
