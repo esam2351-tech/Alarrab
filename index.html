@@ -1050,7 +1050,7 @@
     <div class="wrap" style="padding-top:0;">
       <div class="card" style="margin-bottom:14px;">
         <h3 style="margin-top:0;">⚠️ إزاي بيتحسب التأخير</h3>
-        <p class="sub" style="margin-bottom:0;">النظام بيقارن أول بصمة حضور لكل موظف بـ"موعد الحضور" المسجّل في تقييمه اليومي لنفس اليوم (بما إن مواعيد الموظفين بتتغيّر معظم الأيام). اليوم اللي معهوش موعد حضور متسجل في التقييم اليومي بيتجاهل — مفيش أساس نقارن بيه. لو التأخير أكتر من الحد المسموح بيه، اليوم ده بيظهر هنا محتاج اعتماد من الـ HR أو الأدمن قبل ما يتخصم أي حاجة.</p>
+        <p class="sub" style="margin-bottom:0;">النظام بيقارن أول بصمة حضور لكل موظف بـ"موعد الحضور" المسجّل في تقييمه اليومي لنفس اليوم (بما إن مواعيد الموظفين بتتغيّر معظم الأيام). اليوم اللي معهوش موعد حضور متسجل في التقييم اليومي بيتجاهل — مفيش أساس نقارن بيه. لو التأخير أكتر من الحد المسموح بيه، اليوم ده بيظهر هنا محتاج مراجعة: <b>أول مرة يتأخر فيها الموظف</b> (طول تاريخه في النظام) بتظهر كـ"إنذار" بس من غير أي خصم؛ من تاني مرة يتأخر فيها بيظهر الخصم المقترح حسب إعدادات الجزاءات. في الحالتين، القرار النهائي (تسجيل الإنذار / اعتماد الخصم / تجاهل) في إيد الـ HR أو الأدمن.</p>
       </div>
       <div class="card" style="margin-bottom:14px;">
         <label style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:6px;">اعرض شهر</label>
@@ -5791,6 +5791,13 @@ async function computeLatenessCandidates(month, year){
   const decisionById = {};
   decisions.forEach(d=> decisionById[d.id] = d);
   const tiers = (settings && settings.tiers && settings.tiers.length) ? settings.tiers : [{minutes:15, days:0.5}];
+  // أول مرة يتأخر فيها الموظف (طول تاريخه، مش بس الشهر ده) بتبقى إنذار من غير خصم؛ من تاني مرة
+  // يتأخر فيها (يعني عنده إنذار أو خصم متسجل قبل كده) يتطبق عليه جدول الخصم العادي، برضه لازم
+  // موافقة HR على كل حالة قبل ما تتطبق.
+  const hasPriorConfirmed = {};
+  decisions.forEach(d=>{
+    if(d.status==='warned' || d.status==='approved') hasPriorConfirmed[d.deviceId] = true;
+  });
   // معاد الحضور المتوقع بيتسجل يوم بيوم في التقييم اليومي (حقل "موعد الحضور")، مش قيمة ثابتة
   // للموظف، لأن مواعيده بتتغير معظم الأيام. نبني خريطة user_date -> موعد الحضور المسجل، ونتجاهل
   // أيام الإجازة/الغياب (مفيش حضور متوقع أصلاً).
@@ -5817,6 +5824,7 @@ async function computeLatenessCandidates(month, year){
       out.push({
         id, deviceId: s.deviceId, date: r.date, staffName: s.name, staffUser: s.user,
         checkIn: r.checkIn, scheduledArrival, lateMinutes, penaltyDays: tier.days,
+        isFirstOffense: !hasPriorConfirmed[s.deviceId],
         decision: decisionById[id] || null
       });
     });
@@ -5879,11 +5887,17 @@ async function renderLatenessScreen(){
     pendingBox.innerHTML = pending.map(c=>{
       const timeLabel = new Date(c.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
       const dateLabel = new Date(c.date+'T00:00:00').toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
+      const actionLabel = c.isFirstOffense
+        ? '<span style="color:#8a6d00;">أول تأخير للموظف ده — إنذار بس، من غير خصم</span>'
+        : '<span style="color:#8a6d00;">الخصم المقترح: '+c.penaltyDays+' يوم</span>';
+      const actionBtn = c.isFirstOffense
+        ? '<button class="btn primary" data-warn-late="'+esc(c.id)+'" style="padding:6px 10px;font-size:11px;">تسجيل إنذار</button>'
+        : '<button class="btn primary" data-approve-late="'+esc(c.id)+'" style="padding:6px 10px;font-size:11px;">اعتماد الخصم</button>';
       return '<div class="staffrow" style="align-items:flex-start;flex-wrap:wrap;gap:8px;">'
         + '<div><b>'+esc(c.staffName)+'</b><br><span>'+esc(dateLabel)+' — المفروض '+esc(c.scheduledArrival)+'، حضر '+esc(timeLabel)+' (متأخر '+Math.round(c.lateMinutes)+' دقيقة)</span><br>'
-        + '<span style="color:#8a6d00;">الخصم المقترح: '+c.penaltyDays+' يوم</span></div>'
+        + actionLabel+'</div>'
         + '<div style="display:flex;gap:6px;">'
-        + '<button class="btn primary" data-approve-late="'+esc(c.id)+'" style="padding:6px 10px;font-size:11px;">اعتماد الخصم</button>'
+        + actionBtn
         + '<button class="btn ghost" data-dismiss-late="'+esc(c.id)+'" style="padding:6px 10px;font-size:11px;">تجاهل</button>'
         + '</div></div>';
     }).join('');
@@ -5897,6 +5911,8 @@ async function renderLatenessScreen(){
       const dateLabel = new Date(c.date+'T00:00:00').toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
       const statusBadge = c.decision.status==='approved'
         ? '<span style="color:var(--bad);font-weight:800;">✔ خصم '+c.decision.penaltyDays+' يوم</span>'
+        : c.decision.status==='warned'
+        ? '<span style="color:#8a6d00;font-weight:800;">🔔 إنذار (من غير خصم)</span>'
         : '<span style="color:var(--muted);font-weight:700;">تم التجاهل</span>';
       return '<div class="staffrow" style="flex-wrap:wrap;gap:8px;"><div><b>'+esc(c.staffName)+'</b><br><span>'+esc(dateLabel)+' — حضر '+esc(timeLabel)+' (متأخر '+Math.round(c.lateMinutes)+' دقيقة)</span></div>'
         + '<div style="display:flex;gap:8px;align-items:center;">'+statusBadge+'<button class="btn ghost" data-undo-late="'+esc(c.id)+'" style="padding:4px 8px;font-size:10.5px;">تراجع</button></div></div>';
@@ -5910,6 +5926,17 @@ async function renderLatenessScreen(){
       if(!item) return;
       const list = (await getLatePenaltyDecisions()).filter(d=> d.id!==id);
       list.push({id, deviceId:item.deviceId, date:item.date, status:'approved', penaltyDays:item.penaltyDays, lateMinutes:item.lateMinutes, decidedBy: currentStaff?currentStaff.name:'', decidedAt: new Date().toISOString()});
+      await saveLatePenaltyDecisions(list);
+      renderLatenessScreen();
+    });
+  });
+  pendingBox.querySelectorAll('[data-warn-late]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.getAttribute('data-warn-late');
+      const item = candidates.find(c=>c.id===id);
+      if(!item) return;
+      const list = (await getLatePenaltyDecisions()).filter(d=> d.id!==id);
+      list.push({id, deviceId:item.deviceId, date:item.date, status:'warned', penaltyDays:0, lateMinutes:item.lateMinutes, decidedBy: currentStaff?currentStaff.name:'', decidedAt: new Date().toISOString()});
       await saveLatePenaltyDecisions(list);
       renderLatenessScreen();
     });
