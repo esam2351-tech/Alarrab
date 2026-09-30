@@ -449,6 +449,7 @@
       <div class="tile js-go" data-go="internalChat" data-tileid="tileInternalChat" style="position:relative;"><span class="ic">💬</span><span>الشات الداخلي</span><span class="badge" id="chatTileBadge" style="display:none;">0</span></div>
       <div class="tile js-go" data-go="performanceReviews" id="tileManagePerformance" data-tileid="tileManagePerformance" style="display:none;"><span class="ic">📈</span><span>تقييم أداء الموظفين</span></div>
       <div class="tile js-go" data-go="attendance" id="tileAttendance" data-tileid="tileAttendance" style="display:none;"><span class="ic">⏱️</span><span>حضور وانصراف</span></div>
+      <div class="tile js-go" data-go="lateness" id="tileLateness" data-tileid="tileLateness" style="position:relative;display:none;"><span class="ic">⚠️</span><span>التأخيرات</span><span class="badge" id="latenessTileBadge" style="display:none;">0</span></div>
       <div class="tile js-go" data-go="myPerformanceReview" id="tileMyPerformance" data-tileid="tileMyPerformance" style="display:none;"><span class="ic">⭐</span><span>تقييمي</span></div>
       <div class="tile js-go" data-go="manageSalaries" id="tileManageSalaries" data-tileid="tileManageSalaries" style="display:none;"><span class="ic">💰</span><span>إدارة المرتبات</span></div>
       <div class="tile js-go" data-go="mySalary" id="tileMySalary" data-tileid="tileMySalary" style="display:none;"><span class="ic">💵</span><span>مرتبي</span></div>
@@ -1043,6 +1044,28 @@
     <div id="attDetailBox" class="wrap" style="padding-top:0;"></div>
   </div>
 
+  <!-- ============ LATENESS & PENALTIES ============ -->
+  <div class="screen" id="lateness">
+    <div class="head"><div class="back js-go" data-go="home">→</div><h2>التأخيرات والجزاءات</h2></div>
+    <div class="wrap" style="padding-top:0;">
+      <div class="card" style="margin-bottom:14px;">
+        <h3 style="margin-top:0;">⚠️ إزاي بيتحسب التأخير</h3>
+        <p class="sub" style="margin-bottom:0;">النظام بيقارن أول بصمة حضور لكل موظف بـ"موعد الحضور" المسجّل في تقييمه اليومي لنفس اليوم (بما إن مواعيد الموظفين بتتغيّر معظم الأيام). اليوم اللي معهوش موعد حضور متسجل في التقييم اليومي بيتجاهل — مفيش أساس نقارن بيه. لو التأخير أكتر من الحد المسموح بيه، اليوم ده بيظهر هنا محتاج اعتماد من الـ HR أو الأدمن قبل ما يتخصم أي حاجة.</p>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <label style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:6px;">اعرض شهر</label>
+        <div style="display:flex;gap:8px;">
+          <select id="latMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;"></select>
+          <select id="latYearSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:'Tajawal';background:#FCF9F3;"></select>
+        </div>
+      </div>
+    </div>
+    <p class="sub" style="margin:0 14px 6px;font-weight:700;">محتاجة مراجعة</p>
+    <div id="latPendingBox" class="wrap" style="padding-top:0;"></div>
+    <p class="sub" style="margin:14px 14px 6px;font-weight:700;">تمت مراجعتها</p>
+    <div id="latDecidedBox" class="wrap" style="padding-top:0;"></div>
+  </div>
+
   <!-- ============ PERFORMANCE REVIEW — MY REVIEW (EMPLOYEE, READ-ONLY) ============ -->
   <div class="screen" id="myPerformanceReview">
     <div class="head"><div class="back js-go" data-go="home">→</div><h2>تقييمي</h2></div>
@@ -1240,6 +1263,14 @@
       <p>حدد بنود ونسب تقييم مختلفة لكل وظيفة (مسئول خزينة، باريستا، إلخ).</p>
       <button class="btn primary full" id="openReviewTemplatesBtn">فتح إدارة النماذج</button>
     </div>
+    <div class="settcard" id="penaltySettingsCard" style="display:none;">
+      <h3>⚠️ نظام جزاءات التأخير (للمدير والـ HR)</h3>
+      <p>حدد بعد قد إيه من التأخير (بالدقايق) يُعتبر تأخير، وقد إيه يتخصم من أيام العمل — تقدر تضيف أكتر من مستوى (مثلاً: أكتر من 15 دقيقة = نص يوم، أكتر من 60 دقيقة = يوم كامل).</p>
+      <div id="penaltyTiersBox" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+      <button class="btn ghost full" id="addPenaltyTierBtn" style="margin-bottom:10px;">+ إضافة مستوى جديد</button>
+      <button class="btn primary full" id="savePenaltySettingsBtn">حفظ إعدادات الجزاءات</button>
+      <div class="savedTag" id="penaltySettingsSavedTag">✓ تم الحفظ</div>
+    </div>
   </div>
 
 
@@ -1307,7 +1338,7 @@ function isHR(){ return !!(currentStaff && currentStaff.role === 'hr'); }
 // Only role==='employee' accounts are restricted this way — admin always sees everything
 // (and is the only one who can manage performance-review templates and other staff' reviews),
 // and 'viewer' keeps its own separate, unrelated rule set.
-const ALL_TILE_IDS = ['tileNewFeedback','tileNewCustomer','tileNewComplaint','tileComplaintsList','tileCustomers','tileReports','tileChecklist','tileWholesale','tileIssueReports','tileDailyNotes','tileWasteReports','tileSuggestions','tileInternalChat','tileMyPerformance','tileMySalary','tileMyHours','tileManagePerformance','tileAttendance'];
+const ALL_TILE_IDS = ['tileNewFeedback','tileNewCustomer','tileNewComplaint','tileComplaintsList','tileCustomers','tileReports','tileChecklist','tileWholesale','tileIssueReports','tileDailyNotes','tileWasteReports','tileSuggestions','tileInternalChat','tileMyPerformance','tileMySalary','tileMyHours','tileManagePerformance','tileAttendance','tileLateness'];
 const TILE_LABELS = {
   tileNewFeedback:'تسجيل فيدباك', tileNewCustomer:'تسجيل عميل جديد', tileNewComplaint:'تسجيل شكوى',
   tileComplaintsList:'متابعة الشكاوى', tileCustomers:'متابعة العملاء', tileReports:'التقارير والإحصائيات',
@@ -1317,12 +1348,13 @@ const TILE_LABELS = {
   tileMySalary:'💰 مرتبي (تفاصيل المرتب الخاصة بيه)',
   tileMyHours:'⏱️ ساعاتي (عدد ساعات العمل الخاصة بيه من بيانات البصمة)',
   tileManagePerformance:'📈 تقييم أداء الموظفين (تسجيل/تعديل تقييمات كل الموظفين)',
-  tileAttendance:'⏱️ حضور وانصراف (استيراد بيانات جهاز البصمة وحساب ساعات العمل)'
+  tileAttendance:'⏱️ حضور وانصراف (استيراد بيانات جهاز البصمة وحساب ساعات العمل)',
+  tileLateness:'⚠️ التأخيرات والجزاءات (مراجعة تأخيرات الموظفين واعتماد خصم الأيام)'
 };
 // Default for a brand-new employee account: everything except the performance-review, salary,
-// own-hours, review-management and attendance tiles, which are opt-in — matches how the app
-// behaved before this per-tile picker existed.
-function defaultAllowedTiles(){ return ALL_TILE_IDS.filter(t=> t!=='tileMyPerformance' && t!=='tileMySalary' && t!=='tileMyHours' && t!=='tileManagePerformance' && t!=='tileAttendance'); }
+// own-hours, review-management, attendance and lateness tiles, which are opt-in — matches how the
+// app behaved before this per-tile picker existed.
+function defaultAllowedTiles(){ return ALL_TILE_IDS.filter(t=> t!=='tileMyPerformance' && t!=='tileMySalary' && t!=='tileMyHours' && t!=='tileManagePerformance' && t!=='tileAttendance' && t!=='tileLateness'); }
 function staffAllowedTiles(s){
   if(!s) return [];
   if(Array.isArray(s.allowedTiles)) return s.allowedTiles;
@@ -1351,7 +1383,8 @@ const SCREEN_TO_TILE = {
   mySalary:'tileMySalary',
   myHours:'tileMyHours',
   performanceReviews:'tileManagePerformance', performanceReviewHistory:'tileManagePerformance', performanceReviewEdit:'tileManagePerformance',
-  attendance:'tileAttendance', attendanceDetail:'tileAttendance'
+  attendance:'tileAttendance', attendanceDetail:'tileAttendance',
+  lateness:'tileLateness'
 };
 // true only for a plain employee account (never admin/viewer, who have their own rules) that
 // lacks the tile a screen requires.
@@ -1528,6 +1561,8 @@ function attachLiveSync(){
   subscribeShared('staff', list=>{
     APP_STATE.staff = list;
     if(currentScreen==='settings') renderSettings();
+    if(currentScreen==='lateness') renderLatenessScreen();
+    updateLatenessTileBadge();
     // إذا الأدمن غيّر بيانات نفس الموظف اللي داخل بحسابه دلوقتي (زي ربط رقم بصمة أو
     // تغيير صلاحياته)، حدّث currentStaff فورًا من غير ما يحتاج يعمل logout/login تاني.
     if(currentStaff){
@@ -1621,11 +1656,25 @@ function attachLiveSync(){
     if(currentScreen==='performanceReviews') renderPerformanceReviewsList();
     if(currentScreen==='performanceReviewHistory') renderPerformanceReviewHistory();
     if(currentScreen==='myPerformanceReview') renderMyPerformanceReview();
+    if(currentScreen==='lateness') renderLatenessScreen();
+    updateLatenessTileBadge();
   });
   subscribeShared('attendanceDays', list=>{
     APP_STATE.attendanceDays = list;
     if(currentScreen==='attendance') renderAttendanceScreen();
     if(currentScreen==='myHours') renderMyHours();
+    if(currentScreen==='lateness') renderLatenessScreen();
+    updateLatenessTileBadge();
+  });
+  subscribeShared('latePenaltyDecisions', list=>{
+    APP_STATE.latePenaltyDecisions = list;
+    if(currentScreen==='lateness') renderLatenessScreen();
+    updateLatenessTileBadge();
+  });
+  subscribeShared('penaltySettings', list=>{
+    APP_STATE.penaltySettings = (list && list.length) ? list[0] : { tiers: [{minutes:15, days:0.5}] };
+    if(currentScreen==='lateness') renderLatenessScreen();
+    if(currentScreen==='settings') renderSettings();
   });
   subscribeShared('performanceReviewTemplates', list=>{
     APP_STATE.performanceReviewTemplates = list;
@@ -1763,8 +1812,8 @@ async function loadAppState(){
   if(!db){ if(!initFirebase()) return { ok:false, reason:'init-failed' }; }
   try{
     if(!(await ensureSignedIn())){ backendReady = false; return { ok:false, reason:'auth-failed' }; }
-    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions, chatMessages, performanceReviews, performanceReviewTemplates, salaries, attendanceDays] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages'), loadShared('performanceReviews', []), loadShared('performanceReviewTemplates', []), loadShared('salaries', []), loadShared('attendanceDays', [])
+    const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions, chatMessages, performanceReviews, performanceReviewTemplates, salaries, attendanceDays, latePenaltyDecisions, penaltySettings] = await Promise.all([
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages'), loadShared('performanceReviews', []), loadShared('performanceReviewTemplates', []), loadShared('salaries', []), loadShared('attendanceDays', []), loadShared('latePenaltyDecisions', []), loadShared('penaltySettings', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -1785,6 +1834,11 @@ async function loadAppState(){
     APP_STATE.performanceReviewTemplates = performanceReviewTemplates;
     APP_STATE.salaries = salaries;
     APP_STATE.attendanceDays = attendanceDays;
+    APP_STATE.latePenaltyDecisions = latePenaltyDecisions;
+    // penaltySettings is stored as a single-item list [{tiers:[{minutes,days},...]}] — a list of
+    // late-thresholds and their day-deductions, editable from الإعدادات. Default: أكتر من ربع
+    // ساعة تأخير = خصم نص يوم، زي ما اتفقنا.
+    APP_STATE.penaltySettings = (penaltySettings && penaltySettings.length) ? penaltySettings[0] : { tiers: [{minutes:15, days:0.5}] };
     if(!APP_STATE.staff.length){
       APP_STATE.staff = DEFAULT_STAFF.slice();
       saveShared('staff', APP_STATE.staff);
@@ -1837,6 +1891,10 @@ async function getSalaries(){ return APP_STATE.salaries; }
 async function saveSalaries(arr){ APP_STATE.salaries = arr; saveShared('salaries', arr); }
 async function getAttendanceDays(){ return APP_STATE.attendanceDays; }
 async function saveAttendanceDays(arr){ APP_STATE.attendanceDays = arr; saveShared('attendanceDays', arr); }
+async function getLatePenaltyDecisions(){ return APP_STATE.latePenaltyDecisions; }
+async function saveLatePenaltyDecisions(arr){ APP_STATE.latePenaltyDecisions = arr; saveShared('latePenaltyDecisions', arr); }
+async function getPenaltySettings(){ return APP_STATE.penaltySettings; }
+async function savePenaltySettings(settings){ APP_STATE.penaltySettings = settings; saveShared('penaltySettings', [settings]); }
 async function getChecklists(){ return APP_STATE.checklists; }
 async function saveChecklists(arr){ APP_STATE.checklists = arr; saveShared('checklists', arr); }
 async function getChecklistSections(){ return APP_STATE.checklistSections; }
@@ -2055,6 +2113,7 @@ function go(id){
   if(id==='performanceReviewHistory') renderPerformanceReviewHistory();
   if(id==='attendance') renderAttendanceScreen();
   if(id==='attendanceDetail') renderAttendanceDetail();
+  if(id==='lateness') renderLatenessScreen();
   if(id==='myPerformanceReview') renderMyPerformanceReview();
   if(id==='reviewTemplatesManage') renderReviewTemplatesManage();
   if(id==='manageSalaries') renderManageSalariesList();
@@ -2076,6 +2135,10 @@ function go(id){
       if(manageTile) manageTile.style.display = 'none';
       const salTile = document.getElementById('tileManageSalaries');
       if(salTile) salTile.style.display = '';
+      const attTileHR = document.getElementById('tileAttendance');
+      if(attTileHR) attTileHR.style.display = '';
+      const latenessTileHR = document.getElementById('tileLateness');
+      if(latenessTileHR) latenessTileHR.style.display = '';
     } else if(isPlainEmployee){
       // show only the tiles the admin picked for this employee (data-tileid, not just tiles
       // that already had an id) — general per-tile allowlist, no longer a binary "review-only" case.
@@ -2096,7 +2159,7 @@ function go(id){
       // admin/viewer accounts have no tile restrictions — make sure every tile is visible in
       // case this account was previously a restricted employee re-logging in on the same page
       ALL_TILE_IDS.forEach(tid=>{
-        if(tid==='tileMyPerformance' || tid==='tileMySalary' || tid==='tileMyHours' || tid==='tileManagePerformance' || tid==='tileAttendance') return; // handled just below
+        if(tid==='tileMyPerformance' || tid==='tileMySalary' || tid==='tileMyHours' || tid==='tileManagePerformance' || tid==='tileAttendance' || tid==='tileLateness') return; // handled just below
         const el = document.getElementById(tid) || document.querySelector('#home .grid .tile[data-tileid="'+tid+'"]');
         if(el && el.style.display==='none' && !hideForViewer.includes(tid)) el.style.display = '';
       });
@@ -2104,6 +2167,8 @@ function go(id){
       if(manageTile) manageTile.style.display = isAdminNow ? '' : 'none';
       const attTile = document.getElementById('tileAttendance');
       if(attTile) attTile.style.display = isAdminNow ? '' : 'none';
+      const latenessTile = document.getElementById('tileLateness');
+      if(latenessTile) latenessTile.style.display = isAdminNow ? '' : 'none';
       const myTile = document.getElementById('tileMyPerformance');
       if(myTile) myTile.style.display = 'none'; // admin manages reviews via tileManagePerformance, not this tile; viewer never sees it
       // salary management is HR-only, never shown to admin/viewer — per how this app was set up,
@@ -5459,6 +5524,18 @@ function attReadFileAsArrayBuffer(file){
   });
 }
 
+// punches: sorted array of Date objects for one employee/day. Pairs them up as
+// (in1,out1),(in2,out2)... and sums each pair's duration in hours — so a mid-day errand
+// (out → back in → out again) only counts the actual worked spans, not the gap in between.
+// A trailing unpaired punch (odd count) contributes 0.
+function attSumPairedHours(punches){
+  let totalMs = 0;
+  for(let i=0; i+1<punches.length; i+=2){
+    totalMs += (punches[i+1] - punches[i]);
+  }
+  return totalMs / 3600000;
+}
+
 async function importAttendanceFile(){
   const fileInput = document.getElementById('attImportFile');
   const statusEl = document.getElementById('attImportStatus');
@@ -5503,7 +5580,11 @@ async function importAttendanceFile(){
       return;
     }
 
-    // first punch of the day = check-in, last punch = check-out
+    // first punch of the day = check-in (for display), last punch = check-out (for display).
+    // hours worked are computed by pairing punches (in1,out1),(in2,out2)... and summing each
+    // pair's duration, so a mid-day errand (out → back in → out again) doesn't get counted as
+    // work time — only the actual in/out spans do. An unpaired trailing punch (odd count) is
+    // not counted toward hours.
     const newDayRecords = [];
     Object.keys(punchesByDeviceDay).forEach(deviceId=>{
       const days = punchesByDeviceDay[deviceId];
@@ -5511,7 +5592,7 @@ async function importAttendanceFile(){
         const punches = days[dayKey].slice().sort((a,b)=> a-b);
         const checkIn = punches[0];
         const checkOut = punches[punches.length-1];
-        const hours = punches.length>1 ? (checkOut - checkIn)/3600000 : 0;
+        const hours = attSumPairedHours(punches);
         newDayRecords.push({
           id: deviceId+'_'+dayKey,
           deviceId, date: dayKey,
@@ -5548,7 +5629,7 @@ let attSelectedStaffName = null;
 async function renderAttendanceScreen(){
   const listBox = document.getElementById('attStaffList');
   const unmatchedBox = document.getElementById('attUnmatchedBox');
-  const canManage = currentStaff && (currentStaff.role === 'admin' || staffAllowedTiles(currentStaff).indexOf('tileAttendance') !== -1);
+  const canManage = currentStaff && (currentStaff.role === 'admin' || currentStaff.role === 'hr' || staffAllowedTiles(currentStaff).indexOf('tileAttendance') !== -1);
   if(!canManage){
     listBox.innerHTML = '<div class="emptystate">مالكش صلاحية لشاشة الحضور والانصراف. كلّم مدير الشيفت لو محتاج الصلاحية دي.</div>';
     unmatchedBox.innerHTML = '';
@@ -5673,10 +5754,187 @@ async function renderAttendanceDetail(){
         const inTime = new Date(r.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
         const outTime = new Date(r.checkOut).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
         const dateLabel = new Date(r.date+'T00:00:00').toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
-        const warn = r.punchCount < 2 ? ' <span style="color:#B33;">(بصمة واحدة بس)</span>' : '';
+        const warn = r.punchCount < 2 ? ' <span style="color:#B33;">(بصمة واحدة بس)</span>'
+          : (r.punchCount > 2 ? ' <span style="color:#8a6d00;">(فيه مشوار — '+Math.floor(r.punchCount/2)+' فترة عمل)</span>' : '');
         return '<div class="staffrow"><div><b>'+esc(dateLabel)+'</b>'+warn+'<br><span>'+esc(inTime)+' ← '+esc(outTime)+'</span></div>'
           + '<div style="font-family:\'Cairo\';font-weight:700;color:var(--gold);">'+r.hours.toFixed(1)+' س</div></div>';
       }).join('');
+}
+
+/* ================= LATENESS & PENALTIES ================= */
+// موعد الحضور المتوقع ليوم معيّن متسجل "HH:MM" (من حقل "موعد الحضور" في التقييم اليومي) —
+// نحوّله لعدد دقايق من نص الليل عشان نقارنه بوقت أول بصمة في نفس اليوم.
+function parseShiftMinutes(shiftStart){
+  if(!shiftStart) return null;
+  const parts = String(shiftStart).split(':');
+  if(parts.length < 2) return null;
+  const h = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+  if(isNaN(h) || isNaN(m)) return null;
+  return h*60 + m;
+}
+// tiers متسجلة مرتبة تصاعديًا حسب الدقايق — بناخد آخر مستوى الموظف تخطاه (يعني أعلى خصم
+// مستحق)، مش أول مستوى بس.
+function penaltyTierForMinutes(lateMinutes, tiers){
+  let matched = null;
+  (tiers || []).forEach(t=>{
+    if(lateMinutes >= t.minutes) matched = t;
+  });
+  return matched;
+}
+// month/year = null يعني "كل الشهور" (مستخدم في حساب البادچ على التايل). بيرجع كل يوم فيه
+// تأخير يستأهل جزاء بناءً على إعدادات الجزاءات الحالية، سواء له قرار HR متسجل أو لسه.
+async function computeLatenessCandidates(month, year){
+  const [attendanceDays, staffList, decisions, settings, performanceReviews] = await Promise.all([
+    getAttendanceDays(), getStaff(), getLatePenaltyDecisions(), getPenaltySettings(), getPerformanceReviews()
+  ]);
+  const monthPrefix = (month && year) ? (year+'-'+String(month).padStart(2,'0')) : '';
+  const decisionById = {};
+  decisions.forEach(d=> decisionById[d.id] = d);
+  const tiers = (settings && settings.tiers && settings.tiers.length) ? settings.tiers : [{minutes:15, days:0.5}];
+  // معاد الحضور المتوقع بيتسجل يوم بيوم في التقييم اليومي (حقل "موعد الحضور")، مش قيمة ثابتة
+  // للموظف، لأن مواعيده بتتغير معظم الأيام. نبني خريطة user_date -> موعد الحضور المسجل، ونتجاهل
+  // أيام الإجازة/الغياب (مفيش حضور متوقع أصلاً).
+  const scheduledByUserDate = {};
+  performanceReviews.forEach(rv=>{
+    if(!rv.arrivalTime || rv.dayType==='leave' || rv.dayType==='absence' || rv.isLeave) return;
+    const dateKey = new Date(rv.date).toISOString().slice(0,10);
+    scheduledByUserDate[rv.user+'_'+dateKey] = rv.arrivalTime;
+  });
+  const out = [];
+  staffList.forEach(s=>{
+    if(!s.deviceId) return;
+    attendanceDays.filter(r=> String(r.deviceId)===String(s.deviceId) && String(r.date).startsWith(monthPrefix)).forEach(r=>{
+      if(!r.checkIn) return;
+      const scheduledArrival = scheduledByUserDate[s.user+'_'+r.date];
+      const shiftMinutes = parseShiftMinutes(scheduledArrival);
+      if(shiftMinutes==null) return; // مفيش تقييم يومي متسجل بموعد حضور لليوم ده = مفيش أساس نقارن بيه
+      const d = new Date(r.checkIn);
+      const checkInMinutes = d.getHours()*60 + d.getMinutes();
+      const lateMinutes = checkInMinutes - shiftMinutes;
+      const tier = penaltyTierForMinutes(lateMinutes, tiers);
+      if(!tier) return;
+      const id = s.deviceId+'_'+r.date;
+      out.push({
+        id, deviceId: s.deviceId, date: r.date, staffName: s.name, staffUser: s.user,
+        checkIn: r.checkIn, scheduledArrival, lateMinutes, penaltyDays: tier.days,
+        decision: decisionById[id] || null
+      });
+    });
+  });
+  out.sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+  return out;
+}
+async function updateLatenessTileBadge(){
+  const badge = document.getElementById('latenessTileBadge');
+  if(!badge) return;
+  const canSee = currentStaff && (currentStaff.role==='admin' || currentStaff.role==='hr' || staffAllowedTiles(currentStaff).indexOf('tileLateness')!==-1);
+  if(!canSee){ badge.style.display = 'none'; return; }
+  const candidates = await computeLatenessCandidates(null, null);
+  const pendingCount = candidates.filter(c=> !c.decision).length;
+  if(pendingCount>0){
+    badge.textContent = pendingCount>99 ? '99+' : String(pendingCount);
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function renderLatenessScreen(){
+  const pendingBox = document.getElementById('latPendingBox');
+  const decidedBox = document.getElementById('latDecidedBox');
+  const canManage = currentStaff && (currentStaff.role === 'admin' || currentStaff.role === 'hr' || staffAllowedTiles(currentStaff).indexOf('tileLateness') !== -1);
+  if(!canManage){
+    pendingBox.innerHTML = '<div class="emptystate">مالكش صلاحية لشاشة التأخيرات. كلّم مدير الشيفت لو محتاج الصلاحية دي.</div>';
+    decidedBox.innerHTML = '';
+    return;
+  }
+  const monthSel = document.getElementById('latMonthSel');
+  const yearSel = document.getElementById('latYearSel');
+  const attendanceDays = await getAttendanceDays();
+  if(monthSel.options.length === 0){
+    ARABIC_MONTHS.forEach((m,i)=>{
+      const opt = document.createElement('option'); opt.value = i+1; opt.textContent = m; monthSel.appendChild(opt);
+    });
+    monthSel.value = new Date().getMonth()+1;
+    monthSel.addEventListener('change', renderLatenessScreen);
+  }
+  if(yearSel.options.length === 0){
+    const years = new Set(attendanceDays.map(r=> +String(r.date).slice(0,4)));
+    years.add(new Date().getFullYear());
+    Array.from(years).sort((a,b)=>b-a).forEach(y=>{
+      const opt = document.createElement('option'); opt.value = y; opt.textContent = y; yearSel.appendChild(opt);
+    });
+    yearSel.value = new Date().getFullYear();
+    yearSel.addEventListener('change', renderLatenessScreen);
+  }
+  const month = parseInt(monthSel.value, 10) || new Date().getMonth()+1;
+  const year = parseInt(yearSel.value, 10) || new Date().getFullYear();
+  const candidates = await computeLatenessCandidates(month, year);
+  const pending = candidates.filter(c=> !c.decision);
+  const decided = candidates.filter(c=> c.decision);
+
+  if(!pending.length){
+    pendingBox.innerHTML = '<div class="emptystate">مفيش تأخيرات محتاجة مراجعة في الشهر ده 🎉</div>';
+  } else {
+    pendingBox.innerHTML = pending.map(c=>{
+      const timeLabel = new Date(c.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+      const dateLabel = new Date(c.date+'T00:00:00').toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
+      return '<div class="staffrow" style="align-items:flex-start;flex-wrap:wrap;gap:8px;">'
+        + '<div><b>'+esc(c.staffName)+'</b><br><span>'+esc(dateLabel)+' — المفروض '+esc(c.scheduledArrival)+'، حضر '+esc(timeLabel)+' (متأخر '+Math.round(c.lateMinutes)+' دقيقة)</span><br>'
+        + '<span style="color:#8a6d00;">الخصم المقترح: '+c.penaltyDays+' يوم</span></div>'
+        + '<div style="display:flex;gap:6px;">'
+        + '<button class="btn primary" data-approve-late="'+esc(c.id)+'" style="padding:6px 10px;font-size:11px;">اعتماد الخصم</button>'
+        + '<button class="btn ghost" data-dismiss-late="'+esc(c.id)+'" style="padding:6px 10px;font-size:11px;">تجاهل</button>'
+        + '</div></div>';
+    }).join('');
+  }
+
+  if(!decided.length){
+    decidedBox.innerHTML = '<div class="emptystate">لسه مفيش تأخيرات اتراجعت الشهر ده.</div>';
+  } else {
+    decidedBox.innerHTML = decided.map(c=>{
+      const timeLabel = new Date(c.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+      const dateLabel = new Date(c.date+'T00:00:00').toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
+      const statusBadge = c.decision.status==='approved'
+        ? '<span style="color:var(--bad);font-weight:800;">✔ خصم '+c.decision.penaltyDays+' يوم</span>'
+        : '<span style="color:var(--muted);font-weight:700;">تم التجاهل</span>';
+      return '<div class="staffrow" style="flex-wrap:wrap;gap:8px;"><div><b>'+esc(c.staffName)+'</b><br><span>'+esc(dateLabel)+' — حضر '+esc(timeLabel)+' (متأخر '+Math.round(c.lateMinutes)+' دقيقة)</span></div>'
+        + '<div style="display:flex;gap:8px;align-items:center;">'+statusBadge+'<button class="btn ghost" data-undo-late="'+esc(c.id)+'" style="padding:4px 8px;font-size:10.5px;">تراجع</button></div></div>';
+    }).join('');
+  }
+
+  pendingBox.querySelectorAll('[data-approve-late]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.getAttribute('data-approve-late');
+      const item = candidates.find(c=>c.id===id);
+      if(!item) return;
+      const list = (await getLatePenaltyDecisions()).filter(d=> d.id!==id);
+      list.push({id, deviceId:item.deviceId, date:item.date, status:'approved', penaltyDays:item.penaltyDays, lateMinutes:item.lateMinutes, decidedBy: currentStaff?currentStaff.name:'', decidedAt: new Date().toISOString()});
+      await saveLatePenaltyDecisions(list);
+      renderLatenessScreen();
+    });
+  });
+  pendingBox.querySelectorAll('[data-dismiss-late]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.getAttribute('data-dismiss-late');
+      const item = candidates.find(c=>c.id===id);
+      if(!item) return;
+      const list = (await getLatePenaltyDecisions()).filter(d=> d.id!==id);
+      list.push({id, deviceId:item.deviceId, date:item.date, status:'dismissed', penaltyDays:0, lateMinutes:item.lateMinutes, decidedBy: currentStaff?currentStaff.name:'', decidedAt: new Date().toISOString()});
+      await saveLatePenaltyDecisions(list);
+      renderLatenessScreen();
+    });
+  });
+  decidedBox.querySelectorAll('[data-undo-late]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.getAttribute('data-undo-late');
+      const list = (await getLatePenaltyDecisions()).filter(d=> d.id!==id);
+      await saveLatePenaltyDecisions(list);
+      renderLatenessScreen();
+    });
+  });
+
+  updateLatenessTileBadge();
 }
 
 // Detects the branch's 2 fixed category groupings ("الإلتزام بالمظهر اللائق" over نظافة
@@ -6426,9 +6684,10 @@ async function openSalaryEdit(entryId){
     SALARY_FIELD_IDS.forEach(f=>{ document.getElementById('sal_'+f).value = ''; });
     SALARY_TEXT_FIELD_IDS.forEach(f=>{ document.getElementById('sal_'+f).value = ''; });
     document.getElementById('salLastUpdated').textContent = '';
-    // pre-fill "متوسط التقييم الفني %" from this employee's canonical performance-review average
-    // for the selected month, if one exists — just a starting point, HR can still type over it
+    // pre-fill "متوسط التقييم الفني %" من متوسط تقييمات الأداء، و"أيام/ساعات العمل الفعلية"
+    // من بيانات جهاز البصمة المستوردة — كلها مجرد نقطة بداية، الـ HR يقدر يعدّل فوقها
     prefillSalaryTechEval();
+    prefillSalaryActualHours();
   }
   updateSalarySummary();
   go('salaryEdit');
@@ -6445,6 +6704,40 @@ async function prefillSalaryTechEval(){
   const avg = prMonthOverallAverage(monthEntries, daysInMonth);
   const field = document.getElementById('sal_techEvalPct');
   if(field && !field.value){ field.value = avg.toFixed(2); updateSalarySummary(); }
+}
+
+// بيحسب "أيام العمل الفعلية" و"عدد الساعات الفعلية" من بيانات البصمة المستوردة لنفس الموظف
+// والشهر ده، ويحطهم بس لو الحقلين لسه فاضيين (زي منطق تقييم الأداء بالظبط) — الـ HR يقدر
+// يمسحهم ويكتب رقم يدوي لو محتاج يصحّح حاجة.
+async function prefillSalaryActualHours(){
+  const month = parseInt(document.getElementById('sal_month').value, 10);
+  const year = parseInt(document.getElementById('sal_year').value, 10);
+  if(!month || !year || !editingSalaryUser) return;
+  const staffList = await getStaff();
+  const s = staffList.find(x=> x.user===editingSalaryUser);
+  if(!s || !s.deviceId) return; // الموظف ده لسه مش مربوط برقم بصمة، مفيش بيانات نجيبها
+  const attendanceDays = await getAttendanceDays();
+  const monthPrefix = year+'-'+String(month).padStart(2,'0');
+  const monthRecords = attendanceDays.filter(r=> String(r.deviceId)===String(s.deviceId) && String(r.date).startsWith(monthPrefix));
+  if(monthRecords.length){
+    const totalHours = monthRecords.reduce((sum,r)=> sum + (r.hours||0), 0);
+    const daysField = document.getElementById('sal_actualWorkDays');
+    const hoursField = document.getElementById('sal_actualHours');
+    if(daysField && !daysField.value) daysField.value = monthRecords.length;
+    if(hoursField && !hoursField.value) hoursField.value = totalHours.toFixed(2);
+  }
+  // خصومات التأخير اللي الـ HR/الأدمن اعتمدوها من شاشة "التأخيرات والجزاءات" لنفس الشهر —
+  // بتتحط في "أيام جزاء مرتب" + ملاحظة تأخيرات، بس لو الحقلين لسه فاضيين (مش هتدهس تعديل يدوي).
+  const decisions = await getLatePenaltyDecisions();
+  const approvedThisMonth = decisions.filter(d=> d.status==='approved' && String(d.deviceId)===String(s.deviceId) && String(d.date).startsWith(monthPrefix));
+  if(approvedThisMonth.length){
+    const totalPenaltyDays = approvedThisMonth.reduce((sum,d)=> sum + (d.penaltyDays||0), 0);
+    const penaltyDaysField = document.getElementById('sal_penaltyDays');
+    const latenessNoteField = document.getElementById('sal_latenessNote');
+    if(penaltyDaysField && !penaltyDaysField.value) penaltyDaysField.value = totalPenaltyDays;
+    if(latenessNoteField && !latenessNoteField.value) latenessNoteField.value = approvedThisMonth.length+' تأخير معتمد (خصم '+totalPenaltyDays+' يوم)';
+  }
+  updateSalarySummary();
 }
 
 function readSalaryFormRecord(){
@@ -6626,7 +6919,8 @@ function paintMyHours(){
         const inTime = new Date(r.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
         const outTime = new Date(r.checkOut).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
         const dateLabel = new Date(r.date+'T00:00:00').toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
-        const warn = r.punchCount < 2 ? ' <span style="color:#B33;">(بصمة واحدة بس)</span>' : '';
+        const warn = r.punchCount < 2 ? ' <span style="color:#B33;">(بصمة واحدة بس)</span>'
+          : (r.punchCount > 2 ? ' <span style="color:#8a6d00;">(فيه مشوار — '+Math.floor(r.punchCount/2)+' فترة عمل)</span>' : '');
         return '<div class="staffrow"><div><b>'+esc(dateLabel)+'</b>'+warn+'<br><span>'+esc(inTime)+' ← '+esc(outTime)+'</span></div>'
           + '<div style="font-family:\'Cairo\';font-weight:700;color:var(--gold);">'+(r.hours||0).toFixed(1)+' س</div></div>';
       }).join('');
@@ -7076,6 +7370,7 @@ async function renderSettings(){
   const backupCard = document.getElementById('backupCard');
   const fixOldOrdersCard = document.getElementById('fixOldOrdersCard');
   const rtmCard = document.getElementById('reviewTemplatesCard');
+  const penCard = document.getElementById('penaltySettingsCard');
   if(currentStaff && currentStaff.role === 'admin'){
     staffCard.style.display = 'block';
     clmCard.style.display = 'block';
@@ -7091,7 +7386,62 @@ async function renderSettings(){
     fixOldOrdersCard.style.display = 'none';
     rtmCard.style.display = 'none';
   }
+  // نظام الجزاءات متاح للأدمن والـ HR مع بعض (مش بس الأدمن) — الاتنين محتاجين يظبطوا الحدود دي
+  if(currentStaff && (currentStaff.role === 'admin' || currentStaff.role === 'hr')){
+    penCard.style.display = 'block';
+    paintPenaltyTiersForm(await getPenaltySettings());
+  } else {
+    penCard.style.display = 'none';
+  }
 }
+// ================= PENALTY (LATENESS) SETTINGS FORM =================
+// Renders one row per configured tier ("أكتر من X دقيقة تأخير = خصم Y يوم") with a remove
+// button, into #penaltyTiersBox. Rows are read back by savePenaltySettingsFromForm().
+function paintPenaltyTiersForm(settings){
+  const box = document.getElementById('penaltyTiersBox');
+  const tiers = (settings && Array.isArray(settings.tiers) && settings.tiers.length) ? settings.tiers : [{minutes:15, days:0.5}];
+  box.innerHTML = tiers.map((t,i)=>
+    '<div class="field" data-tier-row style="display:flex;gap:8px;align-items:flex-end;margin-bottom:0;">'
+      + '<div style="flex:1;"><label style="font-size:10.5px;">تأخير أكتر من (دقيقة)</label><input type="number" min="1" step="1" class="penTierMinutes" value="'+(t.minutes!=null?t.minutes:'')+'" style="margin-bottom:0;"></div>'
+      + '<div style="flex:1;"><label style="font-size:10.5px;">خصم (أيام)</label><input type="number" min="0" step="0.25" class="penTierDays" value="'+(t.days!=null?t.days:'')+'" style="margin-bottom:0;"></div>'
+      + (tiers.length>1 ? '<button type="button" class="btn ghost" data-remove-tier="'+i+'" style="flex:0 0 auto;padding:9px 12px;">✕</button>' : '')
+    + '</div>'
+  ).join('');
+  box.querySelectorAll('[data-remove-tier]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      btn.closest('[data-tier-row]').remove();
+    });
+  });
+}
+function readPenaltyTiersFromForm(){
+  const rows = document.querySelectorAll('#penaltyTiersBox [data-tier-row]');
+  const tiers = [];
+  rows.forEach(row=>{
+    const minutes = parseFloat(row.querySelector('.penTierMinutes').value);
+    const days = parseFloat(row.querySelector('.penTierDays').value);
+    if(!isNaN(minutes) && !isNaN(days) && minutes>0) tiers.push({minutes, days});
+  });
+  tiers.sort((a,b)=> a.minutes - b.minutes);
+  return tiers.length ? tiers : [{minutes:15, days:0.5}];
+}
+function wirePenaltySettingsForm(){
+  document.getElementById('addPenaltyTierBtn').addEventListener('click', ()=>{
+    const box = document.getElementById('penaltyTiersBox');
+    const current = readPenaltyTiersFromForm();
+    current.push({minutes:'', days:''});
+    paintPenaltyTiersForm({tiers: current});
+  });
+  document.getElementById('savePenaltySettingsBtn').addEventListener('click', async ()=>{
+    const tiers = readPenaltyTiersFromForm();
+    await savePenaltySettings({tiers});
+    paintPenaltyTiersForm({tiers});
+    const tag = document.getElementById('penaltySettingsSavedTag');
+    tag.style.display = 'block';
+    setTimeout(()=> tag.style.display='none', 2000);
+    if(currentScreen==='lateness') renderLatenessScreen();
+  });
+}
+
 let editingStaffUser = null; // null = adding a new staff member; otherwise the original @username being edited
 
 // Downloads every collection in APP_STATE as one JSON file — a full snapshot the admin can keep
@@ -7366,6 +7716,7 @@ async function doLogin(){
   go('home');
   updateNotifBadges();
   updateChatNotifBadge();
+  updateLatenessTileBadge();
   initPushNotifications();
 }
 function doLogout(){
@@ -7409,6 +7760,7 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('openReviewTemplatesBtn').addEventListener('click', ()=> go('reviewTemplatesManage'));
   document.getElementById('prExportBtn').addEventListener('click', exportPerformanceReviewsExcel);
   document.getElementById('attImportBtn').addEventListener('click', importAttendanceFile);
+  wirePenaltySettingsForm();
   document.getElementById('rtmAddTemplateBtn').addEventListener('click', addReviewTemplate);
   document.getElementById('rtmSaveBtn').addEventListener('click', saveReviewTemplatesChanges);
   document.getElementById('qaSaveBtn').addEventListener('click', submitQuickAdd);
@@ -7517,8 +7869,8 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   document.getElementById('salAddBtn').addEventListener('click', ()=> openSalaryEdit(null));
   document.getElementById('salSaveBtn').addEventListener('click', saveSalaryRecord);
-  document.getElementById('sal_month').addEventListener('change', ()=>{ if(!editingSalaryId) prefillSalaryTechEval(); });
-  document.getElementById('sal_year').addEventListener('change', ()=>{ if(!editingSalaryId) prefillSalaryTechEval(); });
+  document.getElementById('sal_month').addEventListener('change', ()=>{ if(!editingSalaryId){ prefillSalaryTechEval(); prefillSalaryActualHours(); } });
+  document.getElementById('sal_year').addEventListener('change', ()=>{ if(!editingSalaryId){ prefillSalaryTechEval(); prefillSalaryActualHours(); } });
   SALARY_FIELD_IDS.forEach(f=>{
     const el = document.getElementById('sal_'+f);
     if(el) el.addEventListener('input', updateSalarySummary);
