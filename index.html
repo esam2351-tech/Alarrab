@@ -5613,15 +5613,28 @@ function attReadFileAsArrayBuffer(file){
 // 3 minutes covers a human re-touch, not just an instant hardware double-read, while staying far
 // shorter than any real separate errand/trip out.
 const ATT_BOUNCE_THRESHOLD_MS = 3 * 60 * 1000;
+// Two consecutive punches of the SAME kind (two "C/Out" in a row, or two "C/In" in a row) are a
+// different, unambiguous case: there is no real-world shift pattern that produces two check-outs
+// (or two check-ins) back to back with nothing in between — it is always the same physical event
+// logged twice, just sometimes several minutes apart rather than seconds (seen in real exports:
+// 1:22 AM C/Out immediately followed by ANOTHER C/Out at 1:27 AM, 4m43s later, for an evening-
+// shift employee — past the general bounce window, but still obviously one checkout, not two).
+// Left undeduped, the second one becomes a spurious "single punch" day of its own and nothing
+// else, since by the time it's reached its pairing partner is already gone. A same-kind repeat
+// gets a much longer bounce window than the general case for exactly this reason.
+const ATT_SAME_KIND_BOUNCE_MS = 15 * 60 * 1000;
 // items: [{t:Date, kind:'in'|'out'|null}, ...] sorted ascending by t — collapses a run of punches
-// within ATT_BOUNCE_THRESHOLD_MS of the previous KEPT one into that one punch (keep the earlier
+// within the bounce window of the previous KEPT one into that one punch (keep the earlier
 // timestamp; prefer a real 'in'/'out' kind over a null one if the device logged mismatched status
 // for the bounce, since either reading describes the same single physical touch).
 function attDedupeBouncePunches(sortedItems){
   const out = [];
   sortedItems.forEach(item=>{
     const prev = out[out.length-1];
-    if(!prev || (item.t - prev.t) > ATT_BOUNCE_THRESHOLD_MS){
+    if(!prev){ out.push(item); return; }
+    const sameKind = prev.kind != null && prev.kind === item.kind;
+    const threshold = sameKind ? ATT_SAME_KIND_BOUNCE_MS : ATT_BOUNCE_THRESHOLD_MS;
+    if((item.t - prev.t) > threshold){
       out.push(item);
     } else if(prev.kind == null && item.kind != null){
       prev.kind = item.kind;
