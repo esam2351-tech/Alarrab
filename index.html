@@ -5691,11 +5691,15 @@ async function importAttendanceFile(){
         const dayPairs = byDay[dayKey];
         const hours = dayPairs.reduce((s,[a,b])=> s + (b ? (b-a)/3600000 : 0), 0);
         const dayPunches = dayPairs.reduce((arr,[a,b])=> { arr.push(a); if(b) arr.push(b); return arr; }, []);
+        // keep every individual check-in/check-out pair for the day (not just the overall first
+        // punch and last punch) so an "errand" day with more than one work period can show each
+        // period's own in/out times instead of a single misleading in-to-out span.
+        const periods = dayPairs.map(([a,b])=> ({checkIn: a.toISOString(), checkOut: b ? b.toISOString() : null}));
         newDayRecords.push({
           id: deviceId+'_'+dayKey,
           deviceId, date: dayKey,
           checkIn: dayPunches[0].toISOString(), checkOut: dayPunches[dayPunches.length-1].toISOString(),
-          punchCount: dayPunches.length, hours,
+          punchCount: dayPunches.length, hours, periods,
           importedAt: new Date().toISOString()
         });
       });
@@ -5799,6 +5803,7 @@ async function renderAttendanceScreen(){
         attSelectedDeviceId = s.deviceId;
         attSelectedStaffName = s.name;
         attEditingRecordId = null;
+        attExpandedRecordId = null;
         go('attendanceDetail');
       });
     });
@@ -5841,6 +5846,7 @@ async function renderAttendanceScreen(){
 }
 
 let attEditingRecordId = null; // id of the attendance day row currently open for manual edit, or null
+let attExpandedRecordId = null; // id of an "errand" (multi-period) day row currently showing all its check-in/check-out times
 
 // HH:MM (24h) from an ISO timestamp, for pre-filling an <input type="time">
 function timeInputValue(iso){
@@ -5865,6 +5871,7 @@ async function renderAttendanceDetail(){
         const editedTag = r.manualEdit ? ' <span style="color:#2E7D32;">(معدّل يدوي)</span>' : '';
         const warn = isSinglePunch ? ' <span style="color:#B33;">(بصمة واحدة بس)</span>'
           : (r.punchCount > 2 ? ' <span style="color:#8a6d00;">(فيه مشوار — '+Math.floor(r.punchCount/2)+' فترة عمل)</span>' : '');
+        const hasPeriods = Array.isArray(r.periods) && r.periods.length > 1;
         if(attEditingRecordId === r.id){
           return '<div class="staffrow" style="flex-direction:column;align-items:stretch;gap:8px;">'
             + '<div style="display:flex;justify-content:space-between;"><b>'+esc(dateLabel)+'</b>'+warn+editedTag+'</div>'
@@ -5877,13 +5884,41 @@ async function renderAttendanceDetail(){
             + '<button class="btn ghost" data-cancel-att-edit="1" style="flex:0 0 auto;padding:8px 14px;font-size:12px;">إلغاء</button>'
             + '</div></div>';
         }
+        if(attExpandedRecordId === r.id && hasPeriods){
+          return '<div class="staffrow" data-close-att-expand="'+esc(r.id)+'" style="flex-direction:column;align-items:stretch;gap:6px;cursor:pointer;">'
+            + '<div style="display:flex;justify-content:space-between;"><b>'+esc(dateLabel)+'</b>'+warn+editedTag+'</div>'
+            + r.periods.map((p,idx)=>{
+                const pIn = new Date(p.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+                const pOut = p.checkOut ? new Date(p.checkOut).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}) : null;
+                const pHours = p.checkOut ? ((new Date(p.checkOut)-new Date(p.checkIn))/3600000).toFixed(1)+' س' : '<span style="color:#B33;">من غير انصراف</span>';
+                return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-top:1px solid var(--line);">'
+                  + '<span>فترة '+(idx+1)+': '+esc(pIn)+' ← '+(pOut?esc(pOut):'—')+'</span>'
+                  + '<span style="color:var(--muted);">'+pHours+'</span></div>';
+              }).join('')
+            + '<div style="font-size:11px;color:var(--muted);">إجمالي اليوم: '+r.hours.toFixed(1)+' ساعة — دوس تاني عشان تقفل</div>'
+            + '</div>';
+        }
         return '<div class="staffrow" data-open-att-edit="'+esc(r.id)+'" style="cursor:pointer;"><div><b>'+esc(dateLabel)+'</b>'+warn+editedTag+'<br><span>'+esc(inTime)+' ← '+esc(outTime)+'</span></div>'
           + '<div style="font-family:\'Cairo\';font-weight:700;color:var(--gold);">'+r.hours.toFixed(1)+' س</div></div>';
       }).join('');
 
   box.querySelectorAll('[data-open-att-edit]').forEach(row=>{
     row.addEventListener('click', ()=>{
-      attEditingRecordId = row.getAttribute('data-open-att-edit');
+      const id = row.getAttribute('data-open-att-edit');
+      const rec = records.find(x=> x.id===id);
+      if(rec && Array.isArray(rec.periods) && rec.periods.length > 1){
+        // "errand" day with more than one work period — show all check-in/check-out times
+        // for the day instead of the single-period manual edit form.
+        attExpandedRecordId = id;
+      } else {
+        attEditingRecordId = id;
+      }
+      renderAttendanceDetail();
+    });
+  });
+  box.querySelectorAll('[data-close-att-expand]').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      attExpandedRecordId = null;
       renderAttendanceDetail();
     });
   });
@@ -7128,6 +7163,7 @@ async function renderMyHours(){
 
   paintMyHours();
 }
+let myHoursExpandedId = null; // id of an "errand" (multi-period) day currently showing all its check-in/check-out times (My Hours screen)
 function paintMyHours(){
   const box = document.getElementById('myHoursBox');
   let list = allMyHoursCache;
@@ -7148,11 +7184,43 @@ function paintMyHours(){
         const inTime = new Date(r.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
         const outTime = new Date(r.checkOut).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
         const dateLabel = new Date(r.date+'T00:00:00').toLocaleDateString('ar-EG', {day:'numeric', month:'short'});
+        const hasPeriods = Array.isArray(r.periods) && r.periods.length > 1;
         const warn = r.punchCount < 2 ? ' <span style="color:#B33;">(بصمة واحدة بس)</span>'
           : (r.punchCount > 2 ? ' <span style="color:#8a6d00;">(فيه مشوار — '+Math.floor(r.punchCount/2)+' فترة عمل)</span>' : '');
-        return '<div class="staffrow"><div><b>'+esc(dateLabel)+'</b>'+warn+'<br><span>'+esc(inTime)+' ← '+esc(outTime)+'</span></div>'
+        if(myHoursExpandedId === r.id && hasPeriods){
+          return '<div class="staffrow" data-myhours-close="'+esc(r.id)+'" style="flex-direction:column;align-items:stretch;gap:6px;cursor:pointer;">'
+            + '<div style="display:flex;justify-content:space-between;"><b>'+esc(dateLabel)+'</b>'+warn+'</div>'
+            + r.periods.map((p,idx)=>{
+                const pIn = new Date(p.checkIn).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+                const pOut = p.checkOut ? new Date(p.checkOut).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}) : null;
+                const pHours = p.checkOut ? ((new Date(p.checkOut)-new Date(p.checkIn))/3600000).toFixed(1)+' س' : '<span style="color:#B33;">من غير انصراف</span>';
+                return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-top:1px solid var(--line);">'
+                  + '<span>فترة '+(idx+1)+': '+esc(pIn)+' ← '+(pOut?esc(pOut):'—')+'</span>'
+                  + '<span style="color:var(--muted);">'+pHours+'</span></div>';
+              }).join('')
+            + '<div style="font-size:11px;color:var(--muted);">إجمالي اليوم: '+(r.hours||0).toFixed(1)+' ساعة — دوس تاني عشان تقفل</div>'
+            + '</div>';
+        }
+        return '<div class="staffrow" data-myhours-day="'+esc(r.id)+'" style="cursor:'+(hasPeriods?'pointer':'default')+';"><div><b>'+esc(dateLabel)+'</b>'+warn+'<br><span>'+esc(inTime)+' ← '+esc(outTime)+'</span></div>'
           + '<div style="font-family:\'Cairo\';font-weight:700;color:var(--gold);">'+(r.hours||0).toFixed(1)+' س</div></div>';
       }).join('');
+
+  box.querySelectorAll('[data-myhours-day]').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const id = row.getAttribute('data-myhours-day');
+      const rec = list.find(x=> x.id===id);
+      if(rec && Array.isArray(rec.periods) && rec.periods.length > 1){
+        myHoursExpandedId = id;
+        paintMyHours();
+      }
+    });
+  });
+  box.querySelectorAll('[data-myhours-close]').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      myHoursExpandedId = null;
+      paintMyHours();
+    });
+  });
 }
 
 /* ================= INTERNAL CHAT (بين الموظفين والإدارة) ================= */
