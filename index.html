@@ -1659,7 +1659,7 @@ function attachLiveSync(){
     if(currentScreen==='lateness') renderLatenessScreen();
     updateLatenessTileBadge();
   });
-  subscribeShared('attendanceDays', list=>{
+  subscribeItemCollection('attendanceDayItems', list=>{
     APP_STATE.attendanceDays = list;
     if(currentScreen==='attendance') renderAttendanceScreen();
     if(currentScreen==='myHours') renderMyHours();
@@ -1813,7 +1813,7 @@ async function loadAppState(){
   try{
     if(!(await ensureSignedIn())){ backendReady = false; return { ok:false, reason:'auth-failed' }; }
     const [staff, customers, feedback, complaints, checklists, checklistSections, wholesaleCustomers, wholesaleOrders, wholesaleCalls, wholesaleProducts, issueReports, dailyNotes, wasteReports, equipment, suggestions, chatMessages, performanceReviews, performanceReviewTemplates, salaries, attendanceDays, latePenaltyDecisions, penaltySettings] = await Promise.all([
-      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages'), loadShared('performanceReviews', []), loadShared('performanceReviewTemplates', []), loadShared('salaries', []), loadShared('attendanceDays', []), loadShared('latePenaltyDecisions', []), loadShared('penaltySettings', [])
+      loadShared('staff', []), loadShared('customers', []), loadShared('feedback', []), loadShared('complaints', []), loadShared('checklists', []), loadShared('checklistSections', []), loadShared('wholesaleCustomers', []), loadShared('wholesaleOrders', []), loadShared('wholesaleCalls', []), loadShared('wholesaleProducts', []), migrateArrayToItemCollection('issueReports','issueReportItems'), loadShared('dailyNotes', []), migrateArrayToItemCollection('wasteReports','wasteReportItems'), loadShared('equipment', []), loadShared('suggestions', []), loadItemCollection('internalChatMessages'), loadShared('performanceReviews', []), loadShared('performanceReviewTemplates', []), loadShared('salaries', []), migrateArrayToItemCollection('attendanceDays','attendanceDayItems'), loadShared('latePenaltyDecisions', []), loadShared('penaltySettings', [])
     ]);
     APP_STATE.staff = staff;
     APP_STATE.customers = customers;
@@ -1890,7 +1890,27 @@ async function savePerformanceReviews(arr){ APP_STATE.performanceReviews = arr; 
 async function getSalaries(){ return APP_STATE.salaries; }
 async function saveSalaries(arr){ APP_STATE.salaries = arr; saveShared('salaries', arr); }
 async function getAttendanceDays(){ return APP_STATE.attendanceDays; }
-async function saveAttendanceDays(arr){ APP_STATE.attendanceDays = arr; saveShared('attendanceDays', arr); }
+// attendanceDays used to be one shared array crammed into a single Firestore document — exactly
+// the pattern the comment above migrateArrayToItemCollection() warns about. With thousands of
+// day-records (one per employee per day, every month) that document silently blew past Firestore's
+// ~1MB limit: saveShared()'s write would fail in the background, but since the app had already
+// updated APP_STATE optimistically and the UI's "تم الاستيراد ✅" message never waited for that
+// write, imports looked successful and then vanished on the next reload with zero error shown.
+// Now attendanceDays lives in its own per-record collection (attendanceDayItems, one Firestore
+// document per day-record) like issueReports/wasteReports already do — no shared-array ceiling to
+// hit. Callers still pass the FULL post-merge array (unchanged call sites), so this only writes
+// the records that are actually new or changed since the last known state, and surfaces a real
+// error (via saveItem's alert) instead of failing silently.
+async function saveAttendanceDays(arr){
+  const prevById = {};
+  (APP_STATE.attendanceDays||[]).forEach(r=> prevById[r.id] = r);
+  APP_STATE.attendanceDays = arr;
+  const changed = arr.filter(r=> {
+    const prev = prevById[r.id];
+    return !prev || JSON.stringify(prev) !== JSON.stringify(r);
+  });
+  await Promise.all(changed.map(r=> saveItem('attendanceDayItems', r)));
+}
 async function getLatePenaltyDecisions(){ return APP_STATE.latePenaltyDecisions; }
 async function saveLatePenaltyDecisions(arr){ APP_STATE.latePenaltyDecisions = arr; saveShared('latePenaltyDecisions', arr); }
 async function getPenaltySettings(){ return APP_STATE.penaltySettings; }
