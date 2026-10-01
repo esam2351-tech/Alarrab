@@ -6843,6 +6843,18 @@ async function prefillSalaryActualHours(){
   updateSalarySummary();
 }
 
+// بتتنفّذ قبل إعادة حساب حقول الأتوفيل لما الـ HR يغيّر الشهر/السنة وهو لسه بيسوّد قيد جديد
+// (editingSalaryId لسه فاضي) — من غير مسحها هتفضل شايلة قيم الشهر اللي قبل كده، لأن كل
+// prefillSalary* بيحترم القيمة الموجودة في الحقل وما يكتبش فوقها (عشان ميدعسش على تعديل يدوي
+// للـ HR)، وده بالظبط اللي بيمنعها تتحدّث لما تغيّر الشهر.
+function clearSalaryAutoFillFields(){
+  ['sal_techEvalPct','sal_plannedWorkDays','sal_plannedHours','sal_actualWorkDays','sal_actualHours',
+   'sal_overtimeDays','sal_penaltyDays','sal_latenessNote'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+}
+
 // أيام العمل المخططة = عدد أيام الشهر المختار ناقص 4 أيام (المعادلة المتفق عليها)
 function prefillSalaryPlannedDays(){
   const month = parseInt(document.getElementById('sal_month').value, 10);
@@ -7998,8 +8010,8 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   document.getElementById('salAddBtn').addEventListener('click', ()=> openSalaryEdit(null));
   document.getElementById('salSaveBtn').addEventListener('click', saveSalaryRecord);
-  document.getElementById('sal_month').addEventListener('change', async ()=>{ if(!editingSalaryId){ prefillSalaryTechEval(); prefillSalaryPlannedDays(); await prefillSalaryActualHours(); prefillSalaryDerivedPlanning(); } });
-  document.getElementById('sal_year').addEventListener('change', async ()=>{ if(!editingSalaryId){ prefillSalaryTechEval(); prefillSalaryPlannedDays(); await prefillSalaryActualHours(); prefillSalaryDerivedPlanning(); } });
+  document.getElementById('sal_month').addEventListener('change', async ()=>{ if(!editingSalaryId){ clearSalaryAutoFillFields(); prefillSalaryTechEval(); prefillSalaryPlannedDays(); await prefillSalaryActualHours(); prefillSalaryDerivedPlanning(); } });
+  document.getElementById('sal_year').addEventListener('change', async ()=>{ if(!editingSalaryId){ clearSalaryAutoFillFields(); prefillSalaryTechEval(); prefillSalaryPlannedDays(); await prefillSalaryActualHours(); prefillSalaryDerivedPlanning(); } });
   document.getElementById('sal_actualWorkDays').addEventListener('change', ()=>{ prefillSalaryDerivedPlanning(); });
   document.getElementById('sal_plannedWorkDays').addEventListener('change', ()=>{ prefillSalaryDerivedPlanning(); });
   SALARY_FIELD_IDS.forEach(f=>{
