@@ -5535,8 +5535,19 @@ async function exportPerformanceReviewsExcel(){
    payroll system built on raw device logs uses, and it's robust to that noise. */
 const ATT_HEADER_ALIASES = {
   deviceId: ['no.','no','ac-no','acno','userid','user id','pin','emp id','empid','employeeid','employee id','id number','idnumber','badgenumber','badge number'],
-  dateTime: ['date/time','datetime','date time','time','punch time','attendance time','check time']
+  dateTime: ['date/time','datetime','date time','time','punch time','attendance time','check time'],
+  status: ['status','state','punch state','check type','attendance status']
 };
+// "C/In"/"C/Out" (and similar: "OverTime In", plain "Out", ...) → 'in'/'out'. Checked as
+// substrings so we don't need to enumerate every device's exact wording — 'out' is checked first
+// since it never appears inside an "in" label, while "in" alone would also false-match "Out".
+function attClassifyPunchStatus(raw){
+  const s = String(raw==null?'':raw).trim().toLowerCase();
+  if(!s) return null;
+  if(s.indexOf('out') !== -1) return 'out';
+  if(s.indexOf('in') !== -1) return 'in';
+  return null;
+}
 function attNormalizeHeader(h){ return String(h==null?'':h).trim().toLowerCase().replace(/\s+/g,' '); }
 function attFindColumn(headerRow, aliases){
   const norm = headerRow.map(attNormalizeHeader);
@@ -5602,11 +5613,19 @@ function attReadFileAsArrayBuffer(file){
 // 3 minutes covers a human re-touch, not just an instant hardware double-read, while staying far
 // shorter than any real separate errand/trip out.
 const ATT_BOUNCE_THRESHOLD_MS = 3 * 60 * 1000;
-function attDedupeBouncePunches(sortedPunches){
+// items: [{t:Date, kind:'in'|'out'|null}, ...] sorted ascending by t — collapses a run of punches
+// within ATT_BOUNCE_THRESHOLD_MS of the previous KEPT one into that one punch (keep the earlier
+// timestamp; prefer a real 'in'/'out' kind over a null one if the device logged mismatched status
+// for the bounce, since either reading describes the same single physical touch).
+function attDedupeBouncePunches(sortedItems){
   const out = [];
-  sortedPunches.forEach(p=>{
+  sortedItems.forEach(item=>{
     const prev = out[out.length-1];
-    if(!prev || (p - prev) > ATT_BOUNCE_THRESHOLD_MS) out.push(p);
+    if(!prev || (item.t - prev.t) > ATT_BOUNCE_THRESHOLD_MS){
+      out.push(item);
+    } else if(prev.kind == null && item.kind != null){
+      prev.kind = item.kind;
+    }
   });
   return out;
 }
@@ -5629,14 +5648,18 @@ async function importAttendanceFile(){
     const headerRow = rows[0];
     const idCol = attFindColumn(headerRow, ATT_HEADER_ALIASES.deviceId);
     const dtCol = attFindColumn(headerRow, ATT_HEADER_ALIASES.dateTime);
+    const statusCol = attFindColumn(headerRow, ATT_HEADER_ALIASES.status);
     if(idCol===-1 || dtCol===-1){
       statusEl.textContent = 'مش قادر أتعرف على شكل الملف ده — تأكد إنه نفس تصدير برنامج جهاز البصمة من غير تعديل (لازم يكون فيه عمود رقم الموظف وعمود التاريخ/الوقت).';
       return;
     }
 
-    // deviceId -> array of all punch Dates across the WHOLE file (not bucketed by calendar day
-    // yet) — an evening shift that punches in at 4 PM and out at 2 AM the next day must stay
-    // pairable across the midnight boundary, which day-first bucketing below used to break.
+    // deviceId -> array of all punches ({t, kind}) across the WHOLE file (not bucketed by
+    // calendar day yet) — an evening shift that punches in at 4 PM and out at 2 AM the next day
+    // must stay pairable across the midnight boundary, which day-first bucketing below used to
+    // break. kind ('in'/'out') comes from the device's own Status column (e.g. "C/In"/"C/Out")
+    // when the file has one — this is what lets pairing recognize an evening check-in as a
+    // check-in even though chronologically it falls BETWEEN two early-morning punches.
     const punchesByDevice = {};
     let parsedCount = 0, skippedCount = 0;
     for(let r=1; r<rows.length; r++){
@@ -5646,8 +5669,9 @@ async function importAttendanceFile(){
       if(!deviceId) continue;
       const dt = attParseDateTime(row[dtCol]);
       if(!dt){ skippedCount++; continue; }
+      const kind = statusCol===-1 ? null : attClassifyPunchStatus(row[statusCol]);
       if(!punchesByDevice[deviceId]) punchesByDevice[deviceId] = [];
-      punchesByDevice[deviceId].push(dt);
+      punchesByDevice[deviceId].push({t: dt, kind});
       parsedCount++;
     }
     if(!parsedCount){
@@ -5659,24 +5683,42 @@ async function importAttendanceFile(){
     // (in2,out2)... — instead of bucketing by calendar day first. That lets a night shift that
     // starts before midnight and ends after it (check-in 4 PM, check-out 2 AM next day) stay one
     // pair spanning two calendar days, rather than being split into two broken, unpaired
-    // single-punch days. A gap longer than maxShiftMs between two consecutive punches is too long
-    // to be one real shift (most likely a missed check-out/in somewhere), so that punch is left
-    // unpaired (0 hours, same as an odd trailing punch) and pairing restarts from the next one —
-    // this keeps a single missed punch from cascading and corrupting every later day for that
-    // employee.
+    // single-punch days.
+    //
+    // When the file carries a real Status column, each punch's own 'in'/'out' kind decides how it
+    // pairs: an 'in' opens a new pending shift, and an 'out' closes whichever shift is pending (if
+    // the gap is under maxShiftMs — otherwise that pending 'in' and this 'out' are each left
+    // unpaired, same as a missed punch). This is what actually fixes an evening-shift employee
+    // (check-in ~6 PM, check-out ~3 AM, repeated daily): purely positional pairing alternates
+    // blindly every two punches, so if the stream for that device happens to start on an 'out'
+    // (e.g. a check-out carried over from before the export window), every later pair is shifted
+    // by one punch — an early-morning check-out ends up stored as "check-in" and the following
+    // evening's real check-in ends up stored as "check-out" of the SAME calendar day, which is
+    // exactly backwards. Reading the device's own in/out label sidesteps that whole class of bug.
+    // A punch with no usable status (no Status column in the file, or a value we don't recognize)
+    // falls back to simple alternation against whatever shift is currently pending, so a plain
+    // export with no Status column behaves exactly as before.
     const ATT_MAX_SHIFT_MS = 16 * 3600 * 1000;
-    function attPairPunchesSequential(punches, maxShiftMs){
+    function attPairPunchesByStatus(items, maxShiftMs){
       const pairs = [];
-      let i = 0;
-      while(i < punches.length){
-        if(i+1 < punches.length && (punches[i+1]-punches[i]) <= maxShiftMs){
-          pairs.push([punches[i], punches[i+1]]);
-          i += 2;
-        } else {
-          pairs.push([punches[i], null]);
-          i += 1;
+      let pendingIn = null;
+      items.forEach(item=>{
+        const kind = item.kind != null ? item.kind : (pendingIn ? 'out' : 'in');
+        if(kind === 'out'){
+          if(pendingIn && (item.t - pendingIn) <= maxShiftMs){
+            pairs.push([pendingIn, item.t]);
+            pendingIn = null;
+          } else {
+            if(pendingIn) pairs.push([pendingIn, null]); // pending check-in never got a matching check-out in time
+            pairs.push([item.t, null]); // check-out with nothing to pair it to (e.g. carried over from before the export window)
+            pendingIn = null;
+          }
+        } else { // 'in'
+          if(pendingIn) pairs.push([pendingIn, null]); // previous check-in never got closed before this new one
+          pendingIn = item.t;
         }
-      }
+      });
+      if(pendingIn) pairs.push([pendingIn, null]);
       return pairs;
     }
 
@@ -5684,8 +5726,28 @@ async function importAttendanceFile(){
     // hours land on the day it started, not the day it happened to end).
     const newDayRecords = [];
     Object.keys(punchesByDevice).forEach(deviceId=>{
-      const punches = attDedupeBouncePunches(punchesByDevice[deviceId].slice().sort((a,b)=> a-b));
-      const pairs = attPairPunchesSequential(punches, ATT_MAX_SHIFT_MS);
+      const rawPunches = punchesByDevice[deviceId].slice().sort((a,b)=> a.t-b.t);
+      // Some employees' fingerprint reader is misconfigured and its Status column can't be
+      // trusted for them — seen in real exports two different ways: (a) nearly every punch for
+      // that employee comes through as the SAME status, e.g. always "Out"/"C/Out" and never
+      // "C/In", because the device's mode button wasn't pressed; or (b) the status is present and
+      // superficially mixed, but doesn't actually alternate with the real in/out rhythm of the
+      // punches (e.g. mostly correct check-ins tagged "C/In" even for what are clearly evening
+      // check-outs). Trusting it anyway in either case silently drops or fabricates whole work
+      // periods — far worse than just ignoring it. So status is only trusted for a device when its
+      // KNOWN-kind punches, in chronological order, actually alternate in/out/in/out... most of the
+      // time (at least 80% of consecutive known pairs switch kind) — otherwise every kind on this
+      // device is cleared so it falls back to plain positional alternation, exactly like a file
+      // with no Status column at all.
+      const knownKindPunches = rawPunches.filter(p=> p.kind!=null);
+      let alternations = 0;
+      for(let i=1;i<knownKindPunches.length;i++){ if(knownKindPunches[i].kind !== knownKindPunches[i-1].kind) alternations++; }
+      const alternationRate = knownKindPunches.length>1 ? alternations/(knownKindPunches.length-1) : 0;
+      const statusReliable = knownKindPunches.length >= 4 && alternationRate >= 0.8;
+      const punches = attDedupeBouncePunches(
+        statusReliable ? rawPunches : rawPunches.map(p=> ({t:p.t, kind:null}))
+      );
+      const pairs = attPairPunchesByStatus(punches, ATT_MAX_SHIFT_MS);
       const byDay = {};
       pairs.forEach(([inP,outP])=>{
         const dayKey = attDateKey(inP);
