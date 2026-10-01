@@ -5785,11 +5785,27 @@ async function importAttendanceFile(){
       });
     });
 
+    // Per device, the calendar-day range this import actually covers (from its first to its last
+    // punch). A day inside that range that this fresh computation does NOT produce a record for
+    // is stale and must be DELETED, not just left alone — e.g. a duplicate punch that used to make
+    // a bogus standalone "single punch" day now correctly merges into the day before it, so that
+    // old day record needs to disappear on re-import, not keep sitting there unchanged forever.
+    const importedRangeByDevice = {};
+    Object.keys(punchesByDevice).forEach(deviceId=>{
+      const times = punchesByDevice[deviceId].map(p=> p.t.getTime());
+      importedRangeByDevice[deviceId] = { min: attDateKey(new Date(Math.min(...times))), max: attDateKey(new Date(Math.max(...times))) };
+    });
+
     // upsert by id (deviceId+date) — re-importing a file that overlaps previously-imported days
-    // replaces those days instead of duplicating them
+    // replaces those days instead of duplicating them, and now also drops any day inside the
+    // re-imported range that the new computation no longer produces (see above).
     const existing = await getAttendanceDays();
     const byId = {};
-    existing.forEach(rec=> byId[rec.id] = rec);
+    existing.forEach(rec=>{
+      const range = importedRangeByDevice[String(rec.deviceId)];
+      const isStaleWithinThisImport = range && rec.date >= range.min && rec.date <= range.max;
+      if(!isStaleWithinThisImport) byId[rec.id] = rec; // outside this import's coverage — leave untouched
+    });
     newDayRecords.forEach(rec=> byId[rec.id] = rec);
     await saveAttendanceDays(Object.values(byId));
 
