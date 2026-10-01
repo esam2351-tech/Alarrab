@@ -5335,7 +5335,7 @@ async function renderPerformanceReviewsList(){
     const lastJob = lastJobEntry ? lastJobEntry.jobTitle : (templates.find(t=>t.id===s.reviewTemplateId)||{}).jobTitle;
     const jobLabel = lastJob ? 'آخر وظيفة: '+lastJob : 'لسه معملوش تقييم';
     const lastDateLabel = allEntries.length ? 'آخر تقييم: '+new Date(allEntries[0].date).toLocaleDateString('ar-EG') : '';
-    const avgLabel = thisMonthEntries.length ? (avg.toFixed(0)+'% · الشهر الحالي ('+thisMonthEntries.length+' يوم)') : 'لا يوجد تقييم الشهر ده';
+    const avgLabel = thisMonthEntries.length ? (avg.toFixed(2)+'% · الشهر الحالي ('+thisMonthEntries.length+' يوم)') : 'لا يوجد تقييم الشهر ده';
     return '<div class="staffrow" data-prstaff="'+esc(s.user)+'" style="cursor:pointer;">'
       + '<div><b>'+esc(s.name)+'</b><br><span>'+esc(jobLabel)+(lastDateLabel?' · '+esc(lastDateLabel):'')+' · '+avgLabel+'</span></div>'
       + '<div style="display:flex;gap:10px;align-items:center;"><span style="color:var(--muted);font-size:16px;">›</span></div>'
@@ -5470,7 +5470,7 @@ async function exportPerformanceReviewsExcel(){
           // (this was exactly why "عدد أيام التقييم" and the zero-count leave/absence cells were
           // showing up as "100%"/"0%" instead of plain numbers)
           sumWs[addr].s = Object.assign({}, (r===0) ? headerStyle : isLeaveHit ? leaveCellStyle : isAbsenceHit ? absenceCellStyle : isTextCol ? textCellStyle : cellStyle);
-          if(r>0 && c===2) sumWs[addr].z = '0%';
+          if(r>0 && c===2) sumWs[addr].z = '0.00%'; // متوسط تقييم الشهر — exact fraction, not rounded
         }
         // صفوف فيها أكتر من يوم واحد في الملاحظات/موعد الحضور محتاجة ارتفاع أكبر عشان الالتفاف
         // (wrapText) يبان كامل بدل ما يتقص — بنحسبه من أكبر عدد أسطر بين العمودين في الصف ده
@@ -5589,14 +5589,19 @@ function attReadFileAsArrayBuffer(file){
   });
 }
 
-// Fingerprint readers routinely register a single physical touch twice a few seconds apart
-// ("bounce") — e.g. a C/Out at 2:44:44 PM immediately followed by a C/In at 2:44:47 PM. Pairing
-// is purely positional ((1st,2nd), (3rd,4th), ...), so one unnoticed bounce shifts every pair
-// after it and silently wrecks the whole day's hours — a real ~7-8 hour shift can compute as a
-// few minutes once a stray extra punch throws off the parity. Collapsing any punch that lands
-// within a minute of the previous KEPT punch into that same punch (keep the earlier timestamp)
-// restores the correct pairing before anything is summed.
-const ATT_BOUNCE_THRESHOLD_MS = 60 * 1000;
+// Fingerprint readers routinely register a single physical touch twice a few seconds (sometimes
+// a couple of minutes, if the employee re-touches because the first scan seemed not to register)
+// apart ("bounce") — e.g. a C/Out at 6:21 PM immediately followed by another C/Out-looking punch
+// at 6:22-6:23 PM. Sequential pairing treats every kept punch as alternating in/out, so one
+// unnoticed bounce doesn't just blip that one punch — it turns into a spurious extra "check-in"
+// that then pairs with the FIRST punch of the next real workday as if it were one long overnight
+// shift, corrupting both the bounce day (an extra, bogus work period) and the day after it
+// (robbed of its own real check-in or check-out, left with a single unpaired punch). Collapsing
+// any punch that lands within ATT_BOUNCE_THRESHOLD_MS of the previous KEPT punch into that same
+// punch (keep the earlier timestamp) restores the correct pairing before anything is summed.
+// 3 minutes covers a human re-touch, not just an instant hardware double-read, while staying far
+// shorter than any real separate errand/trip out.
+const ATT_BOUNCE_THRESHOLD_MS = 3 * 60 * 1000;
 function attDedupeBouncePunches(sortedPunches){
   const out = [];
   sortedPunches.forEach(p=>{
@@ -6327,11 +6332,11 @@ function buildPrEmployeeSheet(criteria, monthEntries, year, month, daysInMonth){
         : rowOffType==='leave' ? leaveStyle
         : rowOffType==='absence' ? absenceStyle
         : cellStyle);
-      if(r===2 && c>=CRIT_START && c<=totalCol) ws[addr].z = '0%'; // weight row + its 100% check, as a percentage
+      if(r===2 && c>=CRIT_START && c<=totalCol) ws[addr].z = '0.00%'; // weight row + its 100% check, as a percentage
       if(r>=DAY_ROW_START && !isFinalRow && c===1) ws[addr].z = 'dd/mm/yyyy'; // date column
       if(r>=DAY_ROW_START && !isFinalRow && c===2) ws[addr].z = 'hh:mm';      // موعد الحضور column
       if(r>=DAY_ROW_START && !isFinalRow && !rowOffType && c>=CRIT_START && c<totalCol) ws[addr].z = '[=1]"✓";[=0]"✗"'; // show ✓/✗ instead of a raw 1/0, no change to the underlying value the formula multiplies
-      if(r>=DAY_ROW_START && !rowOffType && c===totalCol) ws[addr].z = '0%'; // daily total + month average, as a percentage (off-day rows hold a plain "إجازة"/"غياب" text label instead)
+      if(r>=DAY_ROW_START && !rowOffType && c===totalCol) ws[addr].z = '0.00%'; // daily total + month average, as a percentage (off-day rows hold a plain "إجازة"/"غياب" text label instead) — exact fraction, not rounded
     }
   }
 
@@ -6390,7 +6395,7 @@ function paintPerformanceReviewHistory(){
   const monthAvg = (prHistoryMonth!=null && prHistoryYear!=null)
     ? prMonthOverallAverage(list, new Date(prHistoryYear, prHistoryMonth, 0).getDate())
     : prMonthlyAverage(list);
-  avgEl.textContent = list.length ? 'متوسط الفترة المختارة: '+monthAvg.toFixed(0)+'% ('+list.length+' يوم مسجّل)' : '';
+  avgEl.textContent = list.length ? 'متوسط الفترة المختارة: '+monthAvg.toFixed(2)+'% ('+list.length+' يوم مسجّل)' : '';
 
   if(!list.length){
     box.innerHTML = '<div class="emptystate">لا توجد تقييمات مطابقة.</div>';
@@ -6404,7 +6409,7 @@ function paintPerformanceReviewHistory(){
     const jobLabel = dayType==='leave' ? '📅 إجازة' : dayType==='absence' ? '🚫 غياب' : (r.jobTitle||'—');
     const statusBadge = dayType==='leave' ? '<span class="cstatus resolved">📅 إجازة</span>'
       : dayType==='absence' ? '<span class="cstatus pending">🚫 غياب</span>'
-      : '<span class="cstatus resolved">'+score.toFixed(0)+'%</span>';
+      : '<span class="cstatus resolved">'+score.toFixed(2)+'%</span>';
     return '<div class="complaintcard">'
       + '<div class="ctop"><div><h4>'+dateLabel+'</h4><small>'+esc(jobLabel)+' · سجّله: '+esc(r.updatedBy||'—')+'</small></div>'
       + statusBadge + '</div>'
@@ -6468,7 +6473,7 @@ function paintPrCriteriaBox(){
 }
 function updatePrTotalScore(){
   const total = prWorkingCriteria.reduce((s,c)=> s + (c.checked ? (Number(c.weight)||0) : 0), 0);
-  document.getElementById('prTotalScore').textContent = total.toFixed(0)+'%';
+  document.getElementById('prTotalScore').textContent = total.toFixed(2)+'%';
 }
 
 // Called when the manager picks/changes which job the employee worked that day — since the
@@ -6672,7 +6677,7 @@ function paintMyPerformanceReview(){
     : prMonthlyAverage(list);
   box.innerHTML = '<div class="card">'
     + '<h3>متوسط الفترة المختارة</h3>'
-    + '<p class="sub" style="font-size:20px;font-weight:800;color:var(--espresso);margin:6px 0 4px;">'+monthAvg.toFixed(0)+'%</p>'
+    + '<p class="sub" style="font-size:20px;font-weight:800;color:var(--espresso);margin:6px 0 4px;">'+monthAvg.toFixed(2)+'%</p>'
     + '<p class="sub" style="margin:0;">عدد أيام التقييم المسجّلة: '+list.length+'</p>'
     + '</div>'
     + list.map(r=>{
@@ -6703,7 +6708,7 @@ function paintMyPerformanceReview(){
         : dayType==='absence' ? '<span style="color:var(--bad);font-weight:800;">🚫 غياب</span>'
         : 'الوظيفة: '+esc(r.jobTitle||'—');
       return '<div class="card">'
-        + '<h3>'+dateLabel+(isLeave?'':' — '+score.toFixed(0)+'%')+'</h3>'
+        + '<h3>'+dateLabel+(isLeave?'':' — '+score.toFixed(2)+'%')+'</h3>'
         + '<p class="sub" style="margin:-4px 0 10px;">'+dayTypeLabel+'</p>'
         + table
         + (r.notes ? '<div class="crow" style="margin-top:10px;">'+esc(r.notes)+'</div>' : '')
