@@ -4483,6 +4483,7 @@ function paintDailyNotesList(){
       + '<div class="crow">'+esc(n.description||'—')+'</div>'
       + '<div class="cbtnrow" style="margin-top:8px;">'
         + '<button class="shareWaBtn" data-dnshare="'+esc(n.id)+'">📤 واتساب</button>'
+        + (isViewer() ? '' : '<button class="shareWaBtn" data-dnedit="'+esc(n.id)+'" style="background:#EFEAE3;color:#2B211B;">✏️ تعديل</button>')
         + (isViewer() ? '' : '<button class="delCpBtn" data-dndel="'+esc(n.id)+'" style="background:#F7E3DC;color:var(--bad);">🗑️ حذف</button>')
       + '</div>'
       + '</div>';
@@ -4490,18 +4491,43 @@ function paintDailyNotesList(){
   box.querySelectorAll('[data-dnshare]').forEach(btn=>{
     btn.addEventListener('click', ()=> shareDailyNote(btn.getAttribute('data-dnshare')));
   });
+  box.querySelectorAll('[data-dnedit]').forEach(btn=>{
+    btn.addEventListener('click', ()=> editDailyNote(btn.getAttribute('data-dnedit')));
+  });
   box.querySelectorAll('[data-dndel]').forEach(btn=>{
     btn.addEventListener('click', ()=> deleteDailyNote(btn.getAttribute('data-dndel')));
   });
 }
 
+let editingDailyNoteId = null;
 function resetDailyNoteForm(){
+  editingDailyNoteId = null;
   const now = new Date();
   const pad = n => String(n).padStart(2,'0');
   document.getElementById('dn_date').value = now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
   document.getElementById('dn_time').value = pad(now.getHours())+':'+pad(now.getMinutes());
   document.getElementById('dn_shift').value = 'صباحي';
   document.getElementById('dn_description').value = '';
+  const h = document.querySelector('#dailyNoteAdd .head h2');
+  if(h) h.textContent = 'تسجيل ملاحظة يومية';
+  const saveBtn = document.getElementById('dnSaveBtn');
+  if(saveBtn) saveBtn.textContent = 'حفظ الملاحظة';
+}
+function editDailyNote(id){
+  const n = allDailyNotesCache.find(x=>x.id===id);
+  if(!n) return;
+  editingDailyNoteId = id;
+  const d = new Date(n.date);
+  const pad = x => String(x).padStart(2,'0');
+  document.getElementById('dn_date').value = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  document.getElementById('dn_time').value = pad(d.getHours())+':'+pad(d.getMinutes());
+  document.getElementById('dn_shift').value = n.shift || 'صباحي';
+  document.getElementById('dn_description').value = n.description || '';
+  const h = document.querySelector('#dailyNoteAdd .head h2');
+  if(h) h.textContent = 'تعديل ملاحظة يومية';
+  const saveBtn = document.getElementById('dnSaveBtn');
+  if(saveBtn) saveBtn.textContent = 'حفظ التعديل';
+  go('dailyNoteAdd');
 }
 async function submitDailyNote(){
   const dateStr = document.getElementById('dn_date').value;
@@ -4519,10 +4545,19 @@ async function submitDailyNote(){
   const combined = (dateStr && timeStr) ? new Date(dateStr+'T'+timeStr) : new Date();
   const staffName = currentStaff ? currentStaff.name : 'غير معروف';
   const notes = await getDailyNotes();
-  notes.push({
-    id: Date.now()+'_'+Math.random().toString(36).slice(2),
-    date: combined.toISOString(), shift, description, staff: staffName
-  });
+  if(editingDailyNoteId){
+    const idx = notes.findIndex(x=> x.id===editingDailyNoteId);
+    if(idx !== -1){
+      notes[idx] = Object.assign({}, notes[idx], {
+        date: combined.toISOString(), shift, description
+      });
+    }
+  } else {
+    notes.push({
+      id: Date.now()+'_'+Math.random().toString(36).slice(2),
+      date: combined.toISOString(), shift, description, staff: staffName
+    });
+  }
   await saveDailyNotes(notes);
 
   btn.disabled = false; btn.textContent = 'حفظ الملاحظة';
@@ -7268,6 +7303,7 @@ function paintWasteItemsReport(reports){
 }
 
 /* ================= REPORTS ================= */
+let reportsDay = null;
 let reportsMonth = new Date().getMonth()+1; // defaults to the current month so reports open already scoped to "this month"
 let reportsYear = new Date().getFullYear();
 const ARABIC_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
@@ -7285,11 +7321,12 @@ async function renderReports(){
 
   const feedbackList = allFeedback.filter(f=>{
     const d = new Date(f.date);
+    if(reportsDay!=null && d.getDate() !== reportsDay) return false;
     if(reportsMonth!=null && (d.getMonth()+1) !== reportsMonth) return false;
     if(reportsYear!=null && d.getFullYear() !== reportsYear) return false;
     return true;
   });
-  const filterActive = reportsMonth!=null || reportsYear!=null;
+  const filterActive = reportsDay!=null || reportsMonth!=null || reportsYear!=null;
   const totalCustomers = filterActive
     ? new Set(feedbackList.map(f=>f.phone)).size
     : customers.length;
@@ -7428,6 +7465,10 @@ async function renderReports(){
     '<div class="repcard" style="margin:0 18px 14px;">'
       + '<h4>📅 اختر الفترة</h4>'
       + '<div style="display:flex;gap:8px;">'
+        + '<select id="reportsDaySel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:\'Tajawal\';background:#FCF9F3;">'
+          + '<option value="">كل الأيام</option>'
+          + Array.from({length:31},(_, i)=>i+1).map(d=>'<option value="'+d+'" '+(reportsDay===d?'selected':'')+'>'+d+'</option>').join('')
+        + '</select>'
         + '<select id="reportsMonthSel" style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px;font-size:12.5px;font-family:\'Tajawal\';background:#FCF9F3;">'
           + '<option value="">كل الشهور</option>'
           + ARABIC_MONTHS.map((m,i)=>'<option value="'+(i+1)+'" '+(reportsMonth===(i+1)?'selected':'')+'>'+m+'</option>').join('')
@@ -7470,6 +7511,10 @@ async function renderReports(){
       + notesHtml
     + '</div>';
 
+  document.getElementById('reportsDaySel').addEventListener('change', e=>{
+    reportsDay = e.target.value ? parseInt(e.target.value,10) : null;
+    renderReports();
+  });
   document.getElementById('reportsMonthSel').addEventListener('change', e=>{
     reportsMonth = e.target.value ? parseInt(e.target.value,10) : null;
     renderReports();
