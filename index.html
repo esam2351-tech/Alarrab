@@ -5589,16 +5589,21 @@ function attReadFileAsArrayBuffer(file){
   });
 }
 
-// punches: sorted array of Date objects for one employee/day. Pairs them up as
-// (in1,out1),(in2,out2)... and sums each pair's duration in hours — so a mid-day errand
-// (out → back in → out again) only counts the actual worked spans, not the gap in between.
-// A trailing unpaired punch (odd count) contributes 0.
-function attSumPairedHours(punches){
-  let totalMs = 0;
-  for(let i=0; i+1<punches.length; i+=2){
-    totalMs += (punches[i+1] - punches[i]);
-  }
-  return totalMs / 3600000;
+// Fingerprint readers routinely register a single physical touch twice a few seconds apart
+// ("bounce") — e.g. a C/Out at 2:44:44 PM immediately followed by a C/In at 2:44:47 PM. Pairing
+// is purely positional ((1st,2nd), (3rd,4th), ...), so one unnoticed bounce shifts every pair
+// after it and silently wrecks the whole day's hours — a real ~7-8 hour shift can compute as a
+// few minutes once a stray extra punch throws off the parity. Collapsing any punch that lands
+// within a minute of the previous KEPT punch into that same punch (keep the earlier timestamp)
+// restores the correct pairing before anything is summed.
+const ATT_BOUNCE_THRESHOLD_MS = 60 * 1000;
+function attDedupeBouncePunches(sortedPunches){
+  const out = [];
+  sortedPunches.forEach(p=>{
+    const prev = out[out.length-1];
+    if(!prev || (p - prev) > ATT_BOUNCE_THRESHOLD_MS) out.push(p);
+  });
+  return out;
 }
 
 async function importAttendanceFile(){
@@ -5624,8 +5629,10 @@ async function importAttendanceFile(){
       return;
     }
 
-    // deviceId -> dateKey -> array of punch Dates
-    const punchesByDeviceDay = {};
+    // deviceId -> array of all punch Dates across the WHOLE file (not bucketed by calendar day
+    // yet) — an evening shift that punches in at 4 PM and out at 2 AM the next day must stay
+    // pairable across the midnight boundary, which day-first bucketing below used to break.
+    const punchesByDevice = {};
     let parsedCount = 0, skippedCount = 0;
     for(let r=1; r<rows.length; r++){
       const row = rows[r];
@@ -5634,10 +5641,8 @@ async function importAttendanceFile(){
       if(!deviceId) continue;
       const dt = attParseDateTime(row[dtCol]);
       if(!dt){ skippedCount++; continue; }
-      const dayKey = attDateKey(dt);
-      if(!punchesByDeviceDay[deviceId]) punchesByDeviceDay[deviceId] = {};
-      if(!punchesByDeviceDay[deviceId][dayKey]) punchesByDeviceDay[deviceId][dayKey] = [];
-      punchesByDeviceDay[deviceId][dayKey].push(dt);
+      if(!punchesByDevice[deviceId]) punchesByDevice[deviceId] = [];
+      punchesByDevice[deviceId].push(dt);
       parsedCount++;
     }
     if(!parsedCount){
@@ -5645,24 +5650,52 @@ async function importAttendanceFile(){
       return;
     }
 
-    // first punch of the day = check-in (for display), last punch = check-out (for display).
-    // hours worked are computed by pairing punches (in1,out1),(in2,out2)... and summing each
-    // pair's duration, so a mid-day errand (out → back in → out again) doesn't get counted as
-    // work time — only the actual in/out spans do. An unpaired trailing punch (odd count) is
-    // not counted toward hours.
+    // Pairs punches sequentially across the whole punch stream for one employee — (in1,out1),
+    // (in2,out2)... — instead of bucketing by calendar day first. That lets a night shift that
+    // starts before midnight and ends after it (check-in 4 PM, check-out 2 AM next day) stay one
+    // pair spanning two calendar days, rather than being split into two broken, unpaired
+    // single-punch days. A gap longer than maxShiftMs between two consecutive punches is too long
+    // to be one real shift (most likely a missed check-out/in somewhere), so that punch is left
+    // unpaired (0 hours, same as an odd trailing punch) and pairing restarts from the next one —
+    // this keeps a single missed punch from cascading and corrupting every later day for that
+    // employee.
+    const ATT_MAX_SHIFT_MS = 16 * 3600 * 1000;
+    function attPairPunchesSequential(punches, maxShiftMs){
+      const pairs = [];
+      let i = 0;
+      while(i < punches.length){
+        if(i+1 < punches.length && (punches[i+1]-punches[i]) <= maxShiftMs){
+          pairs.push([punches[i], punches[i+1]]);
+          i += 2;
+        } else {
+          pairs.push([punches[i], null]);
+          i += 1;
+        }
+      }
+      return pairs;
+    }
+
+    // Each pair/orphan is then attributed to the calendar day of its check-in (a night shift's
+    // hours land on the day it started, not the day it happened to end).
     const newDayRecords = [];
-    Object.keys(punchesByDeviceDay).forEach(deviceId=>{
-      const days = punchesByDeviceDay[deviceId];
-      Object.keys(days).forEach(dayKey=>{
-        const punches = days[dayKey].slice().sort((a,b)=> a-b);
-        const checkIn = punches[0];
-        const checkOut = punches[punches.length-1];
-        const hours = attSumPairedHours(punches);
+    Object.keys(punchesByDevice).forEach(deviceId=>{
+      const punches = attDedupeBouncePunches(punchesByDevice[deviceId].slice().sort((a,b)=> a-b));
+      const pairs = attPairPunchesSequential(punches, ATT_MAX_SHIFT_MS);
+      const byDay = {};
+      pairs.forEach(([inP,outP])=>{
+        const dayKey = attDateKey(inP);
+        if(!byDay[dayKey]) byDay[dayKey] = [];
+        byDay[dayKey].push([inP,outP]);
+      });
+      Object.keys(byDay).forEach(dayKey=>{
+        const dayPairs = byDay[dayKey];
+        const hours = dayPairs.reduce((s,[a,b])=> s + (b ? (b-a)/3600000 : 0), 0);
+        const dayPunches = dayPairs.reduce((arr,[a,b])=> { arr.push(a); if(b) arr.push(b); return arr; }, []);
         newDayRecords.push({
           id: deviceId+'_'+dayKey,
           deviceId, date: dayKey,
-          checkIn: checkIn.toISOString(), checkOut: checkOut.toISOString(),
-          punchCount: punches.length, hours,
+          checkIn: dayPunches[0].toISOString(), checkOut: dayPunches[dayPunches.length-1].toISOString(),
+          punchCount: dayPunches.length, hours,
           importedAt: new Date().toISOString()
         });
       });
@@ -5676,7 +5709,7 @@ async function importAttendanceFile(){
     newDayRecords.forEach(rec=> byId[rec.id] = rec);
     await saveAttendanceDays(Object.values(byId));
 
-    const deviceCount = Object.keys(punchesByDeviceDay).length;
+    const deviceCount = Object.keys(punchesByDevice).length;
     statusEl.textContent = 'تم الاستيراد ✅ — '+newDayRecords.length+' يوم عمل لـ'+deviceCount+' رقم بصمة'+(skippedCount ? ' (اتجاهل '+skippedCount+' صف مش مفهوم التاريخ بتاعه)' : '')+'.';
     fileInput.value = '';
     if(currentScreen==='attendance') renderAttendanceScreen();
