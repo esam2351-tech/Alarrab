@@ -1909,7 +1909,17 @@ async function saveAttendanceDays(arr){
     const prev = prevById[r.id];
     return !prev || JSON.stringify(prev) !== JSON.stringify(r);
   });
-  await Promise.all(changed.map(r=> saveItem('attendanceDayItems', r)));
+  // A record present in the OLD state but missing from the new `arr` (e.g. a re-import whose
+  // corrected pairing no longer produces a day that used to exist) must be deleted from Firestore,
+  // not just left out of this write — otherwise the live subscription below keeps reloading that
+  // stale document from the server on every snapshot and it never actually goes away, no matter
+  // how many times the caller re-imports with a corrected `arr` that excludes it.
+  const newIds = new Set(arr.map(r=> r.id));
+  const removedIds = Object.keys(prevById).filter(id=> !newIds.has(id));
+  await Promise.all([
+    ...changed.map(r=> saveItem('attendanceDayItems', r)),
+    ...removedIds.map(id=> deleteItemDoc('attendanceDayItems', id))
+  ]);
 }
 async function getLatePenaltyDecisions(){ return APP_STATE.latePenaltyDecisions; }
 async function saveLatePenaltyDecisions(arr){ APP_STATE.latePenaltyDecisions = arr; saveShared('latePenaltyDecisions', arr); }
