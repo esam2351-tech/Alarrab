@@ -6785,9 +6785,12 @@ async function openSalaryEdit(entryId){
     SALARY_TEXT_FIELD_IDS.forEach(f=>{ document.getElementById('sal_'+f).value = ''; });
     document.getElementById('salLastUpdated').textContent = '';
     // pre-fill "متوسط التقييم الفني %" من متوسط تقييمات الأداء، و"أيام/ساعات العمل الفعلية"
-    // من بيانات جهاز البصمة المستوردة — كلها مجرد نقطة بداية، الـ HR يقدر يعدّل فوقها
+    // من بيانات جهاز البصمة المستوردة، و"الأيام/الساعات المخططة" و"أيام الإضافي" بالمعادلات
+    // المتفق عليها — كلها مجرد نقطة بداية، الـ HR يقدر يعدّل فوقها
     prefillSalaryTechEval();
-    prefillSalaryActualHours();
+    prefillSalaryPlannedDays();
+    await prefillSalaryActualHours();
+    prefillSalaryDerivedPlanning();
   }
   updateSalarySummary();
   go('salaryEdit');
@@ -6836,6 +6839,32 @@ async function prefillSalaryActualHours(){
     const latenessNoteField = document.getElementById('sal_latenessNote');
     if(penaltyDaysField && !penaltyDaysField.value) penaltyDaysField.value = totalPenaltyDays;
     if(latenessNoteField && !latenessNoteField.value) latenessNoteField.value = approvedThisMonth.length+' تأخير معتمد (خصم '+totalPenaltyDays+' يوم)';
+  }
+  updateSalarySummary();
+}
+
+// أيام العمل المخططة = عدد أيام الشهر المختار ناقص 4 أيام (المعادلة المتفق عليها)
+function prefillSalaryPlannedDays(){
+  const month = parseInt(document.getElementById('sal_month').value, 10);
+  const year = parseInt(document.getElementById('sal_year').value, 10);
+  if(!month || !year) return;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const field = document.getElementById('sal_plannedWorkDays');
+  if(field && !field.value) field.value = daysInMonth - 4;
+  updateSalarySummary();
+}
+// لازم تتنفّذ بعد ما "أيام العمل الفعلية" و"أيام العمل المخططة" يتحطوا (يدوي أو أوتوماتيك):
+// عدد الساعات المخططة = أيام العمل الفعلية × 9، وأيام الإضافي = الفعلية ناقص المخططة.
+function prefillSalaryDerivedPlanning(){
+  const actualWorkDays = parseFloat(document.getElementById('sal_actualWorkDays').value);
+  const plannedWorkDays = parseFloat(document.getElementById('sal_plannedWorkDays').value);
+  if(!isNaN(actualWorkDays)){
+    const hoursField = document.getElementById('sal_plannedHours');
+    if(hoursField && !hoursField.value) hoursField.value = (actualWorkDays * 9).toFixed(2);
+  }
+  if(!isNaN(actualWorkDays) && !isNaN(plannedWorkDays)){
+    const otField = document.getElementById('sal_overtimeDays');
+    if(otField && !otField.value) otField.value = (actualWorkDays - plannedWorkDays).toFixed(2);
   }
   updateSalarySummary();
 }
@@ -7969,8 +7998,10 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   document.getElementById('salAddBtn').addEventListener('click', ()=> openSalaryEdit(null));
   document.getElementById('salSaveBtn').addEventListener('click', saveSalaryRecord);
-  document.getElementById('sal_month').addEventListener('change', ()=>{ if(!editingSalaryId){ prefillSalaryTechEval(); prefillSalaryActualHours(); } });
-  document.getElementById('sal_year').addEventListener('change', ()=>{ if(!editingSalaryId){ prefillSalaryTechEval(); prefillSalaryActualHours(); } });
+  document.getElementById('sal_month').addEventListener('change', async ()=>{ if(!editingSalaryId){ prefillSalaryTechEval(); prefillSalaryPlannedDays(); await prefillSalaryActualHours(); prefillSalaryDerivedPlanning(); } });
+  document.getElementById('sal_year').addEventListener('change', async ()=>{ if(!editingSalaryId){ prefillSalaryTechEval(); prefillSalaryPlannedDays(); await prefillSalaryActualHours(); prefillSalaryDerivedPlanning(); } });
+  document.getElementById('sal_actualWorkDays').addEventListener('change', ()=>{ prefillSalaryDerivedPlanning(); });
+  document.getElementById('sal_plannedWorkDays').addEventListener('change', ()=>{ prefillSalaryDerivedPlanning(); });
   SALARY_FIELD_IDS.forEach(f=>{
     const el = document.getElementById('sal_'+f);
     if(el) el.addEventListener('input', updateSalarySummary);
