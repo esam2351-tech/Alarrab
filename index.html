@@ -7400,12 +7400,31 @@ function paintEquipmentList(equipment){
   box.innerHTML = equipment.map((e,idx)=>
     '<div class="staffrow" style="margin:0 18px 8px;">'
       + '<div><b>'+esc(e.name)+'</b><br><span>الرصيد الأول: '+e.qty+'</span></div>'
-      + '<div style="display:flex;gap:8px;align-items:center;">'
+      + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">'
+        + '<button class="delStaff" data-eqreceive="'+idx+'" style="color:var(--good);">📥 استلمت كمية</button>'
         + '<button class="delStaff" data-eqedit="'+idx+'" style="color:var(--espresso-2);">تعديل الرصيد الأول</button>'
         + '<button class="delStaff" data-eqdel="'+idx+'">حذف</button>'
       + '</div>'
     + '</div>'
   ).join('');
+  // "استلمت كمية" ADDS a newly-received amount on top of whatever is already recorded — for the
+  // normal case of restocking an item you already track — as opposed to "تعديل الرصيد الأول" which
+  // overwrites the number outright (for correcting a miscount, starting a new item, etc).
+  box.querySelectorAll('[data-eqreceive]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const idx = parseInt(btn.getAttribute('data-eqreceive'),10);
+      const equipment = await getEquipment();
+      const current = equipment[idx];
+      if(!current) return;
+      const receivedStr = prompt('الكمية اللي استلمتها دلوقتي من "'+current.name+'" (هتتضاف على الرصيد الحالي: '+current.qty+'):', '');
+      if(receivedStr===null) return;
+      const received = parseInt(receivedStr,10);
+      if(isNaN(received) || received<=0){ alert('اكتب رقم أكبر من صفر'); return; }
+      equipment[idx].qty = (Number(equipment[idx].qty)||0) + received;
+      await saveEquipment(equipment);
+      paintEquipmentList(equipment);
+    });
+  });
   box.querySelectorAll('[data-eqedit]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const idx = parseInt(btn.getAttribute('data-eqedit'),10);
