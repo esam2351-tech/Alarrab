@@ -4140,6 +4140,28 @@ async function renderWholesaleReport(){
       + '</tbody></table></div>'
     : '<div style="color:var(--muted);font-size:12.5px;">لا توجد أصناف مسجلة في الفترة دي بعد.</div>';
 
+  // aggregate calls/orders per staff member who logged them
+  const staffTotals = {};
+  ordersFiltered.forEach(o=>{
+    const key = (o.staff||'غير معروف').trim() || 'غير معروف';
+    if(!staffTotals[key]) staffTotals[key] = {orders:0, calls:0};
+    staffTotals[key].orders++;
+  });
+  callsFiltered.forEach(cl=>{
+    const key = (cl.staff||'غير معروف').trim() || 'غير معروف';
+    if(!staffTotals[key]) staffTotals[key] = {orders:0, calls:0};
+    staffTotals[key].calls++;
+  });
+  const staffEntries = Object.entries(staffTotals).sort((a,b)=> (b[1].orders+b[1].calls) - (a[1].orders+a[1].calls));
+  const staffTableHtml = staffEntries.length
+    ? '<div style="overflow-x:auto;"><table style="border-collapse:collapse;width:100%;min-width:280px;">'
+      + '<thead><tr style="background:#FBF3E6;"><th style="padding:8px 6px;font-size:10.5px;color:var(--muted);text-align:right;white-space:nowrap;">الموظف</th><th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">عدد الطلبات</th><th style="padding:8px 6px;font-size:10.5px;color:var(--muted);white-space:nowrap;">عدد المكالمات</th></tr></thead>'
+      + '<tbody>'+staffEntries.map(([name,t])=>
+          '<tr style="border-top:1px solid var(--line);"><td style="padding:8px 6px;font-size:12px;font-weight:700;">'+esc(name)+'</td><td style="padding:8px 6px;font-size:12px;text-align:center;">📦 '+t.orders+'</td><td style="padding:8px 6px;font-size:12px;text-align:center;">📞 '+t.calls+'</td></tr>'
+        ).join('')
+      + '</tbody></table></div>'
+    : '<div style="color:var(--muted);font-size:12.5px;">لا توجد بيانات موظفين مسجلة في الفترة دي بعد.</div>';
+
   body.innerHTML =
     '<div class="repcard" style="margin:0 18px 14px;">'
       + '<h4>📅 اختر الفترة</h4>'
@@ -4192,6 +4214,13 @@ async function renderWholesaleReport(){
     + '<div class="repcard" style="margin:0 18px 18px;">'
       + '<h4>📦 إجمالي الكميات حسب الصنف</h4>'
       + itemsTableHtml
+    + '</div>'
+    + '<div class="repcard" style="margin:0 18px 18px;">'
+      + '<h4>👤 عدد المكالمات والطلبات لكل موظف</h4>'
+      + '<div style="display:flex;gap:8px;margin-bottom:10px;">'
+        + '<button class="btn ghost" id="wsStaffExportExcelBtn" style="flex:1;">📊 تصدير Excel</button>'
+      + '</div>'
+      + staffTableHtml
     + '</div>';
 
   document.querySelectorAll('[data-viewwscust]').forEach(el=>{
@@ -4217,6 +4246,11 @@ async function renderWholesaleReport(){
   });
   document.getElementById('wsExportPdfBtn').addEventListener('click', ()=>{
     exportRowsToPDF('تقرير-عملاء-الجملة.pdf', 'تقرير عملاء الجملة', wsExportHeaders, wsExportRows);
+  });
+  const wsStaffExportHeaders = ['الموظف','عدد الطلبات','عدد المكالمات'];
+  const wsStaffExportRows = staffEntries.map(([name,t])=>[name, t.orders, t.calls]);
+  document.getElementById('wsStaffExportExcelBtn').addEventListener('click', ()=>{
+    exportRowsToExcel('تقرير-الموظفين-عملاء-الجملة.xlsx', 'أداء الموظفين', wsStaffExportHeaders, wsStaffExportRows);
   });
 }
 
